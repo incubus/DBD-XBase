@@ -19,7 +19,7 @@ use XBase::Base;	# will give us general methods
 use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
-$VERSION = '0.062';
+$VERSION = '0.063';
 $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 
 *errstr = \$XBase::Base::errstr;
@@ -594,6 +594,16 @@ sub prepare_select
 	return bless [ $self, undef, $fieldnums ], 'XBase::Cursor';
 	}
 
+sub prepare_select_with_index
+	{
+	my ($self, $file) = ( shift, shift );
+	my $fieldnums = [ map { $self->field_name_to_num($_); } @_ ];
+	require XBase::Index;
+	my $index = new XBase::Index $file;
+	$index->prepare_select;
+	return bless [ $self, $index, $fieldnums ], 'XBase::IndexCursor';
+	}
+
 package XBase::Cursor;
 
 sub fetch
@@ -618,6 +628,32 @@ sub fetch
 sub last_fetched
 	{ shift->[1]; }
 
+package XBase::IndexCursor;
+
+sub find_eq
+	{
+	my $self = shift;
+	$self->[1]->prepare_select_eq(shift);
+	}
+
+sub fetch
+	{
+	my $self = shift;
+	my ($xbase, $index, $fieldnums) = @{$self}[0 .. 2];
+	my ($key, $val) = $index->fetch;
+	return unless defined $val;
+	my $del = 1;
+	my @result;
+	while ($del)
+		{
+		($del, @result) = $xbase->get_record_nf($val - 1, @$fieldnums);
+		last unless @result;
+		}
+	### print "$key, $val, @result\n";
+	@result;
+	}
+
+
 1;
 
 __END__
@@ -625,8 +661,8 @@ __END__
 =head1 SYNOPSIS
 
   use XBase;
-  my $table = new XBase("dbase.dbf") or die XBase->errstr();
-  for (0 .. $table->last_record())
+  my $table = new XBase "dbase.dbf" or die XBase->errstr;
+  for (0 .. $table->last_record)
 	{
 	my ($deleted, $id, $msg)
 		= $table->get_record($_, "ID", "MSG");
@@ -642,7 +678,7 @@ XBase files. For DBI compliant database access, check the DBD::XBase
 and DBI modules.
 
 B<Warning> for now: XBase doesn't support any index files at present!
-That means if you change your dbf, your idx/mdx (if you have any) will
+That means if you change your dbf, your ndx/mdx (if you have any) will
 not match. You will need to regenerate them using other tools --
 probably those that later make use of them. If you do not have any
 indexes, do not worry about them.
@@ -892,7 +928,7 @@ welcome.
 
 =head1 VERSION
 
-0.062
+0.063
 
 =head1 AUTHOR
 

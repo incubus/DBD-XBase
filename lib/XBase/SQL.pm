@@ -18,17 +18,18 @@ $DEBUG = 0;
 
 
 my %TYPES = ( 'char' => 'C', 'num' => 'N', 'numeric' => 'N', 'int' => 'N',
-		'float' => 'N', 'boolean' => 'L',
+		'integer' => 'N', 'float' => 'N', 'boolean' => 'L',
 		'blob' => 'M', 'memo' => 'M', 'float' => 'F', 'date' => 'D' );
 
 %COMMANDS = (
-	'COMMANDS' => 	' SELECT | INSERT | DELETE | UPDATE | CREATE ',
+	'COMMANDS' => 	' SELECT | INSERT | DELETE | UPDATE | CREATE | DROP ',
 	'SELECT' =>	' select SELECTFIELDS from TABLE WHERE ? ',
 	'INSERT' =>	q' insert into TABLE INSERTFIELDS ? values
 						\( INSERTCONSTANTS \) ',
 	'DELETE' =>	' delete from TABLE WHERE ? ',
 	'UPDATE' =>	' update TABLE set SETCOLUMNS WHERE ? ',
 	'CREATE' =>	q' create table TABLE \( COLUMNDEF ( , COLUMNDEF ) * \) ',
+	'DROP' =>	q' drop table TABLE ',
 
 	'TABLE' =>	q'[a-z_][a-z0-9_]*',
 	'FIELDNAME' =>	q'[a-z_][a-z0-9_]*',
@@ -57,10 +58,10 @@ my %TYPES = ( 'char' => 'C', 'num' => 'N', 'numeric' => 'N', 'int' => 'N',
 	
 	'TYPELENGTH' => q'\d+',
 	'TYPEDEC' => q'\d+',
-	'COLUMNDEF' => 'FIELDNAME FIELDTYPE',
+	'COLUMNDEF' => 'FIELDNAME FIELDTYPE ( not null ) ?',
 	'FIELDTYPE' => 'TYPECHAR | TYPENUM | TYPEBOOLEAN | TYPEMEMO | TYPEDATE',
 	'TYPECHAR' => q'char ( \( TYPELENGTH \) ) ?',
-	'TYPENUM' => q'( num | numeric | float | int ) ( \( TYPELENGTH ( , TYPEDEC ) ? \) ) ?',
+	'TYPENUM' => q'( num | numeric | float | int | integer ) ( \( TYPELENGTH ( , TYPEDEC ) ? \) ) ?',
 	'TYPEBOOLEAN' => q'boolean | logical',
 	'TYPEMEMO' => q'memo | blob',
 	'TYPEDATE' => q'date',
@@ -103,6 +104,9 @@ my %STORE = (
 		push @{$self->{'createtypes'}}, $TYPES{lc $type};
 		push @{$self->{'createlengths'}}, $len;
 		push @{$self->{'createdecimals'}}, $dec; },
+
+	'DROP' => sub { shift->{'command'} = 'drop'; },
+	'DROP TABLE' => 'table',
 
 	'WHEREEXPR' => sub { my ($self, $expr) = @_;
 		### print "Evaling $expr\n";

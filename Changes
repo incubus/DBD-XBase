@@ -1,13 +1,25 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
+0.063 Sun May 17 21:46:08 CEST 1998
+
+	Added first support for ndx index files. From XBase module
+	it's available using prepare_select_with_index.	It's very
+	alpha but it seems to handle character and numeric (not date
+	yet) types. And yes, it's read only.
+
+	Added FETCH('NAME') and _ListTables to DBD::XBase, added drop
+	table, integer type and dummy not null to XBase::SQL. The
+	generic DBI test suite now goes well up until bind params, put
+	on ToDo list.
+
 0.062 Thu May 14 15:11:32 MET DST 1998
 
 	Field and table names in XBase::SQL now accept digits and
 	underscores, in XBase::Memo, we check for
 	($dbf_version & 15), patches by Jens Quade.
 
-	Fixed handling of Fox* ftp files and a problem with memo
+	Fixed handling of Fox* fpt files and a problem with memo
 	files that have record length different than 512, patches
 	by Thomas Grueter.
 
@@ -16,7 +28,7 @@ Revision history for Perl extension XBase and DBD::Xbase.
 	Fixed writing undefined values in numeric fields.
 	Fixed dealing with uppercase extensions.
 
-	XBase::SQL fixed to support 'int' found by Chris Winters.
+	XBase::SQL fixed to support int, found by Chris Winters.
 
 	Offset in the record headers in dbf now set properly, patch by
 	Dave Frascone.
@@ -67,12 +79,12 @@ Revision history for Perl extension XBase and DBD::Xbase.
 	Fix of XBase::Memo::dBaseIV::read_record for memo fields
 	longer than record length by Jochen Friedrich.
 
-0.0583 Thu Feb 12 00:08:07 MET 1998		(*****)
+0.0583 Thu Feb 12 00:08:07 MET 1998
 
 	Bug fix for floating fields, patch by Carlos Augusto de
 	Almeida.
 
-0.058 Mon Feb  9 19:15:03 MET 1998
+0.058 Mon Feb  9 19:15:03 MET 1998		(*****)
 
 	XBase::SQL rewritten, DBD::XBase now supports select, delete,
 	insert, update and create table. Documentation for DBD::XBase

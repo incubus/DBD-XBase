@@ -5,9 +5,12 @@ Short term (I will do them as my time allows):
 
 	Solve the memo position caching.
 
+	Bind params in DBD::XBase/XBase::SQL to support as much of the
+	generic DBI test suite as possible.
+
 Mid term (would appreciate help or comments):
 
-	Start work on ndx index type.
+	Work on ndx index type.
 
 	Check DBD::XBase, make it DBI 0.93 compliant.
 

@@ -4,9 +4,13 @@ Makefile.PL
 README
 ToDo
 bin/dbfdump.PL
+dbitests/XBase.dbtest
+dbitests/XBase.mtest
+dbitests/lib.pl
 eg/copy_table
 eg/create_table
 eg/dump_table
+eg/use_index
 lib/DBD/XBase.pm
 lib/XBase.pm
 lib/XBase/Base.pm

@@ -19,7 +19,7 @@ use vars qw($VERSION @ISA @EXPORT $err $errstr $drh);
 
 require Exporter;
 
-$VERSION = '0.058';
+$VERSION = '0.063';
 
 $err = 0;
 $errstr = '';
@@ -137,6 +137,19 @@ sub STORE {
 	$dbh->DBD::_::db::STORE($attrib, $value);
 	}
 
+sub _ListTables
+	{
+	my $dbh = shift;
+	opendir DIR, $dbh->{'dsn'} or return;
+	my @result = ();
+	while (defined(my $item = readdir DIR))
+		{
+		next unless $item =~ s/\.dbf$//;
+		push @result, $item;
+		}
+	closedir DIR;
+	@result;
+	}
 
 package DBD::XBase::st;
 use strict;
@@ -241,14 +254,10 @@ sub fetch
         my $sth = shift;
 	my $current = $sth->{'xbase_current_record'};
 	my $parsed_sql = $sth->{'xbase_parsed_sql'};
+	my $table = $sth->{'xbase_table'};
 	return unless $parsed_sql->{'command'} eq 'select';
 	$current = 0 unless defined $current;
-	my $table = $sth->{'xbase_table'};
-	my @fields;
-	if (defined $parsed_sql->{'selectall'})
-		{ @fields = $table->field_names(); }
-	else
-		{ @fields = @{$parsed_sql->{'selectfields'}}; }
+	my @fields = @{ $sth->FETCH('NAME') };
 	while ($current <= $table->last_record())
 		{
 		my $values = $table->get_record_as_hash($current);
@@ -262,6 +271,21 @@ sub fetch
 	}
 *fetchrow_arrayref = \&fetch;
 
+sub FETCH
+	{
+	my $sth = shift;
+	my $parsed_sql = $sth->{'xbase_parsed_sql'};
+	my $table = $sth->{'xbase_table'};
+	if (defined $_[0] and $_[0] eq 'NAME')
+		{
+		if (defined $parsed_sql->{'selectall'})
+			{ return [ $table->field_names() ]; }
+		else
+			{ return [ @{$parsed_sql->{'selectfields'}} ]; }
+		}
+	}
+sub finish
+	{ 1; }
 1;
 
 __END__
@@ -346,7 +370,7 @@ types. Example:
 
 =head1 VERSION
 
-0.058
+0.063
 
 =head1 AUTHOR
 
