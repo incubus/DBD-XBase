@@ -19,7 +19,7 @@ use vars qw( $VERSION @ISA @EXPORT $err $errstr $drh $sqlstate );
 
 require Exporter;
 
-$VERSION = '0.131';
+$VERSION = '0.140';
 
 $err = 0;
 $errstr = '';
@@ -184,11 +184,12 @@ my @TYPE_INFO_ALL = (
 	[ 'NUMERIC', DBI::SQL_NUMERIC, 0, '', '', 'number of digits', 1, 0, 2, 0, 0, 0, undef, 0, undef ],
 	[ 'BOOLEAN', DBI::SQL_BINARY, 0, '', '', 'number of digits', 1, 0, 2, 0, 0, 0, undef, 0, undef ],
 	[ 'DATE', DBI::SQL_DATE, 0, '', '', 'number of digits', 1, 0, 2, 0, 0, 0, undef, 0, undef ],
+	[ 'TIME', DBI::SQL_TIME, 0, '', '', 'number of digits', 1, 0, 2, 0, 0, 0, undef, 0, undef ],
 	[ 'BLOB', DBI::SQL_LONGVARBINARY, 0, '', '', 'number of bytes', 1, 0, 2, 0, 0, 0, undef, 0, undef ],
 	);
 
 my %TYPE_INFO_TYPES = map { ( $TYPE_INFO_ALL[$_][0] => $_ ) } ( 1 .. $#TYPE_INFO_ALL );
-my %REVTYPES = qw( C char N numeric F float L boolean D date M blob );
+my %REVTYPES = qw( C char N numeric F float L boolean D date M blob T time );
 my %REVSQLTYPES = map { ( $_ => $TYPE_INFO_ALL[  $TYPE_INFO_TYPES{ uc $REVTYPES{$_} } ][1] ) } keys %REVTYPES;
 
 ### use Data::Dumper; print Dumper \%TYPE_INFO_TYPES, \%REVSQLTYPES;
@@ -638,7 +639,7 @@ Example:
 
 =head1 VERSION
 
-0.131
+0.140
 
 =head1 AUTHOR
 

@@ -136,5 +136,7 @@ at Faculty of Informatics, Masaryk University in Brno, Czech Republic
 
 perl(1); XBase(3)
 
+=cut
+
 EOBODY
 

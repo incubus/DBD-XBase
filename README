@@ -8,13 +8,14 @@ read it if you install this module for the first time or if there are
 some problems with the module.
 
 Module XBase provides access to XBase (dBase, Fox*) database files,
-namely dbf, dbt, fpt, ndx and ntx. It provides native Perl interface
-($table->get_record, $table->update_record) to read and write the tables.
-Module DBD::XBase is a DBI driver that uses the XBase module to work with
-the data, providing you with DBI compliant processing interface and SQL
-commands ($dbh->prepare("SELECT * FROM TABLE")). As an argument to
-DBI->connect, specify "dbi:XBase:$dir", where $dir is the directory with
-the data files.
+namely dbf, dbt, fpt, ndx, ntx, mdx, idx and cdx. It provides native
+Perl interface ($table->get_record, $table->update_record) to read
+and write the tables. The index support is alpha and read only at the
+moment. Module DBD::XBase is a DBI driver that uses the XBase module
+to work with the data, providing you with DBI compliant processing
+interface and SQL commands ($dbh->prepare("SELECT * FROM TABLE")). As
+an argument to DBI->connect, specify "dbi:XBase:$dir", where $dir is
+the directory with the data files.
 
 So this package offers two ways of accessing your beloved data in dbf
 files: XBase and DBD::XBase. You are free to pick any you find more
@@ -29,11 +30,12 @@ PostgreSQL.
 The distribution also includes a dbfdump script that prints the content
 of the table in readable form.
 
-The support for ndx/ntx index files is rather minimal. It currently
-allows you to search directly to the record you want, in the XBase
-module. But you cannot create the index, nor is the index updated when
-you change the dbf. Check the eg/ directory for how you can help to
-make it better.
+The support for ndx/ntx/idx/mdx/cdx index files still needs quite
+a lot of work. It currently allows you to search directly to the
+record you want, using the prepare_select_with_index method of the
+XBase table object. But you cannot create the index, nor is the index
+updated when you change the dbf. Check the XBase::Index(3) man page
+and the eg/ directory for how you can help to make it better.
 
 You have to have Perl version 5.004. [Please do not ask me to make these
 modules work under 5.003 or older version -- upgrade instead.]

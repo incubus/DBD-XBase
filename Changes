@@ -1,6 +1,17 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
+0.140 Thu Apr 29 10:50:58 MET DST 1999
+	XBase: the -1 memo records handle the 4 byte fields as well,
+	patch by Zbigniew Malinowski.
+
+	XBase::Index: support for cdx files improved (numeric fields),
+	subindexes.
+
+	XBase::SQL: code properly commented.
+
+	DBD::XBase: added the time type, aptch by Nikolai Saoukh.
+
 0.132 Sun Apr 18 17:35:10 MET DST 1999
 	XBase::Base: dealing of openoptions fixed, problem spotted by
 	Zbigniew Malinowski.
