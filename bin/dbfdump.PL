@@ -21,8 +21,9 @@ $^W = 1;
 
 my $stdin = 0;
 
-if (defined $ARGV[$#ARGV] and $ARGV[$#ARGV] eq '-')
-	{ $stdin = 1; pop @ARGV; }
+if (defined $ARGV[$#ARGV] and $ARGV[$#ARGV] eq '-') {
+	$stdin = 1; pop @ARGV;
+}
 
 my %options;
 Getopt::Long::GetOptions( \%options,
@@ -31,14 +32,17 @@ Getopt::Long::GetOptions( \%options,
 	'SQL',
 	) or exit;
 
-if (defined $options{'version'})
-	{ print "This is dbfdump version $XBase::VERSION.\n"; exit; }
+if (defined $options{'version'}) {
+	print "This is dbfdump version $XBase::VERSION.\n";
+	exit;
+}
 
-if ($stdin)
-	{ push @ARGV, '-'; $options{'nomemo'} = 1; }
+if ($stdin) {
+	push @ARGV, '-';
+	$options{'nomemo'} = 1;
+}
 
-if (@ARGV == 0 or defined $options{'help'})
-	{
+if (@ARGV == 0 or defined $options{'help'}) {
 	die <<'EOF';
 Usage: dbfdump [ options ] files
     where the options specify
@@ -54,31 +58,32 @@ Usage: dbfdump [ options ] files
 	--info		only print info about the file and fields
 	--version	print version of the XBase library
 EOF
-	}
+}
 
 my %addopts = ();
-if (defined $options{'nomemo'} or defined $options{'info'})
-	{ $addopts{'ignorememo'} = 1; }
+if (defined $options{'nomemo'} or defined $options{'info'}) {
+	$addopts{'ignorememo'} = 1;
+}
 
 $addopts{'memosep'} = $options{'memosep'};
 $addopts{'memofile'} = $options{'memofile'};
 
+if (defined $options{'info'}) {
+	$addopts{'ignorebadheader'} = 1;
+}
+
 my $file;
-for $file (@ARGV)
-	{
+for $file (@ARGV) {
 	my $table = new XBase 'name' => $file, %addopts;
 
-	if (not defined $table)
-		{
+	if (not defined $table) {
 		print STDERR XBase->errstr;
 		next;
-		}
-	if (defined $options{'info'})
-		{
+	}
+	if (defined $options{'info'}) {
 		if (not defined $options{'SQL'}) {
 			print $table->header_info;
-			}
-		else {
+		} else {
 			my $name = $file;
 			$name =~ s!^.*/|\.dbf$!!ig;
 			print "create table $name (\n";
@@ -99,24 +104,24 @@ for $file (@ARGV)
 				print "\t$names[$i] $types[$i]";
 				if ($types[$i] eq 'blob') {
 					$lengths[$i] = $decimals[$i] = undef;
-					}
+				}
 				if ($lengths[$i] or $decimals[$i]) {
 					print "($lengths[$i]";
 					print ", $decimals[$i]" if $decimals[$i];
 					print ")";
-					}
+				}
 				if (defined $names[$i+1]) {
 					print ',';
-					}
-				print "\n";
 				}
-			print ")\n";
+				print "\n";
 			}
+			print ")\n";
 		}
-	else
-		{ $table->dump_records(%options) or print STDERR $table->errstr; }
-	$table->close;
+	} else {
+		$table->dump_records(%options) or print STDERR $table->errstr;
 	}
+	$table->close;
+}
 
 1;
 

@@ -14,15 +14,17 @@ my $dbfdump = "$dir/blib/script/dbfdump";
 my $expected = join '', <DATA>;
 my $result = '';
 
-print "Running dbfdump rooms.dbf\n";
-$result = `$^X $libs $dbfdump "$dir/t/rooms.dbf"`;
+my $command = qq!$^X $libs $dbfdump "$dir/t/rooms.dbf"!;
+print "Running dbfdump rooms.dbf: $command\n";
+$result = `$command`;
 
 if ($result ne $expected)
 	{ print "Got\n$result\nExpected\n$expected\nwhich is not OK\nnot "; }
 print "ok 1\n";
 
-print "Running dbfdump -- - < $dir/t/rooms.dbf\n";
-$result = `$^X $libs $dbfdump -- - < $dir/t/rooms.dbf`;
+$command = qq!$^X $libs $dbfdump -- - < "$dir/t/rooms.dbf"!;
+print "Running stdin dbfdump < rooms.dbf: $command\n";
+$result = `$command`;
 
 if ($result ne $expected)
 	{ print "Got\n$result\nwhich is not OK\nnot "; }

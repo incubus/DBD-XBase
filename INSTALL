@@ -51,7 +51,7 @@ should work, even if it won't give you man pages and dbfdump/indexdump
 scripts.
 
 If you use a platform supported by ActiveState and run ActiveState
-perl, use can use ppm to install the module. Please note that I have
+perl, you can use ppm to install the module. Please note that I have
 no way of influencing what version of XBase.pm/DBD::XBase ActiveState
 offers on their site -- contact them if you need newer version which
 is only on CPAN.
@@ -72,22 +72,24 @@ it is a bug of XBase.pm/DBD::XBase, these errors are typically fixed
 in a matter of hours (unless I'm gone for a vacation).
 
 If there are errors when actually using the module on your data,
-please check first that it's really a XBase/DBD::XBase problem. If
-so, please send me example of your script, the errstr messages you
-get and (if possible) your data files that cause the problems and
-description of what output you expected. If there is problem with
-writing the data, send me the file before and after the action and
-also describe what you expect and what you got. Add info about your
-OS, version of Perl and other modules that might be relevant. You
-can of course also send patches to actual bugs.
+please check first that it's really a XBase/DBD::XBase problem (for
+example, did you FTP your files using binary mode?). If so, please
+send me example of your script, the errstr messages you get and (if
+possible) your data files that cause the problems and description
+of what output you expected. If there is problem with writing the
+data, send me the file before and after the action and also describe
+what you expect and what you got. Add info about your OS, version of
+Perl and other modules that might be relevant. You can of course
+also send patches to actual bugs. I may respond with requests for
+particular tests and actions to try on your machine.
 
 Mention the word "XBase" in the Subject line, otherwise your post
-will probably just slip through my x MB daily email load without even
-being read. Please note that I'm _very_ busy, so try to help me to
-help you by using the latest version of the module, minimalizing the
-script code that causes you problems, providing me with tiny sample
-of datafile, anything that might be related. Detailed description and
-small examples are the best.
+will probably just slip through my xxx MB daily email load without
+even being read. Please note that I'm _very_ busy, so try to help me
+to help you by using the latest version of the module, minimalizing
+the script code that causes you problems, providing me with tiny
+sample datafile, anything that might be related. Detailed description
+and small examples are the best.
 	
 For general Perl issues, use the comp.lang.perl.* newsgroups, for DBI
 issues, look at http://dbi.perl.org/ or use dbi-users-help@perl.org.

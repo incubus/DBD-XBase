@@ -20,7 +20,7 @@ use XBase::Base;		# will give us general methods
 use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
-$VERSION = '0.210';
+$VERSION = '0.220';
 $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 
 *errstr = \$XBase::Base::errstr;
@@ -687,19 +687,19 @@ sub create {
 		$name = "FIELD$i" unless defined $name;
 		$name .= "\0";
 		my $type = $options{'field_types'}[$i];
-		$type = "C" unless defined $type;
+		$type = 'C' unless defined $type;
 
 		my $length = $options{'field_lengths'}[$i];
 		my $decimal = $options{'field_decimals'}[$i];
 
 		if (not defined $length) {		# defaults
-			if ($type eq "C")	{ $length = 64; }
+			if ($type eq 'C')		{ $length = 64; }
 			elsif ($type =~ /^[TD]$/)	{ $length = 8; }
 			elsif ($type =~ /^[NF]$/)	{ $length = 8; }
 		}
 						# force correct lengths
 		if ($type =~ /^[MBGP]$/)	{ $length = 10; $decimal = 0; }
-		elsif ($type eq "L")	{ $length = 1; $decimal = 0; }
+		elsif ($type eq 'L')	{ $length = 1; $decimal = 0; }
 		elsif ($type eq 'Y')	{ $length = 8; $decimal = 4; }
 
 		if (not defined $decimal) {
@@ -708,7 +708,7 @@ sub create {
 		
 		$record_len += $length;
 		my $offset = $record_len;
-		if ($type eq "C") {
+		if ($type eq 'C') {
 			$decimal = int($length / 256);
 			$length %= 256;
 		}
@@ -1353,11 +1353,11 @@ Thanks a lot.
 
 =head1 VERSION
 
-0.210
+0.220
 
 =head1 AUTHOR
 
-(c) 1997--2001 Jan Pazdziora, adelton@fi.muni.cz,
+(c) 1997--2002 Jan Pazdziora, adelton@fi.muni.cz,
 http://www.fi.muni.cz/~adelton/ at Faculty of Informatics, Masaryk
 University in Brno, Czech Republic
 

@@ -28,13 +28,13 @@ What is this module for:
 
 
 How does the code look like:
-	The DBI (DBD::XBase) of doing things is
+	The DBI (DBD::XBase) way of doing things is
 
 		use DBI;
 		my $dbh = DBI->connect('dbi:XBase:/directory',
 			undef, undef, { RaiseError => 1 });
 		my $data = $dbh->selectall_arrayref(q!
-			SELECT * FROM TABLE
+			select * from table
 			!);
 
 	which is the same as would be with any other database.

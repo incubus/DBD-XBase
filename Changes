@@ -1,6 +1,7 @@
 
 Revision history for Perl extension XBase and DBD::XBase.
 
+0.220 Mon Sep  2 12:26:34 MET DST 2002
 	XBase::Index::ntx: type option has higher priority than dbf.
 
 	XBase::read_header: fail if the header is not valid.
@@ -10,6 +11,8 @@ Revision history for Perl extension XBase and DBD::XBase.
 	XBase::FAQ: reformatted, slightly.
 
 	XBase, XBase::SQL: added support for type money (Y).
+
+	Code and indentation cleanup.
 
 0.210 Fri Dec  7 12:56:37 MET 2001
 	README and INSTALL made uptodate.

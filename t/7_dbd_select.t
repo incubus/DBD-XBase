@@ -12,7 +12,7 @@ BEGIN {
 		print "ok 1\n";
 		exit;
 	}
-	print "1..41\n";
+	print "1..44\n";
 	print "DBI loaded\n";
 }
 
@@ -442,8 +442,39 @@ if ($result ne $expected_result) {
 }
 print "ok 41\n";
 
+$command = 'select * from test where msg = ? order by id';
+print "Prepare $command\n";
+$sth = $dbh->prepare($command) or do {
+	print $dbh->errstr, "not ok 42\n";
+	exit;
+};
+print "ok 42\n";
 
-$command = 'select * from rooms where roomname like ?';
+print "Execute it with parameter ('Message no 3')\n";
+$sth->execute('Message no 3') or do {
+	print $dbh->errstr, "not ok 43\n";
+	exit;
+};
+print "ok 43\n";
+
+print "And now get the result\n";
+$result = '';
+while (@line = $sth->fetchrow_array()) {
+	$result .= "@line\n";
+}
+$expected_result = '';
+while (<DATA>) {
+	last if /^__END_DATA__$/;
+	$expected_result .= $_;
+}
+
+if ($result ne $expected_result) {
+	print "Expected:\n${expected_result}Got:\n${result}not ";
+}
+print "ok 44\n";
+
+
+
 
 $sth->finish();
 $dbh->disconnect();
@@ -572,3 +603,6 @@ Audio Mix G
 Audio Mix H
 Audio Mix J
 Audio Transfer
+__END_DATA__
+3 Message no 3 This is a memo for record 3 0 19960102
+__END_DATA__

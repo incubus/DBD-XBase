@@ -19,7 +19,7 @@ use Exporter;
 use vars qw( $VERSION @ISA @EXPORT $err $errstr $drh $sqlstate );
 			# a couple of global variables that may come handy
 
-$VERSION = '0.210';
+$VERSION = '0.220';
 
 $err = 0;
 $errstr = '';
@@ -183,7 +183,6 @@ sub disconnect {
 # return list of them.
 sub table_info {
 	my $dbh = shift;
-	my @tables = map { [ undef, undef, $_, 'TABLE', undef ] } $dbh->tables;
 	my $sth = DBI::_new_sth($dbh, { 'xbase_lines' =>
 		[ map { [ undef, undef, $_, 'TABLE', undef ] } $dbh->tables ]
 		} );
@@ -753,11 +752,11 @@ Example:
 
 =head1 VERSION
 
-0.190
+0.220
 
 =head1 AUTHOR
 
-(c) 1997--2001 Jan Pazdziora, adelton@fi.muni.cz,
+(c) 1997--2002 Jan Pazdziora, adelton@fi.muni.cz,
 http://www.fi.muni.cz/~adelton/ at Faculty of Informatics, Masaryk
 University in Brno, Czech Republic
 
