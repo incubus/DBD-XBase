@@ -171,7 +171,7 @@ dBase nor Fox*, so there are probably pieces missing.
 
 =head1 VERSION
 
-0.029
+0.0291
 
 =head1 AUTHOR
 
@@ -205,7 +205,7 @@ use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
 
-$VERSION = "0.029";
+$VERSION = "0.0291";
 
 $errstr = '';	# only after new, otherwise use method $table->errstr;
 
@@ -479,49 +479,29 @@ sub process_list_on_read
 	@data;
 	}
 
+
 # #############
 # Write records
 
-# Write record, values of the fields are in the argument list,
-# unspecified fields will be set to undef/empty. Record is always
-# undeleted
-sub write_record
+# Write record, values of the fields are in the argument list.
+# Record is always undeleted
+sub set_record
 	{
 	NullError();
-	my ($self, $num, @data) = @_;
-
-	push @data, (undef) x ($self->last_field - $#data);
-
-	$self->seek_to_record($num) or return;	# seek to position
-	$self->{'fh'}->print(' ');		# write undelete flag
-
-				# process and write items
-	$self->{'fh'}->print(
-		### map { print "Writing: $_\n"; $_; }
-		map { $self->process_item_on_write($_, $data[$_]); }
-				( 0 .. $#data ) ) if @data;
-
-	$self->{'cached_num'} = $num;
-	$self->{'cached_data'} = [ @data ];
-
-				# if we made the file longer, extend it
-	if ($num > $self->last_record())
-		{
-		$self->{'fh'}->print("\x1a");	# add EOF
-		$self->update_last_record($num) or return;
-		}
-
-	$self->update_last_change() or return;
-	1;
+	my ($self, $num) = (shift, shift);
+	my @data = $self->process_list_on_write($num, @_,
+				(undef) x ($self->last_field - $#_));
+	$self->write_record($num, " ", @data);
+	$num;
 	}
 
 # Write record, fields are specified as hash, unspecified are set to
 # undef/empty
-sub write_record_hash
+sub set_record_hash
 	{
 	NullError();
 	my ($self, $num, %data) = @_;
-	$self->write_record($num, map { $data{$_} } @{$self->{'field_names'}} );
+	$self->set_record($num, map { $data{$_} } @{$self->{'field_names'}} );
 	}
 
 # Write record, fields specified as hash, unspecified will be
@@ -530,11 +510,8 @@ sub update_record_hash
 	{
 	NullError();
 	my ($self, $num, %data) = @_;
-	if ($num > $self->last_record())
-		{ Error "Can't updatge record $num, there is not so many of them\n"; return; }
 
-				# read the original data first
-	my @data = $self->get_record($num);
+	my @data = $self->get_record($num);	# read the original data first
 	return unless @data;
 
 	shift @data;		# remove the deleted flag
@@ -546,7 +523,23 @@ sub update_record_hash
 			{ $data[$i] = $data{$self->{'field_names'}[$i]}; }
 		}
 
-	$self->write_record($num, @data);
+	$self->set_record($num, @data);
+	}
+
+# Actually write the data (calling XBase::Base::write_record) and keep
+# the overall structure of the file correct;
+sub write_record
+	{
+	my ($self, $num) = (shift, shift);
+	$self->SUPER::write_record($num, @_);
+
+	if ($num > $self->last_record())
+		{
+		$self->SUPER::write_record($num + 1, "\x1a");	# add EOF
+		$self->update_last_record($num) or return;
+		}
+	$self->update_last_change() or return;
+	1;
 	}
 
 # Delete and undelete record
@@ -554,103 +547,89 @@ sub delete_record
 	{
 	NullError();
 	my ($self, $num) = @_;
-	if ($num > $self->last_record())
-		{ Error "Can't delete record $num, there is not so many of them\n"; return; }
-	my $offset = $self->get_record_offset($num);
-	$self->will_write_record($num) or return;
-	$self->{'fh'}->print("*");
-	$self->{'cached_data'}[0] = 1 if $num == $self->{'cached_num'};
-	$self->update_last_change() or return;
+	$self->write_record($num, "*");
 	1;
 	}
 sub undelete_record
 	{
 	NullError();
 	my ($self, $num) = @_;
-	if ($num > $self->last_record())
-		{ Error "Can't undelete record $num, there is not so many of them\n"; return; }
-	$self->will_write_record($num) or return;
-	$self->{'fh'}->print(" ");
-	$self->{'cached_data'}[0] = 0 if $num == $self->{'cached_num'};
-	$self->update_last_change() or return;
-	1;
-	}
-
-# Prepare everything to write at record position
-sub will_write_record
-	{
-	my ($self, $num) = @_;
-	my $offset = $self->get_record_offset($num);
-	unless ($self->will_write_to($offset))
-		{ Error "Error writing record $num\n"; return; }
-	1;
-	}
-
-# Prepares everything for write at given position
-sub will_write_to
-	{
-	my ($self, $offset) = @_;
-	my $filename = $self->{'filename'};
-
-				# the file should really be opened and
-				# writable
-	unless (defined $self->{'opened'})
-		{ Error "The file $filename is not opened\n"; return; }
-	if (not $self->{'writable'})
-		{ Error "The file $filename is not writable\n"; return; }
-
-	my ($fh, $header_len, $record_len) =
-		@{$self}{ qw( fh header_len record_len ) };
-
-				# we will cancel the tell position
-	delete $self->{'tell'};
-
-				# seek to the offset
-	$fh->seek($offset, 0) or do {
-		Error "Error seeking on $filename to offset $offset: $!\n";
-		return;
-		};
+	$self->write_record($num, " ");
 	1;
 	}
 
 # Convert Perl values to those in dbf
-sub process_item_on_write
+sub process_list_on_write
 	{
-	my ($self, $num, $value) = @_;
+	my ($self, $rec_num) = (shift, shift);
 
-	my ($type, $length, $decimal) = ($self->{'field_types'}[$num],
-		$self->{'field_lengths'}[$num],
-		$self->{'field_decimals'}[$num]);
-	my $totlen = $length + $decimal;
+	my @types = @{$self->{'field_types'}};
+	my @lengths = @{$self->{'field_lengths'}};
+	my @decimals = @{$self->{'field_decimals'}};
 
-	# now the other fields
-	if ($type eq 'C')
+	my @data = ();
+	my $num;
+	my $value;
+	for $num (0 .. $self->last_field())
 		{
-		$value .= "";
-		return sprintf "%-$totlen.${totlen}s", $value;
+		my ($type, $length, $decimal) = ($types[$num],
+				$lengths[$num], $decimals[$num]);
+		my $totlen = $length + $decimal;
+		
+		$value = shift;
+		if ($type eq 'C')
+			{
+			$value .= "";
+			$value = sprintf "%-$totlen.${totlen}s", $value;
+			}
+		elsif ($type eq 'L')
+			{
+			if (not defined $value)	{ $value = "?"; }
+			elsif ($value == 1)	{ $value = "Y"; }
+			elsif ($value == 0)	{ $value = "N"; }
+			else			{ $value = "?"; }
+			$value = sprintf "%-$totlen.${totlen}s", $value;
+			}
+		elsif ($type =~ /^[NFD]$/)
+			{
+			$value += 0;
+			$value = sprintf "%$totlen.${decimal}f", $value;
+			$value =~ s/[.,]//;
+			}
+		elsif ($type =~ /^[MGBP]$/)
+			{
+			if (defined $self->{'memo'})
+				{
+				my $memo_index;
+				# we need to figure out, where in memo file
+				# to store the data
+				if ($rec_num <= $self->last_record())
+					{
+					$memo_index =
+					($self->read_record($rec_num))[$num + 1] - 1;
+					}
+				$memo_index = -1 if $memo_index =~ /^ +$/;
+				
+				# we suggest but memo object may
+				# choose another location	
+			
+				$memo_index = $self->{'memo'}
+					->write_record($memo_index, $value);
+				$value = $memo_index + 1;
+				}
+			else
+				{ $value = ""; }
+			$value = sprintf "%-$length.${totlen}s", $value;
+			}
+		else
+			{
+			$value .= "";
+			$value = sprintf "%-$length.${decimal}s", $value;
+			}
 		}
-	if ($type eq 'L')
-		{
-		if (not defined $value)	{ $value = "?"; }
-		elsif ($value == 1)	{ $value = "Y"; }
-		elsif ($value == 0)	{ $value = "N"; }
-		else			{ $value = "?"; }
-		return sprintf "%-$totlen.${totlen}s", $value;
-		}
-	if ($type =~ /^[NFD]$/)
-		{
-		$value += 0;
-		$value = sprintf "%$totlen.${decimal}f", $value;
-		$value =~ s/[.,]//;
-		return $value;
-		}
-
-	###
-	### Fixup for MGBP ### to be added, read from dbt
-	###
-
-	$value .= "";
-	return sprintf "%-$length.${decimal}s", $value;
+	continue
+		{ $data[$num] = $value; }
+	@data;
 	}
 
 # Update the last change date
@@ -658,9 +637,8 @@ sub update_last_change
 	{
 	my $self = shift;
 	return if defined $self->{'updated_today'};
-	$self->will_write_to(1) or return;
 	my ($y, $m, $d) = (localtime)[5, 4, 3]; $m++;
-	$self->{'fh'}->print(pack "C3", ($y, $m, $d));
+	$self->write_to(1, pack "C3", ($y, $m, $d)) or return;
 	$self->{'updated_today'} = 1;
 	}
 # Update the number of records
@@ -668,8 +646,7 @@ sub update_last_record
 	{
 	my ($self, $last) = @_;
 	$last++;
-	$self->will_write_to(4);
-	$self->{'fh'}->print(pack "V", $last);
+	$self->write_to(4, pack "V", $last);
 	$self->{'num_rec'} = $last;
 	}
 
@@ -703,132 +680,4 @@ sub create_duplicate
 	}
 
 1;
-
-# #######################################################
-# Here starts the XBase::dbf package, for memo files
-
-package XBase::dbt;
-
-sub Error (@)	{ XBase::Error(@_); }
-sub Warning (@)	{ XBase::Warning(@_); }
-sub FIXPROBLEMS ()	{ XBase::FIXPROBLEMS(); }
-
-# ###########################
-# Consturctor, open and close
-
-# Creates the object, reads the header of the file
-sub new
-	{
-	my ($class, $filename) = @_;
-	my $new = { 'filename' => $filename };
-	bless $new, $class;
-	$new->open() and return $new;
-	return;
-	}
-
-# Reads the header of the file, fills the structures
-sub open
-	{
-	my $self = shift;
-	return 1 if defined $self->{'opened'};
-				# won't open if already opened
-
-	my $fh = new IO::File;
-	my ($filename, $writable, $mode) = ($self->{'filename'}, 0, "r");
-	($writable, $mode) = (1, "r+") if -w $filename;
-				# decide if we want r or r/w access
-
-	$fh->open($filename, $mode) or do
-		{ Error "Error opening file $self->{'filename'}: $!\n";
-		return; };	# open the file
-
-	my $header;
-	$fh->read($header, 17) == 17 or do
-		{ Error "Error reading header of $filename\n"; return; };
-
-	my ($next_for_append, $block_size, $dbf_filename, $reserved)
-		= unpack "VVA8C", $header;
-
-	my $version = 4;
-	if ($reserved == 3) { $version = 3; }
-
-	$block_size = 512 if $version == 3;
-	($dbf_filename = $self->{'filename'}) =~ s/\.dbf//i;
-
-	@{$self}{ qw( next_for_append block_size dbf_filename version
-		opened fh writable ) }
-		= ( $next_for_append, $block_size, $dbf_filename,
-		$version, 1, $fh, $writable );
-	1;
-	}
-
-# Close the file
-sub close
-	{
-	my $self = shift;
-	if (not defined $self->{'opened'})
-		{ Error "Can't close file that is not opened\n"; return; }
-	$self->{'fh'}->close();
-	delete @{$self}{'opened', 'fh'};
-	1;
-	}
-
-# ##############
-# Reading blocks
-
-sub read_block
-	{
-	my ($self, $num) = @_;
-	return unless $num > 0;
-
-	my $block_size = $self->{'block_size'};
-	my $offset = 512 + ($num - 1) * $block_size;
-
-	my $filesize = -s $self->{'filename'};
-	my $fh = $self->{'fh'};
-
-	$fh->seek($offset, 0) or do
-		{ Error "Error seeking to offset $offset: $!\n"; return; };
-
-	# dBase III+ memo file type
-	if ($self->{'version'} == 3)
-		{
-		my $result = '';
-		while ($fh->tell() < $filesize)
-			{
-			my $buffer;
-			$fh->read($buffer, $block_size) == $block_size or do
-				{ Warning "Error reading memo block\n";
-				return unless FIXPROBLEMS; };
-			if ($buffer =~ /^(.*?)\x1a\x1a/)
-				{ return $result . $+; }
-			$result .= $buffer;
-			}
-		return $result;
-		}
-
-	# dBase IV style
-	elsif ($self->{'version'} == 4)
-		{
-		my $buffer;
-		$fh->read($buffer, $block_size) == $block_size or do
-			{ Warning "Error reading memo block\n";
-			return unless FIXPROBLEMS; };
-		my ($unused_id, $length) = unpack "VV", $buffer;
-		if ($length < $block_size - 8)
-			{ return substr $buffer, 8, $length; }
-		my $rest_length = $length - ($block_size - 8);
-		my $rest_data;
-		$fh->read($rest_data, $rest_length) == $rest_length or do
-			{ Warning "Error reading memo block\n";
-			return unless FIXPROBLEMS; };
-		return $buffer . $rest_data;
-		}
-
-	return;
-	}
-
-1;
-
-
 

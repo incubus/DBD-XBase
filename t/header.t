@@ -6,19 +6,24 @@ BEGIN	{ $| = 1; print "1..8\n"; }
 END	{ print "not ok 1\n" unless $::XBaseloaded; }
 
 
-print "First, let's try to at least load the module; use XBase.\n";
+print "First, let's try to at least load the module: use XBase.\n";
 
 use XBase;
 $::XBaseloaded = 1;
 print "ok 1\n";
 
-my $dir = ( -d "./t" ? "t/" : "" );
+my $dir = ( -d "t" ? "t" : "" );
+
+$XBase::Base::DEBUG = 1;        # We want to see any problems
+$XBase::CLEARNULLS = 1;         # Yes, we want that
 
 print "Create the new XBase object, load the data from table test.dbf\n";
 
 my $table = new XBase("$dir/test.dbf");
 print "not " unless defined $table;
 print "ok 2\n";
+
+exit unless defined $table;     # It doesn't make sense to continue here ;-)
 
 
 print "Now, look into the object and check, if it has been filled OK\n";

@@ -15,7 +15,7 @@ We will put something here.
 
 =head1 VERSION
 
-0.029
+0.0291
 
 =head1 AUTHOR
 
@@ -41,7 +41,7 @@ use vars qw($VERSION @ISA @EXPORT $err $errstr $drh);
 
 require Exporter;
 
-$VERSION = '0.029';
+$VERSION = '0.0291';
 
 $err = 0;
 $errstr = '';

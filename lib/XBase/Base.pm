@@ -62,7 +62,7 @@ Read $record_len bytes from get_record_offset position.
 
 =head1 VERSION
 
-0.029
+0.0291
 
 =head1 AUTHOR
 
@@ -91,7 +91,7 @@ use Exporter;
 # ##############
 # General things
 
-$VERSION = "0.029";
+$VERSION = "0.0291";
 
 # Sets the debug level
 $DEBUG = 1;
@@ -284,18 +284,18 @@ sub read_record
 # Write the record of given number
 sub write_record
 	{
-	my ($self, $num, $data) = @_;
+	my ($self, $num) = (shift, shift);
 	if (not defined $num)
 		{ Error "Record number to write must be specified\n"; return; }
 
 	if (defined $self->{'cached_num'} and $num == $self->{'cached_num'})
 		{ delete $self->{'cached_num'}; }
-	
 	$self->seek_to_record($num) or return;
 	delete $self->{'tell'};
-	
+
+	local ($,, $\) = ("", "");
 	my $fh = $self->{'fh'};
-	$fh->print($data) or
+	$fh->print(@_) or
 		do { Error "Error writing record $num: $!\n"; return; } ;
 	$num;
 	}
@@ -303,13 +303,14 @@ sub write_record
 # Write to offset
 sub write_to
 	{
-	my ($self, $offset, $data) = @_;
+	my ($self, $offset) = (shift, shift);
 	
 	$self->seek_to($offset) or return;
 	delete $self->{'tell'};
 	
+	local ($,, $\) = ("", "");
 	my $fh = $self->{'fh'};
-	$fh->print($data) or
+	$fh->print(@_) or
 		do { Error "Error writing at offset $offset: $!\n"; return; } ;
 	$offset;
 	}
