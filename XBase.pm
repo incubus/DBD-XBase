@@ -393,7 +393,21 @@ sub dump_records
 		{ print join(':', map { defined $_ ? $_ : ''; }
 				$self->get_record($num, @_)), "\n"; }
 	}
-
+sub decode_version_info
+	{
+	### my $version = shift->{'version'};
+	my $version = shift;
+	my ($vbits, $dbtflag, $memo, $sqltable) = (0, 0, 0, 0);
+	if ($version == 3)	{ $vbits = 3; }
+	elsif ($version == 0x83)	{ $vbits = 3; $memo = 0; $dbtflag = 1;}
+	else {
+		$vbits = $version & 0x07;
+		$dbtflag = ($version >> 8) & 1;
+		$memo = ($version >> 3) & 1;
+		$sqltable = ($version >> 4) & 0x07;
+		}
+	print "Version: $vbits; dbt: $dbtflag; memo: $memo; SQL table: $sqltable\n";
+	}
 
 # ###################
 # Reading the records
