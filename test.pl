@@ -8,7 +8,7 @@
 
 BEGIN { $| = 1; print "1..1\n"; }
 END {print "not ok 1\n" unless $loaded;}
-use XbaseTable;
+use XBase;
 $loaded = 1;
 print "ok 1\n";
 
@@ -18,4 +18,4 @@ print "ok 1\n";
 # (correspondingly "not ok 13") depending on the success of chunk 13
 # of the test code):
 
-## perl -w -MXbaseTable -e 'my $table = new XbaseTable("test.dbf"); $table->dump_records();'
+## perl -w -MXBase -e 'my $table = new XBase("test.dbf"); $table->dump_records();'

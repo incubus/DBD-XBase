@@ -1,32 +1,34 @@
 
 =head1 NAME
 
-XbaseTable - Perl module for reading and writing the dbf file
+XBase - Perl module for reading and writing the dbf files
 
 =head1 SYNOPSIS
 
-	use XbaseTable;
-	my $table = new XbaseTable("dbase.dbf");
+	use XBase;
+	my $table = new XBase("dbase.dbf");
 	for (0 .. $table->last_record())
 		{
 		my ($deleted, $id, $msg)
 			= $table->get_record($_, "ID", "MSG");
-		print "$id:$msg\n" unless $deleted;
+		print "$id:\t$msg\n" unless $deleted;
 		}
 
 =head1 DESCRIPTION
 
-This module can read and write Xbase database file, known as dbf in
-dBase and FoxPro world. With the help of ( ... ) it reads memo (and
-the like) fields from the dbt files, if needed. This module should
-really be used via DBD::Xbase DBI driver, but this is the alternative
-interface.
+This module can read and write XBase database file, known as dbf in
+dBase and FoxPro world. It also reads memo (and the like) fields from
+the dbt files, if needed. This module should really be used via
+DBD::XBase DBI driver, but this is the alternative interface.
+Note for now: no DBD:: support currently exists.
 
 Remember: Since the version number is pretty low now, you might want
 to check the CHANGES file any time you upgrade to see wheather some of
 the features you use haven't disappeared.
 
-Warning: It doesn't support any index files at the present time!
+Warning for now: It doesn't support any index files at the present
+time! That means if you change your dbf, your idx&mdx will not match.
+So do not do that.
 
 The following methods are supported:
 
@@ -34,8 +36,8 @@ The following methods are supported:
 
 =item new
 
-Creates the XbaseTable object, takes the file's name as argument,
-parses the file's header, fills the data structures.
+Creates the XBase object, takes the file's name as argument, parses
+the file's header, fills the data structures.
 
 =item close
 
@@ -48,21 +50,57 @@ argument is the number of the record. If there are any other
 arguments, they are considered to be the names of the fields and only
 the specified fields are returned. If no field names are present,
 returns all fields in the record. The first value of the returned list
-is always 1/0 value saying if the record is deleted or not.
+is the 1/0 value saying if the record is deleted or not.
 
 =item last_record
 
 Number of the last records in the file. The lines deleted but present
-in the file included in the number.
+in the file are included in this count.
+
+=item last_field
+
+Number of the last field in the file.
 
 =back
 
-If the method fails (returns undef of null), the error message is
-stored in the $XbaseTable::errstr variable and there is a method
-errstr that will just return the string.
+If the method fails (returns undef of null), the error message can be
+retrieved via B<errstr> method. If the B<new> method fails, you have
+no object and the you can get the error string in the $XBase::errstr
+variable.
 
-There are following variables (parameters) in the XbaseTable
-namespace:
+The methods B<get_header_info> and B<dump_records> can be used to
+quickly view the content of the file. They are here mainly for
+debugging purposes so please do not rely on them.
+
+For writing, you have methods:
+
+=over 4
+
+=item write_record
+
+As arguments, takes the number of the record and the list of values
+of the fields. It writes the record to the file. Unspecified fields
+(if you pass less than you should) are set to undef/empty. The record
+is undeleted.
+
+=item write_record_hash
+
+Takes number of the record and hash, sets the fields, unspecified are
+undeffed/emptied.
+
+=item update_record_hash
+
+Like B<write_record_hash> but preserves fields that do not have value
+specified in the hash.
+
+=item delete_record, undelete record
+
+Deletes/undeletes the record.
+
+=back
+
+There are following variables (parameters) in the XBase
+namespace that affect the internal behavior:
 
 =over 4
 
@@ -77,34 +115,35 @@ When reading the file, try to continue, even if there is some
 
 =item $CLEARNULLS
 
-If true, cuts off spaces and nulls from the end of character fields.
+If true, cuts off spaces and nulls from the end of character fields on
+read.
 
 =back
 
 =head1 HISTORY
 
-I have been using the Xbase(3) module by ( ... ) for quite a time to
-read the dbf files, but it had no writing capabilities, it was not
--w/use strict clean and the author did not support the module behind
-the version 1.07. So I started to make my own patches and thought it
-would be nice if other people could make use of them. I thought about
-taking over the development of the original Xbase package, but the
-interface seemed rather complicated to me and I also disliked the
-licence ( ... ) had about the module.
+I have been using the Xbase(3) module by Pratap Pereira for quite
+a time to read the dbf files, but it had no writing capabilities, it
+was not C<-w>/C<use strict> clean and the author did not support the
+module behind the version 1.07. So I started to make my own patches
+and thought it would be nice if other people could make use of them.
+I thought about taking over the development of the original Xbase
+package, but the interface seemed rather complicated to me and I also
+disliked the licence Pratap had about the module.
 
-So with the help of article Xbase File Format Description by Erik
-Bachmann, URL ( http:// ... ) I have written a new module. It doesn't
-use any code from Xbase-1.07 and you are free to use it under the same
-terms as Perl itself.
+So with the help of article XBase File Format Description by Erik
+Bachmann, URL ( http:// ... ), I have written a new module. It doesn't
+use any code from Xbase-1.07 and you are free to use and distribute it
+under the same terms as Perl itself.
 
 Please send all bug reports CC'ed to my e-mail, since I might miss
-your post in c.l.p.misc or c.l.p.modules. Any comments from both Perl
-and Xbase gurus are welcome, since I do neither use dBase nor Fox, so
-there are probably pieces missing.
+your post in c\.l\.p\.m(isc|odules) or dbi-users. Any comments from
+both Perl and XBase gurus are welcome, since I do neither use dBase
+nor Fox*, so there are probably pieces missing.
 
 =head1 VERSION
 
-0.023
+0.024
 
 =head1 AUTHOR
 
@@ -112,7 +151,7 @@ Jan Pazdziora, adelton@fi.muni.cz
 
 =head1 SEE ALSO
 
-perl(1), DBD::Xbase(3), DBI(3), Xbase(3)
+perl(1), DBD::XBase(3), DBI(3)
 
 =cut
 
@@ -122,10 +161,10 @@ use 5.004;	# hmm, maybe it would work with 5.003 or so, but I do
 
 
 # ##################################
-# Here starts the XbaseTable package
+# Here starts the XBase package
 
-package XbaseTable::dbt;
-package XbaseTable;
+package XBase::dbt;	# just quick fix, so that we know the module
+package XBase;
 
 use strict;
 use IO::File;
@@ -135,14 +174,14 @@ use IO::File;
 # General things
 
 use vars qw( $VERSION $DEBUG $errstr $FIXERRORS $CLEARNULLS );
-$VERSION = "0.023";
+$VERSION = "0.024";
 
 # Sets the debug level
 $DEBUG = 1;
 sub DEBUG () { $DEBUG };
 
-# FIXERRORS can be set to make XbaseTable to try to work (read) even
-# partially dameged file. Such actions are logged via Warning
+# FIXERRORS can be set to make XBase to try to work with (read)
+# even partially dameged file. Such actions are logged via Warning
 $FIXERRORS = 1;
 sub FIXERRORS () { $FIXERRORS };
 
@@ -167,10 +206,9 @@ sub Error
 	print STDERR @_ if DEBUG;
 	$errstr .= join '', @_;
 	}
-# Nulls the $errstr, should be called upon method call from the mail
+# Nulls the $errstr, should be used in methods called from the mail
 # program
-sub NullError
-	{ $errstr = ''; }
+sub NullError	{ $errstr = ''; }
 
 
 # ########################
@@ -187,7 +225,7 @@ sub new
 	$new->open() and return $new;
 	return;
 	}
-# Called by XbaseTable::new; opens the file and parses the header,
+# Called by XBase::new; opens the file and parses the header,
 # sets the data structures of the object (field names, types, etc.).
 # Returns 1 on success, null otherwise.
 sub open
@@ -501,7 +539,7 @@ sub read_memo_data
 		my $filename = $self->{'filename'};
 		$filename =~ s/\.dbf//i;
 		$filename .= '.dbt';
-		$self->{'dbt'} = $dbt = new XbaseTable::dbt($filename);
+		$self->{'dbt'} = $dbt = new XBase::dbt($filename);
 		return undef unless defined $dbt;
 		}
 	my $ret = $dbt->read_block($num);	
@@ -531,6 +569,9 @@ sub write_record
 		### map { print "Writing: $_\n"; $_; }
 		map { $self->process_item_on_write($_, $data[$_]); }
 				( 0 .. $#data ) ) if @data;
+
+	$self->{'cached_num'} = $num;
+	$self->{'cached_data'} = [ @data ];
 
 				# if we made the file longer, extend it
 	if ($num > $self->last_record())
@@ -587,6 +628,7 @@ sub delete_record
 	my $offset = $self->get_record_offset($num);
 	$self->will_write_record($num) or return;
 	$self->{'fh'}->print("*");
+	$self->{'cached_data'}[0] = 1 if $num == $self->{'cached_num'};
 	$self->update_last_change() or return;
 	1;
 	}
@@ -598,6 +640,7 @@ sub undelete_record
 		{ Error "Can't undelete record $num, there is not so many of them\n"; return; }
 	$self->will_write_record($num) or return;
 	$self->{'fh'}->print(" ");
+	$self->{'cached_data'}[0] = 0 if $num == $self->{'cached_num'};
 	$self->update_last_change() or return;
 	1;
 	}
@@ -701,13 +744,13 @@ sub update_last_record
 1;
 
 # #######################################################
-# Here starts the XbaseTable::dbf package, for memo files
+# Here starts the XBase::dbf package, for memo files
 
-package XbaseTable::dbt;
+package XBase::dbt;
 
-sub Error (@)	{ XbaseTable::Error(@_); }
-sub Warning (@)	{ XbaseTable::Warning(@_); }
-sub FIXERRORS ()	{ XbaseTable::FIXERRORS(); }
+sub Error (@)	{ XBase::Error(@_); }
+sub Warning (@)	{ XBase::Warning(@_); }
+sub FIXERRORS ()	{ XBase::FIXERRORS(); }
 
 # ###########################
 # Consturctor, open and close

@@ -2,7 +2,7 @@ Changes
 MANIFEST
 Makefile.PL
 Xbase.pm.notready
-XbaseTable.pm
+XBase.pm
 dump.to.dbf
 test.dbf
 test.dbf.backup
