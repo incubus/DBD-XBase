@@ -1,13 +1,38 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
+0.120
+	XBase.pm: added XBase::Cursor::rewind, names,
+	prepare_select_nf. Added
+	readonly options. Added options 'table' for dump -- using
+	Data::ShowTable.
+
+	XBase.pm, XBase::Base.pm: open method now accepts hash of
+	options.
+
+	XBase::Memo: we now reset next_for_append to point behind the
+	end of the file, problem pointed out by Artem Belevich.
+
+	dbfdump: option --table, --fields now handles intervals.
+
+	t/2_read.t: fixed problem with order of fields in hash, patch
+	by Andreas J. Koenig.
+
+	t/4_dbfdump.t: added quotes for Win* systems, patch by Randy
+	Kobes.
+
+0.115 Wed Jan  6 17:02:28 MET 1999
+	XBase::Memo: tries to find out which format (\x1a versus
+	\x1a\x1a) to use for dBaseIII memo files. It also writes back
+	this separator.
+
 0.110 Sun Dec 20 21:29:05 MET 1998
 	XBase::SQL: added LIKE clause to WHERE part of SQL commands. 
 
 0.105 Sun Dec 20 17:09:43 MET 1998
 	XBase::Base: added workaround for systems that not only write
 	to files something else than they are told to, but also damage
-	the files by merely opening it.
+	the files by merely opening it (open).
 
 	XBase::Memo: fixed problem with fpt files -- thanks to Dan
 	Albertsson for providing many test files.

@@ -18,7 +18,7 @@ use XBase::Base;		# will give us general methods
 use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
-$VERSION = '0.110';
+$VERSION = '0.120';
 $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 
 *errstr = \$XBase::Base::errstr;
@@ -34,18 +34,23 @@ sub open
 	my %options;
 	if (scalar(@_) % 2) { $options{'name'} = shift; }	
 	$self->{'openoptions'} = { %options, @_ };
-	my $filename = $self->{'openoptions'}{'name'};
+
+	my %locoptions;
+	@locoptions{ qw( name readonly) } = @{$self->{'openoptions'}}{ qw( name readonly) };
+	my $filename = $locoptions{'name'};
 	if ($filename eq '-')
-		{ return $self->SUPER::open($filename); }
+		{ return $self->SUPER::open(%locoptions); }
 	for my $ext ('', '.dbf', '.DBF')
 		{
 		if (-f $filename.$ext)
 			{
+			$locoptions{'name'} = $filename.$ext;
 			$self->NullError();
-			return $self->SUPER::open($filename.$ext);
+			return $self->SUPER::open(%locoptions);
 			}
 		}
-	return $self->SUPER::open($filename);	# for nice error message
+	$locoptions{'name'} = $filename;	
+	return $self->SUPER::open(%locoptions);	# for nice error message
 	}
 # We have to provide way to fill up the object upon open
 sub read_header
@@ -327,15 +332,66 @@ sub dump_records
 		$outkey =~ s/[^a-z]//g;
 		$options{$outkey} = $value;
 		}
+	my ($rs, $fs, $undef, $fields, $table)
+				= @options{ qw( rs fs undef fields table ) };
+	if (defined $table)
+		{
+		eval 'use Data::ShowTable';
+		if ($@) {
+			warn "You requested table output format but the module Data::ShowTable doesn't\nseem to be installed correctly. Falling back to standard\n";
+			$table = undef;
+			}
+		else
+			{ delete $options{'rs'}; delete $options{'fs'}; }
+		}
 
-	my ($rs, $fs, $undef, $fields) = @options{ qw( rs fs undef fields ) };
 	my @fields = ();
-	@fields = @$fields if defined $fields;
+	if (defined $fields)
+		{
+		if (ref $fields eq 'ARRAY') { @fields = @$fields; }
+		else
+			{
+			@fields = split /\s*,\s*/, $fields;
+			my $i = 0;
+			while ($i < @fields)
+				{
+				if (defined $self->field_name_to_num($fields[$i]))
+					{ $i++; }
+				elsif ($fields[$i] =~ /^(.*)-(.*)/)
+					{
+					my @allfields = $self->field_names;
+					my ($start, $end) = ($1, $2);
+					if ($start eq '')
+						{ $start = $allfields[0]; }
+					if ($end eq '')
+						{ $end = $allfields[$#allfields]; }
+					$start = $self->field_name_to_num($start);
+					$end = $self->field_name_to_num($end);
+					unless (defined $start and defined $end)
+						{ $start = 0; $end = -1; }
+					
+					splice @fields, $i, 1, @allfields[$start .. $end];
+					}
+				}
+			}
+		}
 
 	my $cursor = $self->prepare_select(@fields);
 	my @record;
-	while (@record = $cursor->fetch())
-		{ print join($fs, map { defined $_ ? $_ : $undef } @record), $rs; }
+	if (defined $table)
+		{
+		local $^W = 0;
+		&ShowBoxTable( $cursor->names(), [], [],
+			sub {
+				if ($_[0]) { $cursor->rewind(); }
+				else { $cursor->fetch() }
+				});
+		}
+	else
+		{
+		while (@record = $cursor->fetch)
+			{ print join($fs, map { defined $_ ? $_ : $undef } @record), $rs; }
+		}
 	1;
 	}
 
@@ -636,6 +692,14 @@ sub prepare_select
 		# object, recno, field numbers, field names
 	}
 
+sub prepare_select_nf
+	{
+	my $self = shift;
+	my @fieldnames = $self->field_names;
+	if (@_) { @fieldnames = @fieldnames[ @_ ] }
+	return $self->prepare_select(@fieldnames);
+	}
+
 sub prepare_select_with_index
 	{
 	my ($self, $file) = ( shift, shift );
@@ -685,6 +749,10 @@ sub last_fetched
 	{ shift->[1]; }
 sub table
 	{ shift->[0]; }
+sub names
+	{ shift->[3]; }
+sub rewind
+	{ shift->[1] = undef; '0E0'; }
 
 package XBase::IndexCursor;
 use vars qw( @ISA );
@@ -758,9 +826,11 @@ By default it's the name of the dbf file, with extension dbt or fpt.
 B<ignorememo> ignore memo file at all. This is usefull if you've lost
 the dbt file and you do not need it. Default is false.
 
-B<memosep> separator of memo records in the dBase III dbt files, to
-read files created by broken clients, that put there something else
-than the default C<"\x1a\x1a">.
+B<memosep> separator of memo records in the dBase III dbt files. The
+standard says it should be C<"\x1a\x1a">. There are however
+implamentations that only put in one C<"\x1a">. XBase.pm tries to
+guess which is valid for your dbt but if it fails, you can tell it
+yourself.
 
 B<nolongchars> prevents XBase to treat the decimal value of character
 fields as high byte of the length -- there are some broken products
@@ -789,8 +859,8 @@ If you call B<create> using class name (XBase), you have to (besides
 B<name>) also specify another four values, each being a reference
 to list: B<field_names>, B<field_types>, B<field_lengths> and
 B<field_decimals>. The field types are specified by one letter
-strings (C, N, L, D). If you set some value as undefined, create will
-make it into some reasonable default.
+strings (C, N, L, D, ...). If you set some value as undefined, create
+will make it into some reasonable default.
 
     my $newtable = $table->create("name" => "copy.dbf");
 	
@@ -1075,11 +1145,11 @@ Thanks a lot.
 
 =head1 VERSION
 
-0.110
+0.120
 
 =head1 AUTHOR
 
-(c) 1997--1998 Jan Pazdziora, adelton@fi.muni.cz,
+(c) 1997--1999 Jan Pazdziora, adelton@fi.muni.cz,
 http://www.fi.muni.cz/~adelton/ at Faculty of Informatics, Masaryk
 University in Brno, Czech Republic
 

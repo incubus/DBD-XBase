@@ -38,11 +38,11 @@ print "ok 3\n";
 
 
 print "Get record 0 as hash\n";
-my $hash_values_expected = 'undef, 19960813, 1, 0, "This is a memo for record no one", "Record no 1"';
+my $hash_values_expected = 'undef, 19960813, 1, "Record no 1", "This is a memo for record no one", 0';
 my %hash = $table->get_record_as_hash(0);
 my $hash_values = join ', ',
 	map { defined $_ ? ( /^\d+$/ ? $_ : qq["$_"] ) : 'undef' }
-							values %hash;
+					map { $hash{$_} } sort keys %hash;
 if ($hash_values_expected ne $hash_values)
 	{ print "Expected:\n\@hash{ qw( @{[sort keys %hash]} ) } =\n ($hash_values_expected)\nGot:\n$hash_values\nnot "; }
 print "ok 4\n";

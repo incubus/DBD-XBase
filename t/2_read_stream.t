@@ -20,7 +20,7 @@ print "Set XBase::Base::SEEK_VIA_READ(1)\n";
 XBase::Base::SEEK_VIA_READ(1);
 
 print "Load table test.dbf\n";
-my $table = new XBase("$dir/test");
+my $table = new XBase("$dir/test", 'ignorememo' => 1);
 print XBase->errstr(), 'not ' unless defined $table;
 print "ok 2\n";
 
@@ -29,9 +29,9 @@ exit unless defined $table;	# It doesn't make sense to continue here ;-)
 
 print "Load the records, one by one\n";
 my $records_expected = join "\n",
-	'0:1:Record no 1:This is a memo for record no one::19960813',
-	'1:2:No 2:This is a memo for record 2:1:19960814',
-	'0:3:Message no 3:This is a memo for record 3:0:19960102';
+	'0:1:Record no 1:::19960813',
+	'1:2:No 2::1:19960814',
+	'0:3:Message no 3::0:19960102';
 my $records = join "\n", map {
 	join ":", map { defined $_ ? $_ : "" } $table->get_record($_) }
 								( 0 .. 2 );

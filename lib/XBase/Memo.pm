@@ -12,7 +12,7 @@ use XBase::Base;
 
 use vars qw( $VERSION @ISA );
 @ISA = qw( XBase::Base );
-$VERSION = '0.105';
+$VERSION = '0.120';
 
 # Read header is called from open to fill the object structures
 sub read_header
@@ -52,11 +52,12 @@ sub read_header
 
 	$block_size = 512 if int($block_size) == 0;
 
+	$next_for_append = (((-s $self->{'filename'}) - 1) / $block_size) + 1;
+
 	@{$self}{ qw( next_for_append header_len record_len version ) }
 		= ( $next_for_append, $block_size, $block_size, $version );
 
 	$self->{'memosep'} = $options{'memosep'};
-	$self->{'memosep'} = "\x1a\x1a" if not defined $self->{'memosep'};
 
 	1;
 	}
@@ -111,6 +112,16 @@ sub read_record
 	my ($self, $num) = @_;
 	my $result = '';
 	my $last = $self->last_record();
+	if (not defined $self->{'memosep'}) {
+		$self->{'memosep'} = "\x1a\x1a";
+		if (not defined $self->read_record($last)) {
+			$self->{'memosep'} = "\x1a";
+			if (not defined $self->read_record($last)) {
+				$self->{'memosep'} = "\x1a\x1a";
+				}
+			}
+		}
+
 	while ($num <= $last)
 		{
 		my $buffer = $self->SUPER::read_record($num, -1) or return;
@@ -120,7 +131,7 @@ sub read_record
 		$result .= $buffer;
 		$num++;
 		}
-	return $result;
+	return;
 	}
 
 sub write_record
@@ -260,11 +271,11 @@ specify their specific B<read_record> and B<write_record> methods.
 
 =head1 VERSION
 
-0.105
+0.120
 
 =head1 AUTHOR
 
-(c) 1997--1998 Jan Pazdziora, adelton@fi.muni.cz
+(c) 1997--1999 Jan Pazdziora, adelton@fi.muni.cz
 
 =head1 SEE ALSO
 

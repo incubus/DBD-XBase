@@ -15,7 +15,7 @@ my $expected = join '', <DATA>;
 my $result = '';
 
 print "Running dbfdump rooms.dbf\n";
-$result = `$^X $libs $dbfdump $dir/t/rooms.dbf`;
+$result = `$^X $libs $dbfdump "$dir/t/rooms.dbf"`;
 
 if ($result ne $expected)
 	{ print "Got\n$result\nExpected\n$expected\nwhich is not OK\nnot "; }

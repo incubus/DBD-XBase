@@ -15,7 +15,7 @@ BEGIN {
 	if ($@) { local $^W = 0; eval ' sub O_BINARY { 0 } ' }
 	}
 
-$XBase::Base::VERSION = '0.110';
+$XBase::Base::VERSION = '0.120';
 
 # Sets the debug level
 $XBase::Base::DEBUG = 0;
@@ -52,13 +52,17 @@ sub new
 sub open
 	{
 	__PACKAGE__->NullError();
-	my ($self, $filename) = (shift, shift);
+	my $self = shift;
+	my %options;
+	if (scalar(@_) % 2) { $options{'name'} = shift; }
+		$self->{'openoptions'} = { %options, @_ };
+	%options = (%options, @_);
 	if (defined $self->{'fh'}) { $self->close(); }
 
 	my $fh = new IO::File;
 	my $rw;
 	
-	if ($filename eq '-')
+	if ($options{'name'} eq '-')
 		{
 		$fh->fdopen(fileno(STDIN), 'r');
 		$self->{'stream'} = 1;
@@ -67,16 +71,26 @@ sub open
 		}
 	else
 		{
-		if ($fh->open($filename, O_RDWR|O_BINARY))	{ $rw = 1; }
-		elsif ($fh->open($filename, O_RDONLY|O_BINARY))	{ $rw = 0; }
-		else { __PACKAGE__->Error("Error opening file $filename: $!\n"); return; }
+		my $ok = 1;
+		if (not $options{'readonly'}) {
+			if ($fh->open($options{'name'}, O_RDWR|O_BINARY))
+				{ $rw = 1; }
+			else	{ $ok = 0; }
+			}
+		if (not $ok) {
+			if ($fh->open($options{'name'}, O_RDONLY|O_BINARY))
+				{ $rw = 0; }
+			else    { $ok = 0; }
+			}
+		if (not $ok) {
+			__PACKAGE__->Error("Error opening file $options{'name'}: $!\n"); return; }
 		}
 
 	$self->{'tell'} = 0 if $SEEK_VIA_READ;
 	$fh->autoflush();
 
 	binmode($fh);
-	@{$self}{ qw( fh filename rw ) } = ($fh, $filename, $rw);
+	@{$self}{ qw( fh filename rw ) } = ($fh, $options{'name'}, $rw);
 	## $self->locksh();
 
 		# read_header should be defined in the derived class
@@ -348,11 +362,11 @@ No more description -- check the source code if you need to know more.
 
 =head1 VERSION
 
-0.102
+0.120
 
 =head1 AUTHOR
 
-(c) 1997--1998 Jan Pazdziora, adelton@fi.muni.cz
+(c) 1997--1999 Jan Pazdziora, adelton@fi.muni.cz
 
 =head1 SEE ALSO
 

@@ -25,7 +25,7 @@ if (defined $ARGV[$#ARGV] and $ARGV[$#ARGV] eq '-')
 my %options;
 Getopt::Long::GetOptions( \%options,
 	'help', 'version', 'info', 'rs=s', 'fs=s', 'undef=s', 'fields=s',
-	'nomemo', 'memofile=s', 'memosep=s',
+	'nomemo', 'memofile=s', 'memosep=s', 'table'
 	) or exit;
 
 if (defined $options{'version'})
@@ -45,14 +45,13 @@ Usage: dbfdump [ options ] files
 	--undef		what to print for NULL values (default empty string)
 	--memofile	specifies unstandard name of attached memo file
 	--memosep	separator for dBase III dbt's (default \x1a\x1a)
+	--table		output in nice table format (needs Data::ShowTable)
     all having as parameter a string; and also
 	--nomemo	do not try to read the memo (dbt/fpt) file 
 	--info		only print info about the file and fields
 	--version	print version of the XBase library
 EOF
 	}
-if (defined $options{'fields'})
-	{ $options{'fields'} = [ split /\s*,\s*/, $options{'fields'} ]; }
 
 my %addopts = ();
 if (defined $options{'nomemo'} or defined $options{'info'})
@@ -102,6 +101,8 @@ where options are
 	--nomemo	do not try to read the memo (dbt/fpt) file
 	--info		print info about the file and fields
 	--version	print version of the XBase library
+	--table		output in nice table format (only available is
+		Data::ShowTable is installed, overrides rs and fs)
 
 =head1 SYNOPSIS
 
@@ -127,7 +128,8 @@ of file name.
 
 =head1 AUTHOR
 
-(c) 1998 Jan Pazdziora, adelton@fi.muni.cz, http://www.fi.muni.cz/~adelton/
+(c) 1998--1999 Jan Pazdziora, adelton@fi.muni.cz,
+http://www.fi.muni.cz/~adelton/
 at Faculty of Informatics, Masaryk University in Brno, Czech Republic
 
 =head1 SEE ALSO

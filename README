@@ -29,12 +29,14 @@ DBD::XBase version < 0.090. Those are the last versions that do not
 require DBI 1.0. [Please do not ask me to make this line of DBD::XBase
 work under older DBI's -- it will not work. Please do not ask me to make
 the DBD::XBase work without DBI -- it will not work. Use the XBase
-interface or install the DBI module.]
+interface or install the DBI module. (This may seem rude but I only
+try to avoid missunderstanding and unhappiness.)]
 
 No other servers/software are needed, these modules directly read and
 write the files. The main goal was to create a parser, mainly to work
 with data from your legacy applications. If you are looking for something
-more powerfull, check (for example) MySQL or PostgreSQL.
+more powerfull, check real relation database servers, such as MySQL or
+PostgreSQL.
 
 The distribution also includes a dbfdump script that prints the content
 of the table in readable form.
@@ -90,13 +92,20 @@ Installation:
 
 	Some people asked how to use this module when they are not
 	able to run make on their system. Even if it's beyond my
-	understanding why somebody would want to do such thing, you
+	understanding why somebody would want to use such system, you
 	are free to just copy the lib/ directory where you want it to
-	have. This should work.
+	have. This should work. (BTW: some systems have make renamed
+	and do not take the time to make a symlink. Ask your system
+	administrator.)
 
 Problems and bug reports:
 	If anything goes wrong when installing, please send me output
 	of your installation messages and of make test TEST_VERBOSE=1.
+	Each version of the module is tested on IRIX, Linux and
+	Solaris before releasing but surely there might be situation
+	where something is corrupted on other platforms. If you send
+	me reasonable output, these errors are typically fixed in
+	a matter of hours (unless I'm gone for a vacation).
 
 	If there are errors when actually using the module on your
 	data, please chcek first that it's really a XBase/DBD::XBase
@@ -105,25 +114,25 @@ Problems and bug reports:
 	the problems, so that I can trace down the problem. Add info
 	about your OS, version of Perl and other modules that might be
 	relevant. You can of course also send patches to actual bugs.
-	
-	Mention the word "XBase" in the Subject line, otherwise you
+
+	Mention the word "XBase" in the Subject line, otherwise your
 	mail will probably just slip through my 4 MB mailbox without
-	being even read.
+	evan being read.
 
 	For general Perl issues, use the comp.lang.perl.m* newsgroups,
 	for DBI issues, use dbi-users@fugue.com.
 	
 If it works for you:
 	I'd appreciate any message if you use the module and find it
-	usefull -- I'm just curious for what tasks people use the
-	module and what they expect from it. You can of course also
+	usefull -- I'm just curious what tasks people use the module
+	for and what they expect from it. You can of course also
 	send something more valuable.
 
 Available:
 	http://www.fi.muni.cz/~adelton/perl/ and from your favorite
 	CPAN site in the authors/id/JANPAZ/ directory.
 
-Copyright: (c) 1997--1998 Jan Pazdziora, adelton@fi.muni.cz. All rights
+Copyright: (c) 1997--1999 Jan Pazdziora, adelton@fi.muni.cz. All rights
 	reserved. This package is free software; you can redistribute
 	it and/or modify it under the same terms as Perl itself.
 
