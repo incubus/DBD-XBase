@@ -1,11 +1,13 @@
 
-This is the to-do list for package XBase and DBD::XBase:
+This is the to-do list for XBase and DBD::XBase package:
 
-Short term (I will do them):
+
+Short term (I will do them as my time allows):
 
 	Review error messages.
 
-	DBD::XBase -- I'm now working on some siiimple SQL parser.
+	Finish DBD::XBase.
+
 
 Mid term (would appreciate help or comments):
 
@@ -13,7 +15,8 @@ Mid term (would appreciate help or comments):
 	the XBase object and unlock it upon close.
 
 
-Long term (it really depends on many things):
+Long term (it really depends on many things, mainly whether other
+people will demand the feature):
 
 	Indexing: how should this work? Am I able to rewrite _all_ the
 	indexing algorithms around from all the versions of dBase,
@@ -21,4 +24,10 @@ Long term (it really depends on many things):
 
 	I'm now working on some cdx parser but do not see any real use
 	for that just now.
+
+--
+
+Jan Pazdziora
+adelton@fi.muni.cz
+http://www.fi.muni.cz/~adelton/
 

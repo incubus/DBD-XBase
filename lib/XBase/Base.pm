@@ -100,12 +100,11 @@ use Exporter;
 @ISA = qw(Exporter);
 
 @EXPORT = qw( DEBUG FIXPROBLEMS Error Warning NullError );
-@EXPORT_OK = qw( DEBUG FIXPROBLEMS Error Warning NullError );
 
 # ##############
 # General things
 
-$VERSION = "0.034";
+$VERSION = "0.0396";
 
 # Sets the debug level
 $DEBUG = 0;
@@ -118,7 +117,7 @@ sub FIXPROBLEMS () { $FIXPROBLEMS }
 
 # Holds the text of the error, if there was one
 $errstr = '';
-sub errstr ()	{ $errstr }
+sub errstr ()	{ (ref $_[0] ? $_[0]->{'errstr'} : $errstr); }
 
 # Issues warning to STDERR if there is debug level set, but does Error
 # if not FIXPROBLEMS
@@ -131,13 +130,15 @@ sub Warning (@)
 # Prints error on STDERR if there is debug level set and sets $errstr
 sub Error (@)
 	{
-	shift if ref $_[0];
+	my $self;
+	$self = shift if ref $_[0];
 	print STDERR @_ if DEBUG;
-	$errstr .= join '', @_;
+	(defined $self ? $self->{'errstr'} : $errstr) .= join '', @_;
 	}
 # Nulls the $errstr, should be used in methods called from the mail
 # program
-sub NullError ()	{ $errstr = ''; }
+sub NullError
+	{ if (ref $_[0]) { $_[0]->{'errstr'} = ''; } else { $errstr = ''; } }
 
 
 # Contructor. If it is passed a name of the file, it opens it and
@@ -189,10 +190,10 @@ sub open
 # Closes the file
 sub close
 	{
-	NullError();
 	my $self = shift;
+	$self->NullError();
 	if (not defined $self->{'opened'})
-		{ Error "Can't close file that is not opened\n"; return; }
+		{ $self->Error("Can't close file that is not opened\n"); return; }
 	$self->{'fh'}->close();
 	delete @{$self}{'opened', 'fh'};
 	1;
@@ -200,16 +201,16 @@ sub close
 # Drop (unlink) the file
 sub drop
 	{
-	NullError();
 	my $self = shift;
 	my $filename = $self;
+	$self->NullError();
 	if (ref $self)
 		{
 		$filename = $self->{'filename'};
-		$self->close() if ($self->{'opened'});
+		$self->close() if defined $self->{'opened'};
 		}
 	unlink $filename or
-		do { Error "Error unlinking file $filename: $!\n"; return; };
+		do { $self->Error("Error unlinking file $filename: $!\n"); return; };
 	1;	
 	}
 # Create new file
@@ -247,13 +248,13 @@ sub get_record_offset
 	my ($header_len, $record_len) = @{$self}{ qw( header_len record_len ) };
 	unless (defined $header_len and defined $record_len)
 		{
-		Error "Header and record lengths not known in get_record_offset\n";
+		$self->Error("Header and record lengths not known in get_record_offset\n");
 		return;
 		}
 	my $num = shift;
 	unless (defined $num)
 		{
-		Error "Number of the record must be specified in get_record_offset\n";
+		$self->Error("Number of the record must be specified in get_record_offset\n");
 		return;
 		}
 	return $header_len + $num * $record_len;	
@@ -276,14 +277,14 @@ sub seek_to
 
 			# the file should really be opened and writable
 	if (not defined $self->{'opened'})
-		{ Error "The file $filename is not opened\n"; return; }
+		{ $self->Error("The file $filename is not opened\n"); return; }
 	if (not $self->{'writable'})
-		{ Error "The file $filename is not writable\n"; return; }
+		{ $self->Error("The file $filename is not writable\n"); return; }
 
 	delete $self->{'tell'};	# we cancel the tell position
 
 	$self->{'fh'}->seek($offset, 0)	# seek to the offset
-		or do { Error "Error seeking to offset $offset on $filename: $!\n";
+		or do { $self->Error("Error seeking to offset $offset on $filename: $!\n");
 		return;
 		};
 	1;
@@ -296,9 +297,9 @@ sub read_record
 	{
 	my ($self, $num, $in_length) = @_;
 	if (not defined $num)
-		{ Error "Record number to read must be specified\n"; return; }
+		{ $self->Error("Record number to read must be specified\n"); return; }
 	if ($num > $self->last_record())
-		{ Error "Can't read record $num, there is not so many of them\n"; return; }
+		{ $self->Error("Can't read record $num, there is not so many of them\n"); return; }
 
 	if (defined $self->{'cached_num'} and $num == $self->{'cached_num'})
 		{
@@ -318,7 +319,7 @@ sub read_record
 
 	if ((not defined $in_length or $in_length != -1) and $readlen != $length)
 		{
-		Warning "Error reading the whole record num $num\n";
+		$self->Warning("Error reading the whole record num $num\n");
 		return unless FIXPROBLEMS;
 		};
 	$self->{'tell'} = (defined $tell) ? $tell + $length : $fh->tell();
@@ -344,7 +345,7 @@ sub write_record
 	{
 	my ($self, $num) = (shift, shift);
 	if (not defined $num)
-		{ Error "Record number to write must be specified\n"; return; }
+		{ $self->Error("Record number to write must be specified\n"); return; }
 	if (defined $self->{'cached_num'} and $num == $self->{'cached_num'})
 		{ delete $self->{'cached_num'}; }
 	$self->seek_to_record($num) or return;
@@ -353,7 +354,7 @@ sub write_record
 	local ($,, $\) = ("", "");
 	my $fh = $self->{'fh'};
 	$fh->print(@_) or
-		do { Error "Error writing record $num: $!\n"; return; } ;
+		do { $self->Error("Error writing record $num: $!\n"); return; } ;
 	( $num == 0 ) ? "0E0" : $num;
 	}
 
@@ -368,7 +369,7 @@ sub write_to
 	local ($,, $\) = ("", "");
 	my $fh = $self->{'fh'};
 	$fh->print(@_) or
-		do { Error "Error writing at offset $offset: $!\n"; return; } ;
+		do { $self->Error("Error writing at offset $offset: $!\n"); return; } ;
 	( $offset == 0 ) ? "0E0" : $offset;
 	}
 

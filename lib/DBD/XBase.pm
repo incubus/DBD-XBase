@@ -5,18 +5,18 @@ DBD::XBase - DBI driver for XBase
 
 =head1 SYNOPSIS
 
-	use DBI;
-	my $dbh = DBI->connect("DBI:XBase:/directory/subdir")
-						or die $DBI::errstr;
-	my $sth = $dbh->prepare("select ID,MSG from test where ID != 1")
-						or die $dbh->errstr();
-	$sth->execute() or die $sth->errstr();
+    use DBI;
+    my $dbh = DBI->connect("DBI:XBase:/directory/subdir")
+    				or die $DBI::errstr;
+    my $sth = $dbh->prepare("select MSG from test where ID != 1")
+    				or die $dbh->errstr();
+    $sth->execute() or die $sth->errstr();
 
-	my @data;
-	while (@data = $sth->fetchrow_array())
-		{
-		...
-		}
+    my @data;
+    while (@data = $sth->fetchrow_array())
+    	{
+    	...
+    	}
 
 =head1 DESCRIPTION
 
@@ -44,7 +44,7 @@ The where condition si the same as for select.
 
 =head1 VERSION
 
-0.039
+0.0394
 
 =head1 AUTHOR
 
@@ -71,7 +71,7 @@ use vars qw($VERSION @ISA @EXPORT $err $errstr $drh);
 
 require Exporter;
 
-$VERSION = '0.039';
+$VERSION = '0.0394';
 
 $err = 0;
 $errstr = '';
@@ -81,7 +81,7 @@ sub driver
 	{
 	return $drh if $drh;
 	my ($class, $attr) = @_;
-	$class .= "::dr";
+	$class .= '::dr';
 	$drh = DBI::_new_drh($class, {
 		'Name'		=> 'XBase',
 		'Version'	=> $VERSION,
@@ -90,6 +90,7 @@ sub driver
 		'Attribution'	=> 'DBD::XBase by Jan Pazdziora',
 		});
 	}
+
 
 package DBD::XBase::dr;
 use strict;
@@ -123,55 +124,62 @@ sub prepare
 	{
 	my ($dbh, $statement, @attribs)= @_;
 
-	my $parsed_sql = XBase::SQL->parse_command($statement);
-
-	my $errstr;
-	if (not ref $parsed_sql)
-		{ $errstr = 'Parse SQL failed'; }
-	elsif (defined $parsed_sql->{'errstr'})
-		{ $errstr = $parsed_sql->{'errstr'}; }
-
-	if (defined $errstr)
+	my $parsed_sql = parse XBase::SQL($statement);
+###	use Data::Dumper; print Dumper $parsed_sql;
+	if (defined $parsed_sql->{'errstr'})
 		{
 		${$dbh->{'Err'}} = 2;
-		${$dbh->{'Errstr'}} = "Error at SQL parse: $errstr\n";
+		${$dbh->{'Errstr'}} = 'Error in SQL parse: ' . $parsed_sql->{'errstr'};
 		return;
 		}
 
-	my $sth = DBI::_new_sth($dbh, {
+	if ($parsed_sql->{'command'} eq 'create')
+		{
+		return DBI::_new_sth($dbh, {
+			'Statement'	=> $statement,
+			'dbh'		=> $dbh,
+			'xbase_parsed_sql'	=> $parsed_sql,
+			});
+		}
+	
+	my $table = $parsed_sql->{'table'};
+	my $xbase = $dbh->{'xbase_tables'}->{$table};
+	if (not defined $xbase)
+		{
+		my $filename = $dbh->{'dsn'} . '/' . $table;
+		$xbase = new XBase($filename);
+		if (not defined $xbase)
+			{
+			${$dbh->{'Err'}} = 3;
+			${$dbh->{'Errstr'}} =
+				"Table $table not found: @{[XBase->errstr]}\n";
+			return;
+			}
+		$dbh->{'xbase_tables'}->{$table} = $xbase;	
+		}
+
+	$parsed_sql->{'xbase'} = $xbase;
+
+	my $field;
+	my @nonexistfields = ();
+	for $field (@{$parsed_sql->{'usedfields'}})
+		{
+		push @nonexistfields unless (defined $xbase->field_type($field) or grep { $_ eq $field } @nonexistfields);
+		}
+	if (@nonexistfields)
+		{
+		my $plural = ((scalar(@nonexistfields) > 1) ? 1 : 0);
+		${$dbh->{'Err'}} = 4;
+		${$dbh->{'Errstr'}} = qq!Field@{[$plural ? "s" : ""]} @{[$plural ? "do not" : "doesn't"]} exist in table $table\n!;
+		return;
+		}
+
+	DBI::_new_sth($dbh, {
 		'Statement'	=> $statement,
 		'dbh'		=> $dbh,
 		'xbase_parsed_sql'	=> $parsed_sql,
+		'xbase_table'	=> $xbase,
 		});
-
-	if (defined $parsed_sql->{'table'})
-		{
-		my $table = $parsed_sql->{'table'};
-		my $xbase = $dbh->{'xbase_tables'}->{$table};
-		if (not defined $xbase)
-			{
-			my $filename = $dbh->{'dsn'} . "/" . $table;
-			$xbase = new XBase($filename);
-			if (not defined $xbase)
-				{
-				${$dbh->{'Err'}} = 3;
-				${$dbh->{'Errstr'}} =
-					"Table $table not found: @{[XBase->errstr]}\n";
-				return;
-				}
-			$dbh->{'xbase_tables'}->{$table} = $xbase;	
-			}
-		$parsed_sql->{'xbase'} = $xbase;
-		$parsed_sql->parse_conditions();
-		if (defined $parsed_sql->{'errstr'})
-			{
-			${$dbh->{'Err'}} = 4;
-			${$dbh->{'Errstr'}} = "Error at SQL parse: $parsed_sql->{'errstr'}\n";
-			return;
-			}
-		}
-
-	$sth;
 	}
 
 sub STORE {
@@ -182,22 +190,20 @@ sub STORE {
 	}
 
 
-
-
 package DBD::XBase::st;
 use strict;
 use vars qw( $imp_data_size );
 $imp_data_size = 0;
-sub errstr	{ $DBD::XBase::errstr }
 
 sub execute
 	{
 	my $sth = shift;
+	my $xbase = $sth->{'xbase_table'};
 	my $parsed_sql = $sth->{'xbase_parsed_sql'};
-	my $table = $parsed_sql->{'table'};
-	my $xbase = $sth->{'dbh'}->{'xbase_tables'}->{$table};
-	$sth->{'xbase_table'} = $xbase if defined $xbase;
-	delete $sth->{'xbase_current_record'} if defined $sth->{'xbase_current_record'};
+
+	delete $sth->{'xbase_current_record'}
+				if defined $sth->{'xbase_current_record'};
+
 	my $command = $parsed_sql->{'command'};
 	if ($command eq 'delete')
 		{
@@ -212,13 +218,30 @@ sub execute
 			{
 			for ($recno = 0; $recno <= $last; $recno++)
 				{
-				my $HASH = $xbase->get_record_as_hash($recno);
-				next if $HASH->{'_DELETED'} != 0;
-				next unless &{$parsed_sql->{'wherefn'}}($HASH);
+				my $values = $xbase->get_record_as_hash($recno);
+				next if $values->{'_DELETED'} != 0;
+				next unless &{$parsed_sql->{'wherefn'}}($xbase, $values);
 				$xbase->delete_record($recno);
 				}
 			}
 		return 1;
+		}
+	elsif ($command eq 'create')
+		{
+		my $dbh = $sth->{'dbh'};
+		my $table = $parsed_sql->{'table'};
+		my $filename = $dbh->{'dsn'} . '/' . $table;
+		my $xbase = XBase->create('name' => $filename,
+			map { ($_, $parsed_sql->{$_}) }
+				grep { /^field_/ } keys %$parsed_sql);
+		
+		if (not defined $xbase)
+			{
+			### ${$sth->{'Err'}} = 10;
+			${$sth->{'Errstr'}} = XBase->errstr();
+			return;
+			}
+		$dbh->{'xbase_tables'}->{$table} = $xbase;	
 		}
 	1;
 	}
@@ -238,12 +261,12 @@ sub fetch
 		{ @fields = @{$parsed_sql->{'selectfields'}}; }
 	while ($current <= $table->last_record())
 		{
-		my $HASH = $table->get_record_as_hash($current);
+		my $values = $table->get_record_as_hash($current);
 		$sth->{'xbase_current_record'} = ++$current;
-		next if $HASH->{'_DELETED'} != 0;
+		next if $values->{'_DELETED'} != 0;
 		if (defined $parsed_sql->{'wherefn'})
-			{ next unless &{$parsed_sql->{'wherefn'}}($HASH); }
-		return [ @$HASH{ @fields } ];
+			{ next unless &{$parsed_sql->{'wherefn'}}($table, $values); }
+		return [ @$values{ @fields } ];
 		}
 	$sth->finish(); return;
 	}
