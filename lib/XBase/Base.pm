@@ -206,6 +206,11 @@ sub create_file
 		Error "Name has to be specified when creating new table\n";
 		return;
 		}
+	if (-f $name)
+		{
+		Error "File '$name' already exists\n";
+		return;
+		}
 	my $fh = new IO::File;
 	$fh->open($name, "w+", $perms) and do
 		{
