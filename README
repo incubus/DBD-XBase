@@ -130,8 +130,9 @@ Problems and bug reports:
 	be related. Detailed description and small examples are the
 	best.
 	
-	For general Perl issues, use the comp.lang.perl.m* newsgroups,
-	for DBI issues, use dbi-users@fugue.com.
+	For general Perl issues, use the comp.lang.perl.* newsgroups,
+	for DBI issues, look at http://dbi.perl.org/ or use
+	dbi-users-help@perl.org.
 	
 If it works for you:
 	I'd appreciate any message if you use the module and find it
@@ -143,7 +144,7 @@ Available:
 	http://www.fi.muni.cz/~adelton/perl/ and from your favorite
 	CPAN site in the authors/id/JANPAZ/ directory.
 
-Copyright: (c) 1997--1999 Jan Pazdziora, adelton@fi.muni.cz. All rights
+Copyright: (c) 1997--2001 Jan Pazdziora, adelton@fi.muni.cz. All rights
 	reserved. This package is free software; you can redistribute
 	it and/or modify it under the same terms as Perl itself.
 
