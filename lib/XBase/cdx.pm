@@ -1,31 +1,4 @@
 
-=head1 NAME
-
-XBase::cdx - Support for compound index files
-
-=head1 SYNOPSIS
-
-Used indirectly, via XBase.
-
-=head1 DESCRIPTION
-
-To be worked on.
-
-=head1 VERSION
-
-0.03
-
-=head1 AUTHOR
-
-(c) Jan Pazdziora, adelton@fi.muni.cz
-
-=head1 SEE ALSO
-
-perl(1), XBase(3)
-
-=cut
-
-
 # ##################################
 # Here starts the XBase::cdx package
 

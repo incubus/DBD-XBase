@@ -16,7 +16,6 @@ package XBase;
 use strict;
 use XBase::Base;	# will give us general methods
 
-
 # ##############
 # General things
 
@@ -24,7 +23,7 @@ use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
 
-$VERSION = "0.058";
+$VERSION = '0.0581';
 
 $errstr = "Use of \$XBase::errstr is depreciated, please use XBase->errstr() instead\n";
 
@@ -556,8 +555,8 @@ sub create
 	my $version = $options{'version'};
 	$version = 3 unless defined $version;
 
-	my $header = pack "CCCCVvvvCCA12CCv", $version, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, "", 0, 0, 0;
+	my $header = pack 'CCCCVvvvCCa12CCv', $version, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, '', 0, 0, 0;
 
 	my $key;
 	for $key ( qw( field_names field_types field_lengths field_decimals ) )
@@ -601,8 +600,8 @@ sub create
 			$decimal = int($length / 256);
 			$length %= 256;
 			}
-		$header .= pack "A11A1VCCvCvCA7C", $name, $type, 0,
-				$length, $decimal, 0, 0, 0, 0, "", 0;
+		$header .= pack 'a11a1VCCvCvCa7C', $name, $type, 0,
+				$length, $decimal, 0, 0, 0, 0, '', 0;
 		}
 	$header .= "\x0d";
 
@@ -659,16 +658,17 @@ __END__
 
 =head1 DESCRIPTION
 
-This module can read and write XBase database file, known as dbf in
+This module can read and write XBase database files, known as dbf in
 dBase and FoxPro world. It also reads memo fields from the dbt and fpt
 files, if needed. Module XBase provides simple native interface to
-XBase files. For DBI compliant database access, check DBD::XBase and
-DBI module.
+XBase files. For DBI compliant database access, check the DBD::XBase
+and DBI modules.
 
-B<Warning> for now: It doesn't support any index files at the present
-time! That means if you change your dbf, your idx/mdx (if you have
-any) will not match. You will need to regenerate them using other
-tools -- probably those that later make use of them.
+B<Warning> for now: XBase doesn't support any index files at present!
+That means if you change your dbf, your idx/mdx (if you have any) will
+not match. You will need to regenerate them using other tools --
+probably those that later make use of them. If you do not have any
+indexes, do not vorry about them.
 
 The following methods are supported by XBase module:
 
@@ -678,10 +678,10 @@ The following methods are supported by XBase module:
 
 =item new
 
-Creates the XBase object, the argument gives the name of the dbf file
-(table, in fact). A suffix .dbf will be appended if needed. This method
-creates and initializes new object, will also check for memo file, if
-needed.
+Creates the XBase object, one parameter should be the name of existing
+dbf file (table, in fact). A suffix .dbf will be appended if needed.
+This method creates and initializes new object, will also check for memo
+file, if needed.
 
 =item close
 
@@ -691,21 +691,21 @@ Closes the object/file.
 
 Creates new database file on disk and initializes it with 0 records.
 A dbt (memo) file will be also created if the table contains some memo
-fields. Arguments to create are passed as hash.
+fields. Parameters to create are passed as hash.
 
 You can call this method as method of another XBase object and then
 you only need to pass B<name> value of the hash; the structure
 (fields) of the new file will be the same as of the original object.
 
-If you call create using class name (XBase), you have to (besides
+If you call B<create> using class name (XBase), you have to (besides
 B<name>) also specify another four values, each being a reference
 to list: B<field_names>, B<field_types>, B<field_lengths> and
 B<field_decimals>. The field types are specified by one letter
-strings. If you set some value as undefined, create will make it into
-some reasonable default.
+strings (C, N, L, D). If you set some value as undefined, create will
+make it into some reasonable default.
 
 The new file mustn't exist yet -- XBase will not allow you to
-overwrite existing table. Use B<drop> to delete them first (or unlink).
+overwrite existing table. Use B<drop> to delete it first (or unlink).
 
 =item drop
 
@@ -736,28 +736,28 @@ field doesn't exist in the table.
 
 When dealing with the records, reading or writing, you always have
 to specify the number of the record in the file. The range is
-0 .. $table->last_record().
+C<0 .. $table-E<gt>last_record()>.
 
 =over 4
 
 =item get_record
 
 Returns a list of data (field values) from the specified record (line
-of the table). The first argument in the call is the number of the
-record. If you do not specify any other arguments, all fields are
+of the table). The first parameter in the call is the number of the
+record. If you do not specify any other parameters, all fields are
 returned in the same order as they appear in the file.
 
 You can also put list of field names after the record number and then
 only those will be returned. The first value of the returned list is
-always the 1/0 _DELETED value saying if the record is deleted or not,
-so on success, get_record will never return empty list.
+always the 1/0 C<_DELETED> value saying if the record is deleted or not,
+so on success, B<get_record> will never return empty list.
 
 =item get_record_as_hash
 
 Returns hash (in list context) or reference to hash (in scalar
 context) containing field values indexed by field names. The name of
-the deleted flag is _DELETED. The only argument in the call is the
-record number.
+the deleted flag is C<_DELETED>. The only parameter in the call is
+the record number.
 
 =back
 
@@ -770,14 +770,14 @@ return true -- the record number actually written.
 
 =item set_record
 
-As arguments, takes the number of the record and the list of values
+As parameters, takes the number of the record and the list of values
 of the fields. It writes the record to the file. Unspecified fields
 (if you pass less than you should) are set to undef/empty.
 
 =item set_record_hash
 
-Takes number of the record and hash as arguments, sets the fields,
-unspecified are undeffed/emptied.
+Takes number of the record and hash as parameters, sets the fields,
+unspecified are undefed/emptied.
 
 =item update_record_hash
 
@@ -795,7 +795,7 @@ Deletes/undeletes specified record.
 If the method fails (returns false or null list), the error message
 can be retrieved via B<errstr> method. If the B<new> or B<create>
 method fails, you have no object so you get the error message using
-class syntax XBase->errstr().
+class syntax C<XBase-E<gt>errstr()>.
 
 The methods B<get_header_info> returns (not prints) string with
 information about the file and about the fields. Method B<dump_records>
@@ -855,7 +855,7 @@ No index files are currently supported. Two reasons: you do not need
 them when reading the file because you specify the record number
 anyway and writing them is extremely difficult. I might try to add the
 support but do not promise anything ;-) There are too many too complex
-questions: how about compound indexes? Which index formats should
+questions: How about compound indexes? Which index formats should
 I support? What files contain the index data? I do not have dBase nor
 Fox* so do not have data to experiment.
 
@@ -875,20 +875,20 @@ package, but the interface seemed rather complicated to me.
 So with the help of article XBase File Format Description by Erik
 Bachmann on URL
 
- http://www.geocities.com/SiliconValley/Pines/2563/xbase.htm
+    http://www.geocities.com/SiliconValley/Pines/2563/xbase.htm
 
 I have written a new module. It doesn't use any code from Xbase-1.07
 and you are free to use and distribute it under the same terms as Perl
 itself.
 
 Please send all bug reports or patches CC'ed to my e-mail, since I
-might miss your post in c.l.p.misc or dbi-users (or other groups). Any
+might miss your post in c.l.p.m or dbi-users (or other groups). Any
 comments about both the Perl and XBase issues of this module are also
 welcome.
 
 =head1 VERSION
 
-0.058
+0.0581
 
 =head1 AUTHOR
 

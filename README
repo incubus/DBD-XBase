@@ -5,22 +5,22 @@
 
 This is the README file for the XBase and DBD::XBase packages.
 
-Module XBase provides access to XBase (dBase, Fox*) data files, namely
-dbf, dbt, fpt. It provides "native" Perl interface to the table's
-content. The goal wasn't to write database engine but simply a parser,
-simple tool to read and write the files. If you are looking for
-something more powerfull, check (for example) MySQL or Postgres.
+Module XBase provides access to XBase (dBase, Fox*) database files,
+namely dbf, dbt, fpt. It provides native Perl interface to read and
+write the tables. My goal wasn't to write database engine but simply
+a parser, simple tool to read and write the data. If you are looking
+for something more powerfull, check (for example) MySQL or Postgres.
 
-The XBase module doesn't (currently?) use index files and doesn't
-write them -- so if you change your data files that have attached
-index files, you need to regenerate them in other systems, that
-support them.
+The XBase module doesn't (currently?) make use of index files and
+doesn't write them. So if you change your data files that have
+attached index files, you need to regenerate them using other software,
+that supports them.
 
 DBD::XBase is a database driver for Perl DBI interface. It talks to
-XBase module that actually accesses the data. You need DBI module to
-use this database driver -- check its man page on how to use it. As an
-argument to connect, pass "dbi:XBase:$dir", where $dir is directory
-with the data files.
+the XBase module that actually accesses the data. You need DBI module
+to use this database driver -- please check the DBI(3) man page on how
+to use it. As an argument to connect, send "dbi:XBase:$dir", where $dir
+is directory with the data files.
 
 Once more, this is a module to parse and update XBase files, not a db
 engine. It is provided in a hope you might find it usefull. My intent
@@ -45,15 +45,15 @@ Installation:
 	really should have 5.004 to run cool. You need a DBI module to
 	use the DBD driver.
 
-Problems and bug reports, support:
+Problems and bug reports:
 	If anything goes wrong when installing, please send me output
-	of you installation messages and of make test TEST_VERBOSE=1.
+	of your installation messages and of make test TEST_VERBOSE=1.
 	If there are errors when actually using the module on your
 	data, please send me the errstr messages and (if possible)
-	your data files that cause the problems, so that I can trace down
-	the problem.
+	your data files that cause the problems, so that I can trace
+	down the problem.
 
-	You can also send bug reports and patches to c.l.p.misc but
+	You can also send bug reports and patches to c.l.p.m but
 	send a CC to me as well, since I might miss your post.
 
 If it works for you:
