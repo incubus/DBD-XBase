@@ -11,7 +11,7 @@ use vars qw( @ISA $DEBUG $VERSION $VERBOSE );
 use XBase::Base;
 @ISA = qw( XBase::Base );
 
-$VERSION = '0.160';
+$VERSION = '0.162';
 
 $DEBUG = 0;
 
@@ -26,6 +26,11 @@ print "XBase::Index::new($class, $file, @_)\n" if $XBase::Index::VERBOSE;
 	if (ref $class) { @opts = ('dbf', $class, @opts); }
 	my ($ext) = ($file =~ /\.(...)$/);
 	$ext = lc $ext;
+
+	if ($ext eq 'sdbm' or $ext eq 'pag' or $ext eq 'dir') {
+		require XBase::SDBM;
+		$ext = 'SDBM';
+	}
 
 	my $object = eval "new XBase::$ext \$file, \@opts";
 	return $object if defined $object;
@@ -898,15 +903,15 @@ sub read_header
 
 		my $key_string = $subidx->{'key_string'};
 		my $field_type;
-		if (defined $subidx->{'dbf'}) {
+		if (defined $opts{'type'}) {
+			$field_type = $opts{'type'};
+			}
+		elsif (defined $subidx->{'dbf'}) {
 			$field_type = $subidx->{'dbf'}->field_type($key_string);
 			if (not defined $field_type) {
 				__PACKAGE__->Error("Couldn't find key string `$key_string' in dbf file, can't determine field type\n");
 				return;
 				}
-			}
-		elsif (defined $opts{'type'}) {
-			$field_type = $opts{'type'};
 			}
 		else {
 			__PACKAGE__->Error("Index type (char/numeric) unknown for $subidx\n");
@@ -1697,11 +1702,11 @@ directory.
 
 =head1 VERSION
 
-0.160
+0.162
 
 =head1 AUTHOR
 
-(c) 1998--2000 Jan Pazdziora, adelton@fi.muni.cz
+(c) 1998--2001 Jan Pazdziora, adelton@fi.muni.cz
 
 =head1 SEE ALSO
 

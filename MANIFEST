@@ -26,6 +26,7 @@ lib/XBase/Base.pm
 lib/XBase/FAQ.pod
 lib/XBase/Index.pm
 lib/XBase/Memo.pm
+lib/XBase/SDBM.pm
 lib/XBase/SQL.pm
 t/1_header.t
 t/2_read.t
@@ -36,6 +37,7 @@ t/4_dbfdump.t
 t/5_cdx.t
 t/5_ndx.t
 t/5_ntx.t
+t/5_sdbm.t
 t/6_attach_cdx.t
 t/7_dbd_select.t
 t/7_dbd_select_func.t

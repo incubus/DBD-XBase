@@ -20,7 +20,7 @@ use XBase::Base;		# will give us general methods
 use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
-$VERSION = '0.161';
+$VERSION = '0.162';
 $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 
 *errstr = \$XBase::Base::errstr;
@@ -333,7 +333,7 @@ sub get_last_change
 	my $date = $self;
 	if (ref $self) { $date = $self->{'last_update'}; }
 	my ($year, $mon, $day) = unpack 'C3', $date;
-	$year += 1900;
+	$year += ($year >= 70) ? 1900 : 2000;
 	return "$year/$mon/$day";
 	}
 # Return text description of the version value
@@ -843,7 +843,10 @@ sub prepare_select_with_index
 	my @tagopts = ();
 	if (ref $file eq 'ARRAY') {		### this is suboptimal
 				### interface but should suffice for the moment
-		@tagopts = ( 'tag' => $file->[1]);
+		@tagopts = ('tag' => $file->[1]);
+		if (defined $file->[2]) {
+			push @tagopts, ('type' => $file->[2]);
+			}
 		$file = $file->[0];
 		}
 	my $fieldnames = [ @_ ];
@@ -924,6 +927,10 @@ sub fetch
 		}
 	return;
 	}
+
+# Indexed number the records starting from one, not zero.
+sub last_fetched
+	{ shift->[1] - 1; }
 
 1;
 
@@ -1309,11 +1316,11 @@ Thanks a lot.
 
 =head1 VERSION
 
-0.161
+0.162
 
 =head1 AUTHOR
 
-(c) 1997--2000 Jan Pazdziora, adelton@fi.muni.cz,
+(c) 1997--2001 Jan Pazdziora, adelton@fi.muni.cz,
 http://www.fi.muni.cz/~adelton/ at Faculty of Informatics, Masaryk
 University in Brno, Czech Republic
 

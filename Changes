@@ -1,6 +1,21 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
+0.162 Sun Jan 21 17:53:05 MET 2001
+	XBase::IndexCursor: error by one in last_fetched.
+
+	XBase: Y2K problem fixed, patch by Phillip Millman.
+
+	XBase::Index, XBase::SDBM: added support for SDBM index
+	files.
+
+	XBase, XBase::cdx: added support for type specification of cdx
+	files even when called via prepare_select_with_index, to
+	allow use even if we don't support expressions.
+
+	XBase::SQL: multiplication support added, patch by Thoren
+	Johne.
+
 0.161 Sat May 20 12:52:35 MET DST 2000
 	indexdump: had bug in option handling.
 

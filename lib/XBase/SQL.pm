@@ -8,7 +8,7 @@ package XBase::SQL;
 use strict;
 use vars qw( $VERSION %COMMANDS );
 
-$VERSION = '0.155';
+$VERSION = '0.162';
 
 # #################################
 # Type conversions for create table
@@ -659,6 +659,7 @@ use overload
 	'==' => sub { my $a = shift->notequal(@_); return ( $a ? 0 : 1); },
 	'""' => sub { ref shift; },
 	'.' => sub { XBase::SQL::Expr->string($_[0]->value . $_[1]->value); },
+	'*'  => sub { XBase::SQL::Expr->number($_[0]->value * $_[1]->value);},
 	;
 
 sub new { bless {}, shift; }
