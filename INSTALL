@@ -56,6 +56,11 @@ no way of influencing what version of XBase.pm/DBD::XBase ActiveState
 offers on their site -- contact them if you need newer version which
 is only on CPAN.
 
+If you have case insensitive filesystem, make sure you do not have an
+old module named Xbase.pm installed -- remove it prior to using
+XBase.pm, otherwise bad things will happen.
+
+
 		------------------------------------
 		Problems and bug reporting for XBase
 		------------------------------------

@@ -1,6 +1,17 @@
 
 use 5.004;
 
+eval 'use XBase;';
+if (Xbase->can("open_dbf")) {
+	print <<EOF;
+	You seem to have case insensitive filesystem and an old module
+	Xbase.pm (note the lowercase b) installed. It will clash with
+	XBase.pm badly. Please, remove Xbase.pm before continuing.
+EOF
+
+	sleep 3;
+}
+
 eval 'use DBI';
 if ($@ ne '') {
 	print <<EOF;
