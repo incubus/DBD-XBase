@@ -19,7 +19,7 @@ use XBase::Base;	# will give us general methods
 use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
-$VERSION = '0.0596';
+$VERSION = 0.0597;
 $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 
 *errstr = \$XBase::Base::errstr;
@@ -32,12 +32,15 @@ $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 sub open
 	{
 	my ($self, $filename) = @_;
-	if (not $filename =~ /\.dbf$/i and
-		( $self->SUPER::open($filename . '.DBF') or
-				$self->SUPER::open($filename . '.dbf')))
-			{ return 1; }
-	$self->NullError();
 	$self->SUPER::open($filename) and return 1;
+	for my $ext ('.dbf', '.DBF')
+		{
+		if (-f $filename.$ext)
+			{
+			$self->NullError();
+			return $self->SUPER::open($filename.$ext);
+			}
+		}
 	return;
 	}
 # We have to provide way to fill up the object upon open
@@ -50,14 +53,16 @@ sub read_header
 	$fh->read($header, 32) == 32 or do
 		{ __PACKAGE__->Error("Error reading header of $self->{'filename'}: $!\n"); return; };
 
-	my ($version, $last_update, $num_rec, $header_len, $record_len)
+	@{$self}{ qw( version last_update num_rec header_len record_len ) }
+	### my ($version, $last_update, $num_rec, $header_len, $record_len)
 		= unpack 'Ca3Vvv', $header;	# parse the data
+	my $header_len = $self->{'header_len'};
 
 	my ($names, $types, $lengths, $decimals) = ( [], [], [], [] );
 	my ($unpacks, $readproc, $writeproc) = ( [], [], [] );
 	my $lastoffset = 1;
 	
-	while (tell($fh) < $header_len - 1)	# will read the field desc's
+	while (tell($fh) < $header_len - 1)	# read the field desc's
 		{
 		my $field_def;
 		my $read = $fh->read($field_def, 32);
@@ -69,66 +74,71 @@ sub read_header
 
 		my ($name, $type, $length, $decimal)
 			= unpack 'A11a1 @16CC', $field_def;
+		my ($rproc, $wproc);
 
-		$name =~ s/[\000 ].*$//s;
-		$name = uc $name;		# no locale yet
-
-		if ($type eq 'C')	
+		if ($type eq 'C')		# char
 			{
 			# fixup for char length > 256
 			$length += 256 * $decimal; $decimal = 0;
-			push @$readproc, \&_read_char;
-			push @$writeproc, sub { my $value = shift;
+			$rproc = sub { my $value = shift;
+				$value =~ s/\s+$// if $CLEARNULLS; $value; };
+			$wproc = sub { my $value = shift;
 				sprintf '%-*.*s', $length, $length,
 					(defined $value ? $value : ''); };
 			}
-		elsif ($type eq 'L')
+		elsif ($type eq 'L')		# logical (boolean)
 			{
-			push @$readproc, \&_read_boolean;
-			push @$writeproc, sub { my $value = shift;
+			$rproc = sub { my $value = shift;
+				if ($value =~ /^[YyTt]$/) { return 1; }
+				if ($value =~ /^[NnFf]$/) { return 0; }
+				undef; };
+			$wproc = sub { my $value = shift;
 				sprintf '%-*.*s', $length, $length,
 					(defined $value ? ( $value ? 'Y' : 'N') : '? '); };
 			}
-		elsif ($type =~ /^[NFD]$/)
+		elsif ($type =~ /^[NFD]$/)	# numbers, dates
 			{
-			push @$readproc, \&_read_number;
-			push @$writeproc, sub { sprintf '%*.*f',
+			$rproc = sub { my $value = shift;
+				($value =~ /\d/) ? $value + 0 : undef; };
+			$wproc = sub { sprintf '%*.*f',
 					$length, $decimal, (shift() + 0); };
 			}
-		elsif ($type =~ /^[MGBP]$/)
+		elsif ($type =~ /^[MGBP]$/)	# memo fields
 			{
 			my $memo = $self->{'memo'};
 			$memo = $self->{'memo'} = $self->init_memo_field()
 							unless defined $memo;
-			push @$readproc, sub {
+			$rproc = sub {
 				my $value = shift;
 				return undef unless $value =~ /\d/;
 				$memo->read_record($value) if defined $memo;
 				};
-			push @$writeproc, sub {
+			$wproc = sub {
 				my $value = $memo->write_record(-1, $type, shift) if defined $memo;
 				sprintf '%*.*s', $length, $length,
 					(defined $value ? $value : ''); };
 			}
 
+		$name =~ s/[\000 ].*$//s;
+		$name = uc $name;		# no locale yet
 		push @$names, $name;
 		push @$types, $type;
 		push @$lengths, $length;
 		push @$decimals, $decimal;
 		push @$unpacks, '@' . $lastoffset . 'a' .  $length;
+		push @$readproc, $rproc;
+		push @$writeproc, $wproc;
 		$lastoffset += $length;
-		}		# store the information
+		}
 
-	my $hashnames;		# create name-to-num_of_field hash
+	my $hashnames = {};		# create name-to-num_of_field hash
 	@{$hashnames}{ reverse @$names } = reverse ( 0 .. $#$names );
 
 			# now it's the time to store the values to the object
-	@{$self}{ qw( version last_update num_rec header_len record_len
-		field_names field_types field_lengths field_decimals
+	@{$self}{ qw( field_names field_types field_lengths field_decimals
 		hash_names last_field field_unpacks
 		field_rproc field_wproc ) } =
-			( $version, $last_update, $num_rec, $header_len,
-			$record_len, $names, $types, $lengths, $decimals,
+			( $names, $types, $lengths, $decimals,
 			$hashnames, $#$names, $unpacks,
 			$readproc, $writeproc );
 
@@ -142,13 +152,13 @@ sub init_memo_field
 	require XBase::Memo;
 
 	my $memoname = $self->{'filename'};
-	$memoname =~ s/\.DBF?$/.DBT/;	$memoname =~ s/(\.dbf)?$/.dbt/;
+	$memoname =~ s/\.DBF$/.DBT/;	$memoname =~ s/(\.dbf)?$/.dbt/;
 	my $memo = XBase::Memo->new($memoname, $self->{'version'});
 	if (not defined $memo)
 		{
 		$memoname = $self->{'filename'};
-		$memoname =~ s/\.DBF?$/.FPT/;	$memoname =~ s/(\.dbf)?$/.fpt/;
-		$memo = return XBase::Memo->new($memoname, $self->{'version'});
+		$memoname =~ s/\.DBF$/.FPT/;	$memoname =~ s/(\.dbf)?$/.fpt/;
+		$memo = XBase::Memo->new($memoname, $self->{'version'});
 		}
 	$memo;
 	}
@@ -163,6 +173,7 @@ sub close
 
 # ###############
 # Little decoding
+sub version		{ shift->{'version'}; }
 sub last_record		{ shift->{'num_rec'} - 1; }
 sub last_field		{ shift->{'last_field'}; }
 
@@ -174,34 +185,25 @@ sub field_decimals	{ @{shift->{'field_decimals'}}; }
 
 # Return field number for field name
 sub field_name_to_num
-	{
-	my ($self, $name) = @_;
-	$self->{'hash_names'}{$name};
-	}
-
+	{ my ($self, $name) = @_; $self->{'hash_names'}{$name}; }
 sub field_type
 	{
 	my ($self, $name) = @_;
-	my $num = $self->field_name_to_num($name);
-	return unless defined $num;
+	defined (my $num = $self->field_name_to_num($name)) or return;
 	($self->field_types)[$num];
 	}
 sub field_length
 	{
 	my ($self, $name) = @_;
-	my $num = $self->field_name_to_num($name);
-	return unless defined $num;
+	defined (my $num = $self->field_name_to_num($name)) or return;
 	($self->field_lengths)[$num];
 	}
 sub field_decimal
 	{
 	my ($self, $name) = @_;
-	my $num = $self->field_name_to_num($name);
-	return unless defined $num;
+	defined (my $num = $self->field_name_to_num($name)) or return;
 	($self->field_decimals)[$num];
 	}
-sub version { shift->{'version'}; }
-
 
 
 # #############################
@@ -212,8 +214,8 @@ sub version { shift->{'version'}; }
 sub get_header_info
 	{
 	my $self = shift;
-	my $hexversion = sprintf "0x%02x", $self->{'version'};
-	my $longversion = $self->get_version_info();
+	my $hexversion = sprintf '0x%02x', $self->version;
+	my $longversion = $self->get_version_info;
 	my $printdate = $self->get_last_change;
 	my $numfields = $self->last_field() + 1;
 	my $result = sprintf <<"EOF";
@@ -227,11 +229,10 @@ Num fields:	$numfields
 Field info:
 Num	Name		Type	Len	Decimal
 EOF
-	return join "", $result, map { $self->get_field_info($_) }
+	return join '', $result, map { $self->get_field_info($_) }
 					(0 .. $self->last_field);
 	}
-
-# Returns info about field in dbf file
+# Return info about field in dbf file
 sub get_field_info
 	{
 	my ($self, $num) = @_;
@@ -239,22 +240,21 @@ sub get_field_info
 		map { $self->{$_}[$num] }
 			qw( field_names field_types field_lengths field_decimals );
 	}
-
-# Returns last_change item in printable string
+# Return last_change item as printable string
 sub get_last_change
 	{
 	my $self = shift;
 	my $date = $self;
 	if (ref $self) { $date = $self->{'last_update'}; }
-	my ($year, $mon, $day) = unpack "C3", $date;
+	my ($year, $mon, $day) = unpack 'C3', $date;
 	$year += 1900;
 	return "$year/$mon/$day";
 	}
-
+# Return text description of the version value
 sub get_version_info
 	{
 	my $version = shift;
-	$version = $version->{'version'} if ref $version;
+	$version = $version->version() if ref $version;
 	my ($vbits, $dbtflag, $memo, $sqltable) = (0, 0, 0, 0);
 	if ($version == 3)	{ $vbits = 3; }
 	elsif ($version == 0x83)	{ $vbits = 3; $memo = 0; $dbtflag = 1;}
@@ -266,15 +266,12 @@ sub get_version_info
 		}
 	
 	my $result = "ver. $vbits";
-	if ($memo)
-		{ $result .= ' with memo file'; }
-	elsif ($dbtflag)
-		{ $result .= ' with DBT file'; }
+	if ($memo)	{ $result .= ' with memo file'; }
+	elsif ($dbtflag)	{ $result .= ' with DBT file'; }
 	$result .= ' containing SQL table' if $sqltable;
 	$result;
 	}
-
-# Prints the records as comma separated fields
+# Print the records as comma separated fields
 sub dump_records
 	{
 	my $self = shift;
@@ -284,6 +281,7 @@ sub dump_records
 				$self->get_record($num, @_)), "\n"; }
 	1;
 	}
+
 
 # ###################
 # Reading the records
@@ -326,8 +324,7 @@ sub get_record_nf
 
 	my @out = unpack $unpack, $data;
 
-	for (@out)
-		{ $_ = &{ shift @fns }($_); }
+	for (@out) { $_ = &{ shift @fns }($_); }
 
 	@out;
 	}
@@ -339,17 +336,22 @@ sub _read_deleted
 	if ($value eq '*') { return 1; } elsif ($value eq ' ') { return 0; }
 	undef;
 	}
-sub _read_char
-	{ my $value = shift; $value =~ s/\s+$// if $CLEARNULLS; $value; }
-sub _read_boolean
+
+sub get_all_records
 	{
-	my $value = shift;
-	if ($value =~ /^[YyTt]$/) { return 1; }
-	if ($value =~ /^[NnFf]$/) { return 0; }
-	undef;
+	my $self = shift;
+	my @fieldnums = map { $self->field_name_to_num($_); } @_;
+	my $result = [];
+	my $lastrec = $self->last_record;
+	for (0 .. $lastrec)
+		{
+		my @record = $self->get_record_nf($_, @fieldnums);;
+		return unless @record;
+		unless ($record[0])
+			{ push @$result, [ @record[1 .. $#record] ]; }
+		}
+	$result;
 	}
-sub _read_number
-	{ my $value = shift; (($value =~ /\d/) ? $value + 0 : undef); }
 
 # #############
 # Write records
@@ -535,7 +537,25 @@ sub drop
 		}
 	XBase::Base::drop($filename);
 	}
-
+# Lock and unlock
+sub locksh
+	{
+	my $self = shift;
+	$self->{'memo'}->locksh() if defined $self->{'memo'};
+	$self->SUPER::locksh;
+	}
+sub lockex
+	{
+	my $self = shift;
+	$self->{'memo'}->lockex() if defined $self->{'memo'};
+	$self->SUPER::lockex;
+	}
+sub unlock
+	{
+	my $self = shift;
+	$self->{'memo'}->unlock() if defined $self->{'memo'};
+	$self->SUPER::unlock;
+	}
 1;
 
 __END__
@@ -722,7 +742,7 @@ end of fixed character fields on read. The default is true.
 This is a code to update field MSG in record where ID is 123.
 
     use XBase;
-    my $table = new XBase("test.dbf") or die XBase->errstr();
+    my $table = new XBase "test.dbf" or die XBase->errstr();
     for (0 .. $table->last_record())
     	{
     	my ($deleted, $id)
@@ -737,7 +757,7 @@ This is a code to update field MSG in record where ID is 123.
     		}
     	}
 
-Some more examples are in the eg directory of the distribution.
+For some more examples please see the eg directory of the distribution.
 
 =head1 MEMO FIELDS and INDEX FILES
 
@@ -783,13 +803,13 @@ welcome.
 
 =head1 VERSION
 
-0.0596
+0.0597
 
 =head1 AUTHOR
 
-(c) Jan Pazdziora, adelton@fi.muni.cz, http://www.fi.muni.cz/~adelton/
-
-at Faculty of Informatics, Masaryk University in Brno, Czech Republic
+(c) 1997--1998 Jan Pazdziora, adelton@fi.muni.cz,
+http://www.fi.muni.cz/~adelton/ at Faculty of Informatics, Masaryk
+University in Brno, Czech Republic
 
 =head1 SEE ALSO
 

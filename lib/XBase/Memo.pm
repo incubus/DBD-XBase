@@ -12,7 +12,7 @@ use XBase::Base;
 
 use vars qw( $VERSION @ISA );
 @ISA = qw( XBase::Base );
-$VERSION = "0.0595";
+$VERSION = 0.0597;
 
 # Read header is called from open to fill the object structures
 sub read_header
@@ -33,7 +33,7 @@ sub read_header
 	else
 		{
 		($next_for_append, $version, $block_size)
-					= unpack 'V@16C@20v', $header;
+					= unpack 'V @16C @20v', $header;
 		if ($version == 3)
 			{
 			$block_size = 512;
@@ -80,7 +80,7 @@ sub create
 	$version = 3 unless defined $version;
 	$version = 0 if $version == 4;
 	my $header = 
-	$self->write_to(0, pack "VVa8Ca495", 1, 0, '', $version) or return;
+	$self->write_to(0, pack 'VVa8Ca495', 1, 0, '', $version) or return;
 	$self->close();
 	return $self;
 	}
@@ -103,7 +103,7 @@ sub read_record
 	while ($num <= $last)
 		{
 		my $buffer = $self->SUPER::read_record($num, -1) or return;
-		my $index = index($buffer, "\x1a\x1a");
+		my $index = index($buffer, "\x1a");
 		if ($index >= 0)
 			{ return $result . substr($buffer, 0, $index); }
 		$result .= $buffer;
@@ -219,22 +219,22 @@ __END__
 
 =head1 SYNOPSIS
 
-Used indirectly, via XBase.
+Used indirectly, via XBase. Users should check its man page.
 
 =head1 DESCRIPTION
 
 Objects of this class are created to deal with memo files, currently
-.dbt. Defines method B<read_header> to parse that header of the file
-and set object's structures, B<write_record> and B<last_record> to
-work properly on this type of file.
+.dbt and .fpt. Defines method B<read_header> to parse that header of
+the file and set object's structures, B<write_record> and
+B<last_record> to work properly on these types of file.
 
-There are two separate packages in this module, XBase::Memo::dBaseIII
-and XBase::Memo::dBaseIV. Memo objects are effectively of one of these
-types and they specify B<read_record> and B<write_record> methods.
+There are three separate subpackages in XBase::Memo, dBaseIII, dBaseIV
+and Fox. Memo objects are effectively of one of these types and they
+specify their specific B<read_record> and B<write_record> methods.
 
 =head1 VERSION
 
-0.045
+0.0597
 
 =head1 AUTHOR
 

@@ -64,6 +64,8 @@ if (index($errstr, $errstr_expect) != 0)
 	{ print "Expected: $errstr_expect\nGot: $errstr\nnot "; }
 print "ok 7\n";
 
+$table->close();
+
 
 print "Load table without specifying the .dbf suffix\n";
 $table = new XBase("$dir/test");

@@ -2,7 +2,7 @@
 
 use strict;
 
-BEGIN	{ $| = 1; print "1..5\n"; }
+BEGIN	{ $| = 1; print "1..8\n"; }
 END	{ print "not ok 1\n" unless $::XBaseloaded; }
 
 print "Load the module: use XBase\n";
@@ -52,6 +52,13 @@ print "ok 3\n";
 exit unless defined $table;
 
 
+print "Check the last record number\n";
+my $last_record = $table->last_record();
+if ($last_record != 2)
+	{ print "Expecting 2, got $last_record\nnot "; }
+print "ok 4\n";
+
+
 print "Overwrite the record and check it back\n";
 $table->set_record(1, 5, 'New message', 'New note', 1, '19700101')
 	or print STDERR $table->errstr();
@@ -60,7 +67,14 @@ my $result = join ':', map { defined $_ ? $_ : '' } $table->get_record(1);
 my $result_expected = '0:5:New message:New note:1:19700101';
 if ($result_expected ne $result)
 	{ print "Expected: $result_expected\nGot: $result\nnot "; }
-print "ok 4\n";
+print "ok 5\n";
+
+
+print "Did last record stay the same?\n";
+$last_record = $table->last_record();
+if ($last_record != 2)
+	{ print "Expecting 2, got $last_record\nnot "; }
+print "ok 6\n";
 
 
 print "Now append data and read them back\n";
@@ -70,7 +84,14 @@ $result = join ':', map { defined $_ ? $_ : '' } $table->get_record(3);
 $result_expected = '0:245:New record no 4:New note for record 4::19700102';
 if ($result_expected ne $result)
 	{ print "Expected: $result_expected\nGot: $result\nnot "; }
-print "ok 5\n";
+print "ok 7\n";
+
+
+print "Now the number of records should have increased\n";
+$last_record = $table->last_record();
+if ($last_record != 3)
+	{ print "Expecting 3, got $last_record\nnot "; }
+print "ok 8\n";
 
 
 1;

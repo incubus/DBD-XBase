@@ -12,7 +12,7 @@ use IO::File;
 
 use vars qw( $VERSION $DEBUG $errstr );
 
-$VERSION = '0.0595';
+$VERSION = 0.0597;
 
 # Sets the debug level
 $DEBUG = 0;
@@ -23,7 +23,7 @@ $errstr = '';
 # Fetch the error message
 sub errstr ()	{ ( ref $_[0] ? $_[0]->{'errstr'} : $errstr ); }
 
-# Print error on STDERR if there is debug level set and set errstr
+# Set errstr and print error on STDERR if there is debug level
 sub Error (@)
 	{
 	my $self = shift;
@@ -47,7 +47,7 @@ sub new
 sub open
 	{
 	__PACKAGE__->NullError();
-	my ($self, $filename) = @_;
+	my ($self, $filename) = (shift, shift);
 	if (defined $self->{'fh'}) { $self->close(); }
 
 	my $fh = new IO::File;
@@ -57,9 +57,10 @@ sub open
 	else { __PACKAGE__->Error("Error opening file $filename: $!\n"); return; }
 	binmode($fh);
 	@{$self}{ qw( fh filename rw ) } = ($fh, $filename, $rw);
+	## $self->locksh();
 
 		# read_header should be defined in the derived class
-	$self->read_header();
+	$self->read_header(@_);
 	}
 # Close the file
 sub close
@@ -98,7 +99,7 @@ sub create_file
 
 	$perms = 0644 unless defined $perms;
 	my $fh = new IO::File;
-	$fh->open($filename, "w+", $perms) or return;
+	$fh->open($filename, 'w+', $perms) or return;
 	binmode($fh);
 	@{$self}{ qw( fh filename rw ) } = ($fh, $filename, 1);
 	return $self;
@@ -192,11 +193,13 @@ sub write_to
 	}
 
 
-sub lock	{ _lock(shift->{'fh'}) }
+sub locksh	{ _locksh(shift->{'fh'}) }
+sub lockex	{ _lockex(shift->{'fh'}) }
 sub unlock	{ _unlock(shift->{'fh'}) }
 
-sub _lock	{ flock(shift, 2); }
-sub _unlock	{ flock(shift, 8); }
+sub _locksh	{ flock(shift, 1); }
+sub _lockex	{ flock(shift, 2); }
+sub _unlockex	{ flock(shift, 8); }
 
 
 1;
@@ -269,17 +272,20 @@ The data is not padded to record_len, just written out.
 
 =back
 
-General locking methods are B<lock> and B<unlock>, they call B<_lock>
-and B<_unlock> which can be redefined to allow any way for locking
-(not only the default flock).
+General locking methods are B<locksh>, B<lockex> and B<unlock>, they
+call B<_locksh>, B<_lockex> and B<_unlock> which can be redefined to
+allow any way for locking (not only the default flock). The user is
+responsible for calling the lock if he needs it.
+
+No more description -- check the source code if you need to know more.
 
 =head1 VERSION
 
-0.0595
+0.0597
 
 =head1 AUTHOR
 
-(c) Jan Pazdziora, adelton@fi.muni.cz
+(c) 1997--1998 Jan Pazdziora, adelton@fi.muni.cz
 
 =head1 SEE ALSO
 

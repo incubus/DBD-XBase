@@ -2,7 +2,7 @@
 
 use strict;
 
-BEGIN	{ $| = 1; print "1..8\n"; }
+BEGIN	{ $| = 1; print "1..9\n"; }
 END	{ print "not ok 1\n" unless $::XBaseloaded; }
 
 
@@ -54,7 +54,7 @@ print XBase->errstr, 'not ' unless defined $rooms;
 print "ok 5\n";
 
 
-print "Check the records\n";
+print "Check the records using read_record\n";
 $records_expected = join '', <DATA>;
 $records = join "\n", (map { join ':', map { defined $_ ? $_ : '' }
 			$rooms->get_record($_) }
@@ -64,19 +64,32 @@ if ($records_expected ne $records)
 print "ok 6\n";
 
 
+print "Check the records using get_all_records\n";
+my $all_records = $rooms->get_all_records('ROOMNAME', 'FACILITY');
+if (not defined $all_records)
+	{ print $rooms->errstr, "not "; }
+else
+	{
+	$records = join "\n", (map { join ':', 0, @$_; } @$all_records), '';
+	if ($records_expected ne $records)
+		{ print "Expected:\n$records_expected\nGot:\n$records\nnot "; }
+	}
+print "ok 7\n";
+
+
 $XBase::Base::DEBUG = 0;
 
 print "Check if reading record that doesn't exist will produce error\n";
 my (@result) = $table->get_record(3);
 print "not " if @result;
-print "ok 7\n";
+print "ok 8\n";
 
 print "Check error message\n";
 my $errstr = $table->errstr();
 my $errstr_expected = "Can't read record 3, there is not so many of them\n";
 if ($errstr ne $errstr_expected)
 	{ print "Expected: $errstr_expected\nGot: $errstr\nnot "; }
-print "ok 8\n";
+print "ok 9\n";
 
 1;
 
