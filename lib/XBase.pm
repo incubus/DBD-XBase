@@ -149,7 +149,7 @@ sub read_header
 						$memo->read_record($value - 1) if defined $memo;
 						};
 					$wproc = sub {
-						my $value = $memo->write_record(-1, $type, $_[0]) if defined $memo and defined $_[0];
+						my $value = $memo->write_record(-1, $type, $_[0]) if defined $memo and defined $_[0] and $_[0] ne '';
 						sprintf '%*.*s', $length, $length,
 							(defined $value ? $value + 1: ''); };
 					}
