@@ -50,7 +50,8 @@ my %TYPES = ( 'char' => 'C', 'num' => 'N', 'numeric' => 'N', 'int' => 'N',
 	'STRINGSGL' => q! \\' (\\\\\\\\|\\\\'|[^\\'])* \\' !,
 	'ORDER' => [ qw{ order by FIELDNAME } ],
 	'INSERTCONSTANTS' => [ qw{ CONSTANT ( }, ',', qw{ INSERTCONSTANTS ) * } ],
-	'CONSTANT' => [ qw{ \? | NUMBER | STRING } ],
+	'CONSTANT' => [ qw{ BINDPARAM | NUMBER | STRING } ],
+	'BINDPARAM' => q'\?',
 	'INSERTFIELDS' =>	'\( FIELDNAME ( , FIELDNAME ) * \)',
 	
 	'SETCOLUMNS' => 'SETCOLUMN ( , SETCOLUMN ) *',
@@ -90,7 +91,7 @@ my %STORE = (
 	'UPDATE SETCOLUMN FIELDNAME' => 'updatefields',
 	'UPDATE SETCOLUMN ARITHMETIC' => sub { my ($self, @expr) = @_;
 		my $line = "sub { my (\$TABLE, \$HASH) = \@_; my \$e = XBase::SQL::Expr->other( @expr ); \$e->value(); }";
-		### print "Evaling $line\n";
+		### print STDERR "Evaling $line\n";
 		my $fn = eval $line;
 		if ($@) { push @{$self->{'updaterror'}}, $@; }
 		else { push @{$self->{'updaterror'}}, undef;
@@ -109,8 +110,8 @@ my %STORE = (
 	'DROP TABLE' => 'table',
 
 	'WHEREEXPR' => sub { my ($self, $expr) = @_;
-		### print "Evaling $expr\n";
-		my $fn = eval "sub { my (\$TABLE, \$HASH) = \@_; $expr; }";
+		### print STDERR "Evaling $expr\n";
+		my $fn = eval "sub { my (\$TABLE, \$HASH, \$BIND) = \@_; my \@BIND = \@\$BIND; $expr; }";
 		if ($@) { $self->{'whereerror'} = $@; }
 		else { $self->{'wherefn'} = $fn; }
 		},
@@ -124,6 +125,7 @@ my %SIMPLIFY = (
 					"XBase::SQL::Expr->number('\Q$e\E')"; },
 	'EXPFIELDNAME' => sub { my $e = (get_strings(@_))[0];
 					"XBase::SQL::Expr->field('$e', \$TABLE, \$HASH)"; },
+	'BINDPARAM' => 'XBase::SQL::Expr->string(scalar shift @BIND)',
 	'FIELDNAME' => sub { uc ((get_strings(@_))[0]); },
 	'WHEREEXPR' => sub { join ' ', get_strings(@_); },
 	'RELOP' => sub { my $e = (get_strings(@_))[0];

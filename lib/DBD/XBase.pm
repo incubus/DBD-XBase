@@ -159,7 +159,7 @@ $imp_data_size = 0;
 sub bind_param
 	{
 	my ($sth, $param, $value, $attribs) = @_;
-	$sth->{'param'}->[$param] = $value;
+	$sth->{'param'}[$param] = $value;
 	}
 
 sub execute
@@ -167,6 +167,7 @@ sub execute
 	my $sth = shift;
 	if (@_)
 		{ push @{$sth->{'param'}}, @_; }
+	$sth->{'param'} = [] unless defined $sth->{'param'};
 	my $xbase = $sth->{'xbase_table'};
 	my $parsed_sql = $sth->{'xbase_parsed_sql'};
 
@@ -189,7 +190,7 @@ sub execute
 				{
 				my $values = $xbase->get_record_as_hash($recno);
 				next if $values->{'_DELETED'} != 0;
-				next unless &{$parsed_sql->{'wherefn'}}($xbase, $values);
+				next unless &{$parsed_sql->{'wherefn'}}($xbase, $values, $sth->{'param'});
 				$xbase->delete_record($recno);
 				}
 			}
@@ -205,7 +206,7 @@ sub execute
 			{
 			my $values = $xbase->get_record_as_hash($recno);
 			next if $values->{'_DELETED'} != 0;
-			next if defined $fn and not &{$fn}($xbase, $values);
+			next if defined $fn and not &{$fn}($xbase, $values, $sth->{'param'});
 			
 			my %newval;
 			@newval{ @fields } = map { &{$_}($xbase, $values) }
@@ -272,7 +273,7 @@ sub fetch
 		$sth->{'xbase_current_record'} = ++$current;
 		next if $values->{'_DELETED'} != 0;
 		if (defined $parsed_sql->{'wherefn'})
-			{ next unless &{$parsed_sql->{'wherefn'}}($table, $values); }
+			{ next unless &{$parsed_sql->{'wherefn'}}($table, $values, $sth->{'param'}); }
 		return [ @{$values}{ @fields } ];
 		}
 	$sth->finish(); return;
