@@ -62,7 +62,7 @@ Read $record_len bytes from get_record_offset position.
 
 =head1 VERSION
 
-0.0291
+0.0292
 
 =head1 AUTHOR
 
@@ -91,7 +91,7 @@ use Exporter;
 # ##############
 # General things
 
-$VERSION = "0.0291";
+$VERSION = "0.0292";
 
 # Sets the debug level
 $DEBUG = 1;
