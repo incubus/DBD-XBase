@@ -23,7 +23,7 @@ use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
 
-$VERSION = '0.0581';
+$VERSION = '0.0582';
 
 $errstr = "Use of \$XBase::errstr is depreciated, please use XBase->errstr() instead\n";
 
@@ -347,7 +347,7 @@ sub process_list_on_read
 			next unless $value =~ /\d/;
 			my $len = $self->{'field_lengths'}[$num - 1];
 			my $dec = $self->{'field_decimals'}[$num - 1];
-			if ($dec)
+                        if ($dec and index($value, '.') == -1) 
 				{ substr($value, -$dec, 0) = '.'; }
 			$data[$num] = $value + 0;
 			}
@@ -888,7 +888,7 @@ welcome.
 
 =head1 VERSION
 
-0.0581
+0.0582
 
 =head1 AUTHOR
 
