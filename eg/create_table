@@ -1,5 +1,10 @@
 #!/usr/bin/perl -w
 
+#
+# This is an example how to create new table, if you have field
+# specification.
+#
+
 use strict;
 use XBase;
 

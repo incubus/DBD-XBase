@@ -8,7 +8,7 @@ DBD::XBase - DBI driver for XBase
 	use DBI;
 	my $dbh = DBI->connect("DBI:XBase:/directory/subdir")
 						or die $DBI::errstr;
-	my $sth = $dbh->prepare("select (ID, MSG) from test")
+	my $sth = $dbh->prepare("select ID,MSG from test where ID != 1")
 						or die $dbh->errstr();
 	$sth->execute() or die $sth->errstr();
 
@@ -20,15 +20,31 @@ DBD::XBase - DBI driver for XBase
 
 =head1 DESCRIPTION
 
-DBI compliant driver for module XBase. It is not ready yet, only the
+DBI compliant driver for module XBase. I still work on it, currently
+it supports just
 
-	select * from table
+=over 4
 
-works at the moment.
+=item select
+
+	select fields from table [ where condition ]
+
+Fields is a comma separated list of fields or a * for all. The where
+condition specifies which rows will be returned, you can compare
+fields and constants and stack expressions using and or or, and also
+(, ).
+
+=item delete
+
+	delete from table [ where condition ]
+
+The where condition si the same as for select.
+
+=over
 
 =head1 VERSION
 
-0.0343
+0.039
 
 =head1 AUTHOR
 
@@ -55,7 +71,7 @@ use vars qw($VERSION @ISA @EXPORT $err $errstr $drh);
 
 require Exporter;
 
-$VERSION = '0.0343';
+$VERSION = '0.039';
 
 $err = 0;
 $errstr = '';
@@ -177,10 +193,33 @@ sub errstr	{ $DBD::XBase::errstr }
 sub execute
 	{
 	my $sth = shift;
-	my $table = $sth->{'xbase_parsed_sql'}->{'table'};
+	my $parsed_sql = $sth->{'xbase_parsed_sql'};
+	my $table = $parsed_sql->{'table'};
 	my $xbase = $sth->{'dbh'}->{'xbase_tables'}->{$table};
 	$sth->{'xbase_table'} = $xbase if defined $xbase;
 	delete $sth->{'xbase_current_record'} if defined $sth->{'xbase_current_record'};
+	my $command = $parsed_sql->{'command'};
+	if ($command eq 'delete')
+		{
+		my $recno = 0;
+		my $last = $xbase->last_record();
+		if (not defined $parsed_sql->{'wherefn'})
+			{
+			for ($recno = 0; $recno <= $last; $recno++)
+				{ $xbase->delete_record($recno); }
+			}
+		else
+			{
+			for ($recno = 0; $recno <= $last; $recno++)
+				{
+				my $HASH = $xbase->get_record_as_hash($recno);
+				next if $HASH->{'_DELETED'} != 0;
+				next unless &{$parsed_sql->{'wherefn'}}($HASH);
+				$xbase->delete_record($recno);
+				}
+			}
+		return 1;
+		}
 	1;
 	}
 
@@ -188,9 +227,10 @@ sub fetch
 	{
         my $sth = shift;
 	my $current = $sth->{'xbase_current_record'};
+	my $parsed_sql = $sth->{'xbase_parsed_sql'};
+	return unless $parsed_sql->{'command'} eq 'select';
 	$current = 0 unless defined $current;
 	my $table = $sth->{'xbase_table'};
-	my $parsed_sql = $sth->{'xbase_parsed_sql'};
 	my @fields;
 	if (defined $parsed_sql->{'selectall'})
 		{ @fields = $table->field_names(); }
@@ -205,7 +245,7 @@ sub fetch
 			{ next unless &{$parsed_sql->{'wherefn'}}($HASH); }
 		return [ @$HASH{ @fields } ];
 		}
-	$sth->finish(); return ();
+	$sth->finish(); return;
 	}
 	
 1;

@@ -1,5 +1,10 @@
 #!/usr/bin/perl -w
 
+#
+# Just a quick example that shows that you can use errstr to get the
+# errors and dump_records to list all fields.
+#
+
 use strict;
 use XBase;
 

@@ -44,7 +44,7 @@ sub parse_select
 
 	if (s/^\*\s+|\(\s*\*\s*\)\s*//s)
 		{ $self->{'selectall'} = 1; }
-	elsif (s/^([\w.]+(?:\s*,\s*[\w.]+)*)\s+//s)
+	elsif (s/^([\w]+(?:\s*,\s*[\w]+)*)\s+//s)
 		{
 		$self->{'selectfields'} = [ split /\s*,\s*/, $+ ];
 		}
@@ -70,6 +70,67 @@ sub parse_select
 
 	return $self;
 	}
+
+sub parse_delete
+	{
+	my $self = shift;
+	local $_ = $self->{'string'};
+	unless (s/^from\s+//si)
+		{
+		$self->{'string'} = $_;
+		$self->{'errstr'} = "From specification missing";
+		return $self;
+		}
+
+	unless (s/^([\w.]+)(?:$|\s+)//s)
+		{
+		$self->{'string'} = $_;
+		$self->{'errstr'} = "Table name expected";
+		return $self;
+		}
+
+	$self->{'table'} = $+;
+	$self->{'string'} = $_;
+
+	return $self;
+	}
+
+sub parse_insert
+	{
+	my $self = shift;
+	local $_ = $self->{'string'};
+	unless (s/^into\s+//si)
+		{
+		$self->{'string'} = $_;
+		$self->{'errstr'} = "Into specification missing";
+		return $self;
+		}
+
+	unless (s/^([\w.]+)(?:$|\s+)//s)
+		{
+		$self->{'string'} = $_;
+		$self->{'errstr'} = "Table name expected";
+		return $self;
+		}
+	
+	$self->{'table'} = $+;
+
+	if (s/^\(([\w]+(?:\s*,\s*[\w]+)*)\s*\)//s)
+		{ $self->{'insertfields'} = [ split /\s*,\s*/, $+ ]; }
+
+
+	unless (s/^values\s+//si)
+		{
+		$self->{'string'} = $_;
+		$self->{'errstr'} = "Values specification missing";
+		return $self;
+		}
+
+
+	$self->{'string'} = $_;
+	return $self;
+	}
+
 
 my %STRINGOP = ( '=' => 'eq', '<' => 'lt', '>' => 'gt', '<=' => 'le',
                                 '>=' => 'ge', '<>' => 'ne', '!=' => 'ne' );
@@ -97,7 +158,13 @@ sub parse_conditions
 				$field = uc $field;
 				}
 			}
+		else { die "Huh -- no fields -- fatal problem!"; }
 		}
+	elsif ($self->{'command'} eq 'insert')
+		{
+
+		}
+
 	if ($self->{'string'} =~ s/^where(\s+|(?=\())//si)
 		{
 		$self->parse_boolean();
@@ -114,27 +181,27 @@ sub parse_conditions
 				if ($field->[0] eq 'op')
 					{
 					if ($field->[2] eq 's') 
-						{ $command .= $STRINGOP{$field->[1]}; }
+						{ $command .= ' ' . $STRINGOP{$field->[1]} . ' '; }
 					elsif ($field->[1] eq '=')
-						{ $command .= '=='; } 
+						{ $command .= ' == '; } 
 					else
-						{ $command .= $field->[1]; }
+						{ $command .= ' ' . $field->[1] . ' '; }
 					}
 				elsif ($field->[0] eq 'field')
-					{ $command .= q!$HASH->{'! . (uc $field->[1]) . q!'}!; }
+					{ $command .= q! $HASH->{'! . (uc $field->[1]) . q!'} !; }
 				elsif ($field->[0] eq 'string' or $field->[0] eq 'number' or $field->[0] eq 'arop')
-					{ $command .= $field->[1]; }
+					{ $command .= ' ' . $field->[1] . ' '; }
 				}               
 			else            
 				{
 				if ($field eq 'left')
-					{ $command .= '('; }
+					{ $command .= ' ('; }
 				if ($field eq 'right')
-					{ $command .= ')'; }
+					{ $command .= ') '; }
 				if ($field eq 'and')
-					{ $command .= 'and'; }
+					{ $command .= ' and '; }
 				if ($field eq 'or')
-					{ $command .= 'or'; }
+					{ $command .= ' or '; }
 				}               
 			}               
 		$command = "sub { my \$HASH = shift; $command; }";
@@ -226,7 +293,7 @@ sub parse_relation
 	my $self = shift;
 	local $_ = $self->{'string'};
 
-	if (s/^([\w.]+)\s*//)
+	if (s/^([\w]+)\s*//)
 		{
 		unless (defined $self->{'xbase'}->field_name_to_num(uc $+))
 			{
@@ -281,7 +348,7 @@ sub parse_arithmetic
 		{
 		push @{$self->{'expression'}}, [ 'number', $1 ];
 		}
-	elsif (s/^[\w.]+//)
+	elsif (s/^[\w]+//)
 		{
 		push @{$self->{'expression'}}, [ 'field', $& ];
 		}

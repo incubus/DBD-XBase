@@ -20,7 +20,7 @@ t/5_drop.t
 t/6_more_read.t
 t/7_dbd_select.t
 t/8_dbd_sel_where.t
-t/9_dbd_select
+t/9_dbd_delete.t
 t/dump.to.dbf
 t/rooms.cdx
 t/rooms.dbf

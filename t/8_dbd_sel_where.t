@@ -67,7 +67,7 @@ if ($result ne $expected_result)
 	{
 	print "Expected:\n$expected_result";
 	print "Got:\n$result";
-	print "no ";
+	print "not ";
 	}
 print "ok 5\n";
 

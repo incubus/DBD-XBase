@@ -232,7 +232,7 @@ both about the Perl and XBase are welcome.
 
 =head1 VERSION
 
-0.0351
+0.039
 
 =head1 AUTHOR
 
@@ -263,7 +263,7 @@ use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
 
-$VERSION = "0.0351";
+$VERSION = "0.039";
 
 $errstr = "Use of \$XBase::errstr is depreciated, please use XBase->errstr() instead\n";
 
