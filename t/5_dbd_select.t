@@ -13,7 +13,7 @@ BEGIN	{
 		print "ok 1\n";
 		exit;
 		}
-	print "1..31\n";
+	print "1..35\n";
 	print "DBI loaded\n";
 	}
 
@@ -344,6 +344,34 @@ if ($result ne $expected_result)
 	{ print "Expected:\n${expected_result}Got:\n${result}not "; }
 print "ok 31\n";
 
+
+$command = 'select (id + 9) / 3, msg message, dates as Datum from test where id > 2 + ?';
+print "Prepare $command\n";
+$sth = $dbh->prepare($command) or do {
+	print $dbh->errstr, "not ok 32\n";
+	exit;
+	};
+print "ok 32\n";
+
+print "Bind -1 (to make it into id > 1)\n";
+$sth->execute(-1) or print $sth->errstr, "\nnot ";
+print "ok 33\n";
+
+
+print "Check the names of the fields to return\n";
+$expected_result = '(ID+9)/3 message Datum';
+$result = "@{$sth->{'NAME'}}";
+if ($result ne $expected_result)
+	{ print "Expected:\n${expected_result}\nGot:\n${result}\nnot "; }
+print "ok 34\n";
+
+
+print "Fetch the resulting row\n";
+$expected_result = '4 Message no 3 19960102';
+$result = join ' ', $sth->fetchrow_array;
+if ($result ne $expected_result)
+	{ print "Expected:\n${expected_result}\nGot:\n${result}\nnot "; }
+print "ok 35\n";
 
 
 

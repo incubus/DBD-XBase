@@ -74,6 +74,12 @@ print "not " unless defined $table;
 print "ok 8\n";
 
 
+print <<EOF;
+If all tests in this file passed, the module works to such an extend
+that new XBase loads the table and correctly parses the information in
+the file header.
+EOF
+
 __DATA__
 Filename:	t/test.dbf
 Version:	0x83 (ver. 3 with DBT file)

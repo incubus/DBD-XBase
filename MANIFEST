@@ -37,6 +37,7 @@ t/3_ndx.t
 t/3_ntx.t
 t/4_dbfdump.t
 t/5_dbd_select.t
+t/5_dbd_select_func.t
 t/6_dbd_delete.t
 t/7_dbd_update.t
 t/8_dbd_insert.t

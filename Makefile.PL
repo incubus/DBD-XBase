@@ -9,14 +9,13 @@ EOF
 elsif ( eval ' $DBI::VERSION < 1.0 ' ) {
 	print <<EOF;
 	You have the DBI module, but it's the old version. Upgrade to
-	at least 1.0 to use this DBD::XBase. Or, use the DBD::XBase
-	version < 0.09, from your favorite CPAN mirror.
+	at least 1.0 to use this DBD::XBase.
 EOF
 	}
 
 print <<EOF;
 
-	If there are some problems with this module, read the README first.
+	If there are any problems with this module, read the README first.
 
 EOF
 

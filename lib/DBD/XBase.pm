@@ -594,7 +594,10 @@ sub FETCH
 		if (defined $sth->{'xbase_nondata_name'}) {
 			return $sth->{'xbase_nondata_name'};
 			}
-		return [ @{$parsed_sql->{'fields'}} ];
+		elsif (defined $parsed_sql->{'selectall'}) {
+			return [ $sth->{'Database'}->{'xbase_tables'}->{$parsed_sql->{'table'}[0]}->field_names ];
+			}
+		return [ @{$parsed_sql->{'selectnames'}} ];
 		}
 	elsif ($attrib eq 'NULLABLE') {
 		return [ (1) x scalar(@{$parsed_sql->{'fields'}}) ];
@@ -666,8 +669,8 @@ features of XBase.pm apply to DBD::XBase as well. DBD::XBase basically
 adds SQL, DBI compliant interface to XBase.pm.
 
 The DBD::XBase doesn't make use of index files at the moment. If you
-really need indexed access, check XBase(3) for notes about ndx
-support.
+really need indexed access, check XBase(3) for notes about support for
+variour index types.
 
 =head1 SUPPORTED SQL COMMANDS
 
@@ -675,10 +678,11 @@ The SQL commands currently supported by DBD::XBase's prepare are:
 
 =head2 select
 
-    select fields from table [ where condition ]
+    select fields_or_expressions from table [ where condition ]
 					[ order by field ]
 
-Fields is a comma separated list of fields or a C<*> for all. The
+Fields_or_expressions is a comma separated list of fields or arithmetic
+expressions, or a C<*> for all fields from the table. The
 C<where> condition specifies which rows will be returned, you can
 have arbitrary arithmetic and boolean expression here, compare fields
 and constants and use C<and> and C<or>. Match using C<like> is also
@@ -688,14 +692,34 @@ supported. Examples:
     select first,last from people where login = "ftp"
 						or uid = 1324
     select id,first_name,last_name from employ
-					where last_name like 'Ki%'
-    select id,name from employ where id = ?
+		where last_name like 'Ki%' order by last_name
+    select id + 1, substr(name, 1, 10) from employ where age > 65
+    select id, name from employ where id = ?
 
 You can use bind parameters in the where clause, as the last example
 shows. The actual value has to be supplied via bind_param or in the
 call to execute or do, see DBI(3) for details. To check for NULL
 values in the C<where> expression, use C<id is null> and C<id is
 not null>, not C<id == null>.
+
+Please note that you can only select from one table, joins are not
+supported and are not planned to be supported. if you need them, get
+a real RDBMS (or send me a patch).
+
+In the arithmetic expressions you can use a couple of SQL functions --
+currently supported are concat, substr (and substring), trim, ltrim and
+rtrim, length. I do not have an exact idea of which and how many
+functions I want to support. It's easy to write them in a couple of
+minutes now the interface is there (check the XBase::SQL module if you
+want to send a patch containing support for more), it's just that I do
+not really need them and sometimes it's hard to tell what is usefull and
+what is SQL92 compatible. Comment welcome.
+
+The select command may contain and order by clause. Only one column is
+supported for sorting at the moment, patches are welcome.
+
+The group by clause is not supported (and I do not plan them), nor are
+the aggregate functions.
 
 =head2 delete
 
@@ -762,7 +786,7 @@ Example:
 
 =head1 VERSION
 
-0.147
+0.155
 
 =head1 AUTHOR
 
@@ -772,7 +796,7 @@ University in Brno, Czech Republic
 
 =head1 SEE ALSO
 
-perl(1); DBI(3), XBase(3)
+perl(1); DBI(3), XBase(3); dbish(1)
 
 =cut
 

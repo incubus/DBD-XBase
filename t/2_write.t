@@ -17,47 +17,23 @@ $XBase::Base::DEBUG = 1;        # We want to see any problems
 
 print "Unlink write.dbf and write.dbt, make a copy of test.dbf and test.dbt\n";
 
-if (-f "$dir/write.dbf" and not unlink "$dir/write.dbf")
-	{ print "Error unlinking $dir/write.dbf: $!\n"; }
-if (-f "$dir/write.dbt" and not unlink "$dir/write.dbt")
-	{ print "Error unlinking $dir/write.dbt: $!\n"; }
-if (-f "$dir/write1.dbf" and not unlink "$dir/write1.dbf")
-	{ print "Error unlinking $dir/write1.dbf: $!\n"; }
-if (-f "$dir/write1.FPT" and not unlink "$dir/write1.FPT")
-	{ print "Error unlinking $dir/write1.FPT: $!\n"; }
-
-eval "use File::Copy;";
-if ($@)
-	{
-	print STDERR <<'EOM';
-	
-	Look's like you do not have File::Copy, we will do cp.
-	Plese write to adelton@fi.muni.cz that on your installation
-	File::Copy is broken. Add output of your perl -V. I'm
-	considering to drop this workaround we will use here, so that
-	I know that I should postpone the change. But you have to let
-	me know. Thanks!
-EOM
-
-	system("cp", "$dir/test.dbf", "$dir/write.dbf");
-	system("cp", "$dir/test.dbt", "$dir/write.dbt");
-	system("cp", "$dir/afox5.dbf", "$dir/write1.dbf");
-	system("cp", "$dir/afox5.FPT", "$dir/write1.FPT");
-	}
-else
-	{
-	print "Will use File::Copy\n";
-	copy("$dir/test.dbf", "$dir/write.dbf");
-	copy("$dir/test.dbt", "$dir/write.dbt");
-	copy("$dir/afox5.dbf", "$dir/write1.dbf");
-	copy("$dir/afox5.FPT", "$dir/write1.FPT");
+my @FILES = map { "$dir/$_" } qw! write.dbf write.dbt write1.dbf write1.FPT !;
+for (@FILES) {
+	if (-f $_ and not unlink $_)
+		{ print "Error unlinking $_: $!\n"; }
 	}
 
-unless (-f "$dir/write.dbf" and -f "$dir/write.dbt"
-		and -f "$dir/write1.dbf" and -f "$dir/write1.FPT")
-	{
-	print "The files to do the write tests were not created, aborting\nnot ok 2\n";
-	exit;		# Does not make sense to continue
+use File::Copy;
+copy("$dir/test.dbf", "$dir/write.dbf");
+copy("$dir/test.dbt", "$dir/write.dbt");
+copy("$dir/afox5.dbf", "$dir/write1.dbf");
+copy("$dir/afox5.FPT", "$dir/write1.FPT");
+
+
+for (@FILES) {
+	if (not -f $_) {
+		die "The files to do the write tests were not created, aborting\n";
+		}		# Does not make sense to continue
 	}
 
 
@@ -72,7 +48,7 @@ print "ok 3\n";
 exit unless defined $table;
 
 
-print "Check the last record number\n";
+print "Check the last record number (number of records, in fact)\n";
 my $last_record = $table->last_record();
 if ($last_record != 2)
 	{ print "Expecting 2, got $last_record\nnot "; }
@@ -90,7 +66,7 @@ if ($result_expected ne $result)
 print "ok 5\n";
 
 
-print "Did last record stay the same?\n";
+print "Did last record number stay the same?\n";
 $last_record = $table->last_record();
 if ($last_record != 2)
 	{ print "Expecting 2, got $last_record\nnot "; }

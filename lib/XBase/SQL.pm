@@ -8,7 +8,7 @@ package XBase::SQL;
 use strict;
 use vars qw( $VERSION %COMMANDS );
 
-$VERSION = '0.147';
+$VERSION = '0.155';
 
 # #################################
 # Type conversions for create table
@@ -38,8 +38,11 @@ my %TYPES = ( 'char' => 'C', 'varchar' => 'C',
 # select fields
 
 	'SELECTFIELDS' =>	'SELECTFIELD ( , SELECTFIELD ) *',
-	'SELECTFIELD' =>	'FIELDNAME',
+	'SELECTFIELD' =>	'SELECTEXPFIELD ( as ? FIELDNAMENOTFROM SELECTFIELDNAME ) ? ',
 	'SELECTALL' =>	q'\*',
+	'SELECTEXPFIELD' =>	'ARITHMETIC',
+	'FIELDNAMENOTFROM' =>	'(?!from)(?=\w)|(?=from\s+from\b)',
+	'SELECTFIELDNAME' =>	'STRING | [a-z_][a-z0-9_]*',
 
 # insert definitions
 
@@ -94,15 +97,23 @@ my %TYPES = ( 'char' => 'C', 'varchar' => 'C',
 	'RELOP' => [ qw{ == | = | <= | >= | <> | != | < | > } ],
 	'LIKE' =>	'not ? like',
 
-	'ARITHMETIC' => [ qw{ \( ARITHMETIC \) | ( CONSTANT | EXPFIELDNAME ) ( ( \+ | \- | \* | \/ | \% | CONCAT ) ARITHMETIC ) ? } ],
+	'ARITHMETIC' => [ qw{ ( \( ARITHMETIC \)
+		| CONSTANT | FUNCTION | EXPFIELDNAME )
+		( ( \+ | \- | \* | \/ | \% | CONCATENATION ) ARITHMETIC ) ? } ],
 	'EXPFIELDNAME' => 'FIELDNAME',
-	'CONCAT' => '\|\|',
+	'CONCATENATION' =>	'\|\|',
 
 
 	'CONSTANT' => ' CONSTANT_NOT_NULL | NULL ',
 	'CONSTANT_NOT_NULL' => ' BINDPARAM | NUMBER | STRING ',
 	'BINDPARAM' => q'\? | : [a-z0-9]* ',
 	'NULL' => 'null',
+
+	'ARITHMETICLIST' => 	' ARITHMETIC ( , ARITHMETICLIST ) * ',
+	'FUNCTION' =>	' FUNCTION1 | FUNCTION23 | FUNCTIONANY ',
+	'FUNCTION1' =>	' ( length | trim | ltrim | rtrim ) \( ARITHMETIC \) ',
+	'FUNCTION23' =>	' ( substr | substring ) \( ARITHMETIC , ARITHMETIC ( , ARITHMETIC ) ? \) ',
+	'FUNCTIONANY' =>	' concat \( ARITHMETICLIST \) ',
 
 	'ORDERBY' => 'order by ORDERFIELDNAME ( asc | ORDERDESC ) ?',
 	'ORDERDESC' => 'desc',
@@ -140,19 +151,22 @@ my %STORE = (
 		$self->{'selectfn'} = sub { my ($TABLE, $VALUES, $BIND) = @_; map { XBase::SQL::Expr->field($_, $TABLE, $VALUES)->value } $TABLE->field_names; };
 		undef;
 		},
-	'SELECTFIELD' => 'fields',
+	'SELECTEXPFIELD' => 'fields',
 	'SELECTFIELDS' => sub {
 		my $self = shift;
-		my $exprfields = join ', ', map {
-			qq!XBase::SQL::Expr->field('\Q$_\E', \$TABLE, \$VALUES)!
-			} @{$self->{'fields'}};
-
-		my $select_fn = 'sub { my ($TABLE, $VALUES, $BIND) = @_; map { $_->value() } (' . $exprfields . ')}';
-		### print STDERR "Evalling select_fn: $select_fn\n";
+		my $select_fn = 'sub { my ($TABLE, $VALUES, $BIND) = @_; map { $_->value } (' . join(', ', @{$self->{'fields'}} ) . ')}';
+		### print "Selectfn: $select_fn\n";
 		my $fn = eval $select_fn;
 		if ($@) { $self->{'selecterror'} = $@; }
 		else { $self->{'selectfn'} = $fn; }
 		$self->{'selectfieldscount'} = scalar(@{$self->{'fields'}});
+		undef;
+		},
+	'SELECTFIELDNAME' => sub {
+		my $self = shift;
+		my $fieldnum = @{$self->{'fields'}} - 1;
+		my $name = (get_strings(@_))[0];
+		$self->{'selectnames'}[$fieldnum] = $name;
 		undef;
 		},
 	
@@ -233,6 +247,13 @@ my %STORE = (
 		"XBase::SQL::Expr->string(\$BIND->{'$string'})";
 		},
 
+	'FUNCTION' => sub {
+		my $self = shift;
+		my @params = get_strings(@_);
+		my $fn = uc shift @params;
+		"XBase::SQL::Expr->function('$fn', \$TABLE, \$VALUES, @params)";
+		},
+
 	'ORDERFIELDNAME' => 'orderfield',
 	'ORDERDESC' => 'orderdesc',
 	
@@ -258,6 +279,7 @@ my %STORE = (
 	'AND' => sub { 'and' },
 	'OR' =>	sub { 'or' },
 	'LIKE' =>	sub { shift; join ' ', get_strings(@_); },
+	'CONCATENATION' =>	sub { ' . ' },
 
 
 
@@ -290,8 +312,37 @@ my %STORE = (
 			{ return "$1(XBase::SQL::Expr->likematch($values[0], $values[2])) " }
 		else { return join ' ', @values; }	},
 
-	'CONCAT' => sub { ' . ' },
 	);
+
+sub find_verbatim_select_names {
+	my ($self, @result) = @_;
+	my $i = 0;
+	while ($i < @result) {
+		if ($result[$i] eq 'SELECTEXPFIELD') {
+			my @out = $self->get_verbatim_select_names(@result[$i, $i + 1]);
+			push @{$self->{'selectnames'}}, uc join '', @out;
+			}
+		elsif (ref $result[$i + 1] eq 'ARRAY') {
+			$self->find_verbatim_select_names(@{$result[$i + 1]});
+			}
+		$i += 2;
+		}
+	}
+sub get_verbatim_select_names {
+	my ($self, @result) = @_;
+	my $i = 1;
+	my @out = ();
+	while ($i < @result) {
+		if (ref $result[$i] eq 'ARRAY') {
+			push @out, $self->get_verbatim_select_names(@{$result[$i]});
+			}
+		else {
+			push @out, $result[$i];
+			}
+		$i += 2;
+		}
+	@out;
+	}
 
 #######
 
@@ -305,9 +356,6 @@ sub parse
 	$^W = 0;
 	my ($class, $string) = @_;
 	my $self = bless {}, $class;
-
-	# strip trailing newlines, we won't definitelly need those
-	$string =~ s/\s+$//;
 
 	# try to match the $string against $COMMANDS{'COMMANDS'}
 	# that's the top level starting point
@@ -336,11 +384,12 @@ sub parse
 	else
 		{
 		# take the results and store them to $self
-		use Data::Dumper; print STDERR Dumper $self if $ENV{'SQL_DUMPER'};
+
+		$self->find_verbatim_select_names(@result);
 		$self->store_results(\@result, \%STORE);
 		if (defined $self->{'whereerror'})
 			{ $self->{'errstr'} = "Some deeper problem: eval failed: $self->{'whereerror'}"; }
-		use Data::Dumper; print STDERR Dumper $self if $ENV{'SQL_DUMPER'};
+		use Data::Dumper; print STDERR "Parsed $string to\n", Dumper $self if $ENV{'SQL_DUMPER'};
 		}
 	$self;
 	}
@@ -595,11 +644,11 @@ use overload
 	'+'  => sub { XBase::SQL::Expr->number($_[0]->value + $_[1]->value); },
 	'-'  => sub { my $a = $_[0]->value - $_[1]->value; $a = -$a if $_[2];
 			XBase::SQL::Expr->number($a); },
-	'/'  => sub { my $a = ( $_[2] ? $_[0]->value / $_[1]->value
-				: $_[1]->value / $_[0]->value );
+	'/'  => sub { my $a = ( $_[2] ? $_[1]->value / $_[0]->value
+				: $_[0]->value / $_[1]->value );
 			XBase::SQL::Expr->number($a); },
-	'%'  => sub { my $a = ( $_[2] ? $_[0]->value % $_[1]->value
-				: $_[1]->value % $_[0]->value );
+	'%'  => sub { my $a = ( $_[2] ? $_[1]->value % $_[0]->value
+				: $_[0]->value % $_[1]->value );
 			XBase::SQL::Expr->number($a); },
 	'<'  => \&less,
 	'<=' => \&lesseq,
@@ -609,6 +658,7 @@ use overload
 	'<>' => \&notequal,
 	'==' => sub { my $a = shift->notequal(@_); return ( $a ? 0 : 1); },
 	'""' => sub { ref shift; },
+	'.' => sub { XBase::SQL::Expr->string($_[0]->value . $_[1]->value); },
 	;
 
 sub new { bless {}, shift; }
@@ -647,6 +697,36 @@ sub other {
 	my $other = shift;
 	$other;
 	}
+sub function {
+	my ($class, $function, $table, $values, @params) = @_;
+	my $self = $class->new;
+	$self->{'string'} = 1;
+	if ($function eq 'LENGTH') {
+		$self->{'value'} = length($params[0]->value);
+		delete $self->{'string'};
+		$self->{'number'} = 1;
+		}
+	elsif ($function eq 'TRIM') {
+		($self->{'value'} = $params[0]->value) =~ s/^\s+|\s+$//g;
+		}
+	elsif ($function eq 'LTRIM') {
+		($self->{'value'} = $params[0]->value) =~ s/^\s+//;
+		}
+	elsif ($function eq 'RTRIM') {
+		($self->{'value'} = $params[0]->value) =~ s/\s+$//;
+		}
+	elsif ($function eq 'CONCAT') {
+		$self->{'value'} = join '', map { $_->value } @params;
+		}
+	elsif ($function eq 'SUBSTR' or $function eq 'SUBSTRING') {
+		my ($string, $start, $length) = map { $_->value } @params;
+		if ($start == 0) { $start = 1; }
+		$self->{'value'} = substr($string, $start - 1, $length);
+		}
+	$self;
+	}
+
+1;
 #
 # Function working on Expr objects
 #

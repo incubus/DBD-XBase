@@ -1,16 +1,27 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
+0.155 Sun Nov  7 15:43:59 CET 1999
+	XBase::SQL and DBD::XBase: arbitraty arithmetic expression
+	possible in the select list. NAME attribute works fine for them.
+	SQL functions length, *trim, concat and substr supported. Fixed
+	bug in XBase::SQL causing bad division results. The DBD::XBase
+	documentation revised.
+
+	t/5_dbd_select*: tests extended.
+
 0.147 Mon Aug 16 10:48:37 MET DST 1999
 	XBase::SQL and DBD::XBase: fixed broken handling of NAME
 	attribute, introduced in 0.145 by an attempt to support
-	arbitrary expressions in the selected part. So I backed up
+	arbitrary expressions in the selected part. So I rolled back
 	that change and it's (again) only possible to select * or
 	select list of field names -- problem reported by adelton,
-	William McKee and Martin Treusch
+	William McKee and Martin Treusch.
 
 	XBase::Index: fixed handling of indexes with 32-bit record
 	number -- patch by Jon Bloom.
+
+	XBase::Base: fixed typo _unlockex, pointed by Mike Sanders.
 
 0.145 Mon Jun 21 12:49:19 MET DST 1999
 	DBD::XBase: updated TYPE_INFO for BOOLEAN and BLOB.
@@ -248,7 +259,7 @@ Revision history for Perl extension XBase and DBD::Xbase.
 
 	Docs updated.
 
-0.064 Sun May 31 18:56:26 MET DST 1998		(*****)
+0.064 Sun May 31 18:56:26 MET DST 1998					(*****)
 
 	Major rewrite of the DBD and SQL part. New features:
 	support for bind parameters in where, insert and update.
@@ -332,7 +343,7 @@ Revision history for Perl extension XBase and DBD::Xbase.
 	as many formats possible, we still write two of them; typo in
 	init_memo fixed -- patches by Martin Jost.
 
-0.0597 Tue Mar  3 23:40:56 MET 1998		(*****)
+0.0597 Tue Mar  3 23:40:56 MET 1998					(*****)
 
 	Major code revision and check:
 	
@@ -353,11 +364,11 @@ Revision history for Perl extension XBase and DBD::Xbase.
 	Bug fix for floating fields, patch by Carlos Augusto de
 	Almeida.
 
-0.058 Mon Feb  9 19:15:03 MET 1998		(*****)
+0.058 Mon Feb  9 19:15:03 MET 1998					(*****)
 
 	XBase::SQL rewritten, DBD::XBase now supports select, delete,
 	insert, update and create table. Documentation for DBD::XBase
-	extended. DBD::XBase is still alpha but rther stable.
+	extended. DBD::XBase is still alpha but rather stable.
 
 	Added support for fpt memo files.
 
@@ -372,7 +383,7 @@ Revision history for Perl extension XBase and DBD::Xbase.
 	The error handling reviewed, most of the error messages are
 	now local to the object ($table->errstr()).
 
-0.039  Wed Dec 17 19:53:49 MET 1997		(*****)
+0.039  Wed Dec 17 19:53:49 MET 1997					(*****)
 
 	DBD::XBase supports select where and delete where.	
 
@@ -417,7 +428,7 @@ Revision history for Perl extension XBase and DBD::Xbase.
 	Fixed bug in docs about write_record. Changed format of
 	get_field_info to include field number. Fixed bug with decimals.
 
-0.03 Mon Oct 27 23:23:17 MET 1997		(*****)
+0.03 Mon Oct 27 23:23:17 MET 1997					(*****)
 
 	Minor bug fixes. XBase::create added. Tests extended. Module
 	released on CPAN.
@@ -432,8 +443,8 @@ Revision history for Perl extension XBase and DBD::Xbase.
 0.024 Mon Oct 20 22:17:44 MET DST 1997
 
 	The original release. Includes XBase that reads dbf and dbt
-	and writes dbf (but not dbt ;-) Put on CPAN mainly for other
-	people to test and comment on it.
+	and writes dbf (but not dbt). Put on CPAN mainly for other
+	people to test and comment.
 
 ---
 

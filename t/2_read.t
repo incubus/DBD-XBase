@@ -24,7 +24,7 @@ print "ok 2\n";
 exit unless defined $table;	# It doesn't make sense to continue here ;-)
 
 
-print "Load the records, one by one\n";
+print "Read the records, one by one\n";
 my $records_expected = join "\n",
 	'0:1:Record no 1:This is a memo for record no one::19960813',
 	'1:2:No 2:This is a memo for record 2:1:19960814',
@@ -90,6 +90,13 @@ my $errstr_expected = "Can't read record 3, there is not so many of them\n";
 if ($errstr ne $errstr_expected)
 	{ print "Expected: $errstr_expected\nGot: $errstr\nnot "; }
 print "ok 9\n";
+
+
+print <<EOF;
+If all tests in this file passed, reading of the dbf data seems correct,
+including the dbt memo file.
+EOF
+
 
 1;
 

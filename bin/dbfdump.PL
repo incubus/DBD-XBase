@@ -16,6 +16,8 @@ print OUT <<'EOBODY';
 
 use XBase;
 use Getopt::Long;
+use strict;
+$^W = 1;
 
 my $stdin = 0;
 
@@ -101,7 +103,7 @@ where options are
 	--nomemo	do not try to read the memo (dbt/fpt) file
 	--info		print info about the file and fields
 	--version	print version of the XBase library
-	--table		output in nice table format (only available is
+	--table		output in nice table format (only available when
 		Data::ShowTable is installed, overrides rs and fs)
 
 =head1 SYNOPSIS
