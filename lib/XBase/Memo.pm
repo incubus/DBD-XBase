@@ -87,8 +87,7 @@ sub write_record
 
 sub last_record	{ shift->{'next_for_append'} - 2; }
 
-sub create
-	{
+sub create {
 	my $self = shift;
 	my %options = @_;
 	$self->create_file($options{'name'}) or return;
@@ -100,7 +99,7 @@ sub create
 						or return;
 	$self->close();
 	return $self;
-	}
+}
 
 
 # ################################

@@ -1,12 +1,12 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
-0.170
+0.170 Fri Jan 26 18:35:01 MET 2001
 	XBase::idx: create support and better reading support.
 
 	XBase: password protection explored
 
-0.165
+0.165 Mon Jan 22 19:33:01 MET 2001
 	XBase: better sanity checks in dump_records.
 
 	XBase::SQL: added support for not in SQL command.

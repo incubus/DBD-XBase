@@ -20,7 +20,7 @@ use XBase::Base;		# will give us general methods
 use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
-$VERSION = '0.165';
+$VERSION = '0.171';
 $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 
 *errstr = \$XBase::Base::errstr;
@@ -651,32 +651,30 @@ sub update_last_record
 	}
 
 # Creating new dbf file
-sub create
-	{
+sub create {
 	XBase->NullError();
 	my $class = shift;
 	my %options = @_;
-	if (ref $class)
-		{ %options = ( %$class, %options ); $class = ref $class; }
+	if (ref $class) {
+		%options = ( %$class, %options ); $class = ref $class;
+	}
 
 	my $version = $options{'version'};
 	$version = 3 unless defined $version;
 
 	my $key;
-	for $key ( qw( field_names field_types field_lengths field_decimals ) )
-		{
-		if (not defined $options{$key})
-			{
+	for $key ( qw( field_names field_types field_lengths field_decimals ) ) {
+		if (not defined $options{$key}) {
 			__PACKAGE__->Error("Tag $key must be specified when creating new table\n");
 			return;
-			}
 		}
+	}
+
 
 	my $fieldspack = '';
 	my $record_len = 1;
 	my $i;
-	for $i (0 .. $#{$options{'field_names'}})
-		{
+	for $i (0 .. $#{$options{'field_names'}}) {
 		my $name = uc $options{'field_names'}[$i];
 		$name = "FIELD$i" unless defined $name;
 		$name .= "\0";
@@ -686,12 +684,11 @@ sub create
 		my $length = $options{'field_lengths'}[$i];
 		my $decimal = $options{'field_decimals'}[$i];
 
-		if (not defined $length)		# defaults
-			{
+		if (not defined $length) {		# defaults
 			if ($type eq "C")	{ $length = 64; }
 			elsif ($type =~ /^[TD]$/)	{ $length = 8; }
 			elsif ($type =~ /^[NF]$/)	{ $length = 8; }
-			}
+		}
 						# force correct lengths
 		if ($type =~ /^[MBGP]$/)	{ $length = 10; $decimal = 0; }
 		elsif ($type eq "L")	{ $length = 1; $decimal = 0; }
@@ -701,11 +698,10 @@ sub create
 		
 		$record_len += $length;
 		my $offset = $record_len;
-		if ($type eq "C")
-			{
+		if ($type eq "C") {
 			$decimal = int($length / 256);
 			$length %= 256;
-			}
+		}
 		$fieldspack .= pack 'a11a1VCCvCvCa7C', $name, $type, $offset,
 				$length, $decimal, 0, 0, 0, 0, '', 0;
 		if ($type eq 'M') { $version |= 0x80; }
@@ -731,8 +727,7 @@ sub create
 		{
 		require XBase::Memo;
 		my $dbtname = $options{'memofile'};
-		if (not defined $dbtname)
-			{
+		if (not defined $dbtname) {
 			$dbtname = $options{'name'};
 			$dbtname =~ s/\.DBF$/.DBT/ or $dbtname =~ s/(\.dbf)?$/.dbt/;
 			}
@@ -740,10 +735,10 @@ sub create
 		$dbttmp->create('name' => $dbtname,
 			'version' => ($version & 15),
 			'dbf_filename' => $basename) or return;
-		}
+	}
 
 	return $class->new($options{'name'});
-	}
+}
 # Drop the table
 sub drop
 	{
@@ -1336,7 +1331,7 @@ Thanks a lot.
 
 =head1 VERSION
 
-0.162
+0.171
 
 =head1 AUTHOR
 

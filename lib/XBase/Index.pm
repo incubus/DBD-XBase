@@ -11,12 +11,13 @@ use vars qw( @ISA $DEBUG $VERSION $VERBOSE $BIGEND );
 use XBase::Base;
 @ISA = qw( XBase::Base );
 
-$VERSION = '0.162';
+$VERSION = '0.170';
 
 $DEBUG = 0;
 
 $VERBOSE = 0 unless defined $VERBOSE;
 
+# We will setup global variable to denote the byte order (endian)
 my $packed = pack('d', 1);
 if ($packed eq "\077\360\000\000\000\000\000\000") {
 	$BIGEND = 1;
@@ -27,8 +28,7 @@ if ($packed eq "\077\360\000\000\000\000\000\000") {
 }
 
 # Open appropriate index file and create object according to suffix
-sub new
-	{
+sub new {
 	my ($class, $file) = (shift, shift);
 	my @opts = @_;
 print "XBase::Index::new($class, $file, @_)\n" if $XBase::Index::VERBOSE;
@@ -46,15 +46,14 @@ print "XBase::Index::new($class, $file, @_)\n" if $XBase::Index::VERBOSE;
 
 	__PACKAGE__->Error("Error loading index: unknown extension\n") if $@;
 	return;
-	}
+}
 
 # For XBase::*x object, a record is one page, object XBase::*x::Page here
 sub get_record
 	{
 	my ($self, $num) = @_;
 	return $self->{'pages_cache'}{$num}
-		if defined $self->{'pages_cache'}
-			and defined $self->{'pages_cache'}{$num};
+			if defined $self->{'pages_cache'}{$num};
 
 	my $newpage = (ref $self) . '::Page::new';
 	my $page = $self->$newpage($num);
@@ -65,14 +64,14 @@ sub get_record
 		local $^W = 0;
 		print "Page $page->{'num'}:\tkeys: @{[ map { s/\s+$//; $_; } @{$page->{'keys'}}]}\n\tvalues: @{$page->{'values'}}\n" if $DEBUG;
 		print "\tlefts: @{$page->{'lefts'}}\n" if defined $page->{'lefts'} and $DEBUG;
-		}
-	$page;
 	}
+	$page;
+}
 
 # Get next (value, record number in dbf) pair
 # The important values of the index object are 'level' holding the
-# current level of the "cursor", 'pages' holding an array of pages for
-# each level (currently open) and 'rows' with an array of current row
+# current level of the "cursor", 'pages' holding an array of pages
+# currently open for each level and 'rows' with an array of current row
 # in each level
 sub fetch
 	{
@@ -84,27 +83,26 @@ sub fetch
 	while (not defined $val)
 		{
 		$level = $self->{'level'};
-		if (not defined $level)
-			{	# if we do not have level, let's start from zero
+
+		# if we do not have level, let's start from zero
+		if (not defined $level) {
 			$level = $self->{'level'} = 0;
 			$page = $self->get_record($self->{'start_page'});
-			if (not defined $page)
-				{
+			if (not defined $page) {
 				$self->Error("Index corrupt: $self: no root page $self->{'start_page'}\n");
 				return;
-				}
+			}
 			# and initialize 'pages' and 'rows'
 			$self->{'pages'} = [ $page ];
 			$self->{'rows'} = [];
-			}
+		}
 
 		# get current page for this level
 		$page = $self->{'pages'}[$level];
-		if (not defined $page)
-			{
+		if (not defined $page) {
 			$self->Error("Index corrupt: $self: page for level $level lost in normal course\n");
 			return;
-			}
+		}
 
 		# get current row for current level and increase it
 		# (or setup to zero)
@@ -118,18 +116,16 @@ sub fetch
 		($key, $val, $left) = $page->get_key_val_left($row);
 
 		# there is another page to walk
-		if (defined $left)
-			{
+		if (defined $left) {
 			# go deeper
 			$level++;
 			my $oldpage = $page;
 			# load the next page
 			$page = $self->get_record($left);
-			if (not defined $page)
-				{
+			if (not defined $page) {
 				$self->Error("Index corrupt: $self: no page $left, ref'd from $oldpage, row $row, level $level\n");
 				return;
-				}
+			}
 			# and put it into the structure
 			$self->{'pages'}[$level] = $page;
 			$self->{'rows'}[$level] = undef;
@@ -139,17 +135,15 @@ sub fetch
 			# skip it when going down
 			$val = undef;
 			next;
-			}
+		}
 		# if we're lucky and got the value, return it	
-		if (defined $val)
-			{
+		if (defined $val) {
 			return ($key, $val);
-			}
+		}
 		# we neither got link to lower page, nor the value
 		# so it means we are backtracking the structure one
 		# (or more) levels back
-		else
-			{
+		else {
 			$self->{'level'} = --$level;	# go up the levels
 			return if $level < 0;		# do not fall over 
 			$page = $self->{'pages'}[$level];
@@ -157,7 +151,7 @@ sub fetch
 				{
 				$self->Error("Index corrupt: $self: page for level $level lost when backtracking\n");
 				return;
-				}
+			}
 			### next unless defined $page;
 			$row = $self->{'rows'}[$level];
 			my ($backkey, $backval, $backleft) = $page->get_key_val_left($row);
@@ -166,16 +160,16 @@ sub fetch
 			# the structure, not only in leaves.
 			if (not defined $page->{'last_key_is_just_overflow'} and defined $backleft and defined $backval)
 				{ return ($backkey, $backval); }
-			}
 		}
-	return;	
 	}
+	return;	
+}
 
 # Get list of tags in the indexfile (an indexfile may not have any)
 sub tags {
 	my $self = shift;
 	@{$self->{'tags'}} if defined $self->{'tags'};
-	}
+}
 
 # Method allowing to refetch the active values (key, val) without
 # rolling forward
@@ -186,24 +180,22 @@ sub fetch_current {
 	my $row = $self->{'rows'}[$level];
 	my ($key, $val, $left) = $page->get_key_val_left($row);
 	return ($key, $val);
-	}
+}
 
 # Rewind the index to start
 # the easiest way to do this is to cancel the 'level' -- this way we
 # do not know where we are and we have to start anew
-sub prepare_select
-	{
+sub prepare_select {
 	my $self = shift;
 	delete $self->{'level'};
 	delete $self->{'pages'};
 	delete $self->{'rows'};
 	1;
-	}
+}
 
 # Position index to a value (or behind it, if nothing found), so that
 # next fetch fetches the correct value
-sub prepare_select_eq
-	{
+sub prepare_select_eq {
 	my ($self, $eq, $recno) = @_;
 	$self->prepare_select();		# start from scratch
 
@@ -216,18 +208,15 @@ sub prepare_select_eq
 	# we'll need to know if we want numeric or string compares
 	my $numdate = ($self->{'key_type'} ? 1 : 0);
 
-	while (1)
-		{
+	while (1) {
 		my $page = $self->get_record($left);	# get page
-		if (not defined $page)
-			{
+		if (not defined $page) {
 			$self->Error("Index corrupt: $self: no page $left for level $level\n");
 			return;
-			}
+		}
 		my $row = 0;
 		my ($key, $val);
-		while (($key, $val, my $newleft) = $page->get_key_val_left($row))
-			{
+		while (($key, $val, my $newleft) = $page->get_key_val_left($row)) {
 ### { local $^W = 0; print "Got: $key, $val, $newleft ($numdate)\n"; }
 
 			$left = $newleft;
@@ -245,22 +234,22 @@ sub prepare_select_eq
 			if ($numdate == 1 ? $key >= $eq : $key ge $eq)
 				{ last; }
 			$row++;
-			}
+		}
 		
 		# we know where we are positioned on the page now
 		$self->{'pages'}[$level] = $page;
 		$self->{'rows'}[$level] = $row;
 
-		if (not defined $left)		# if there is no lower level
-			{
+		# if there is no lower level
+		if (not defined $left) {
 			$self->{'rows'}[$level] = ( $row ? $row - 1: undef);
 			$self->{'level'} = $level;
 			last;
-			}
+		}
 		$page->{'parent'} = $parent->{'num'} if defined $parent;
 		$parent = $page;
 		$level++;
-		}
+	}
 	if (defined $recno) {		# exact match requested
 		# get current values
 		my ($key, $val) = $self->fetch_current;
@@ -272,14 +261,13 @@ sub prepare_select_eq
 
 			# move forward
 			($key, $val) = $self->fetch;
-			}
 		}
-	1;
 	}
+	1;
+}
 
 # Get (key, dbf record number, lower page index) from the index page
-sub get_key_val_left
-	{
+sub get_key_val_left {
 	my ($self, $num) = @_;
 	{
 		local $^W = 0;
@@ -292,7 +280,7 @@ sub get_key_val_left
 				if $num <= $#{$self->{'keys'}};
 	}
 	return;
-	}
+}
 
 sub num_keys
 	{ $#{shift->{'keys'}}; }
@@ -307,10 +295,10 @@ sub delete {
 			and $foundkey eq $key and $foundvalue == $value) {
 		$self->delete_current;
 		return 1;
-		}
+	}
 	print "$key/$value is not in the index (wanted to delete)\n" if $XBase::Index::VERBOSE;
 	undef;
-	}
+}
 sub insert {
 	my ($self, $key, $value) = @_;
 	print "XBase::Index::insert($key, $value) called\n" if $XBase::Index::VERBOSE;
@@ -322,10 +310,10 @@ sub insert {
 			and $foundkey eq $key and $foundvalue == $value) {
 		print STDERR "Already found, strange.\n";
 		return;
-		}
+	}
 
 	$self->insert_before_current($key, $value);
-	}
+}
 
 sub delete_current {
 	my $self = shift;
@@ -341,14 +329,14 @@ sub delete_current {
 	$self->{'rows'}[$level]--;
 	if ($self->{'rows'}[$level] < 0) {
 		$self->{'rows'}[$level] = undef;
-		}
+	}
 
 	$page->write_with_context;
 
 	delete $self->{'pages_cache'};
 
 	print STDERR "Delete_current returning\n" if $DEBUG;
-	}
+}
 
 sub insert_before_current {
 	my ($self, $key, $value) = @_;
@@ -368,7 +356,7 @@ sub insert_before_current {
 	delete $self->{'pages_cache'};
 
 	print STDERR "Insert_current returning\n" if $DEBUG;
-	}
+}
 
 # #############
 # dBase III NDX
@@ -380,8 +368,7 @@ use vars qw( @ISA $DEBUG );
 
 *DEBUG = \$XBase::Index::DEBUG;
 
-sub read_header
-	{
+sub read_header {
 	my $self = shift;
 	my %opts = @_;
 	my $header;
@@ -397,7 +384,7 @@ sub read_header
 	$self->{'header_len'} = 0;
 
 	$self;
-	}
+}
 
 sub last_record
 	{ shift->{'total_pages'}; }
@@ -410,15 +397,14 @@ use vars qw( @ISA $DEBUG );
 *DEBUG = \$XBase::Index::DEBUG;
 
 # Constructor for the ndx page
-sub new
-	{
+sub new {
 	my ($indexfile, $num) = @_;
 	my $parent;
-	if ((ref $indexfile) =~ /::Page$/)
-		{			# we can be called from parent page
+	# we can be called from parent page
+	if ((ref $indexfile) =~ /::Page$/) {			
 		$parent = $indexfile;
 		$indexfile = $parent->{'indexfile'};
-		}
+	}
 	
 	my $data = $indexfile->read_record($num) or return;	# get 512 bytes
 	my $noentries = unpack 'V', $data;			# num of entries
@@ -428,22 +414,20 @@ sub new
 
 	print "page $num, noentries $noentries, keylength $keylength\n" if $DEBUG;
 	my $numdate = $indexfile->{'key_type'};		# numeric or string?
-	my $bigend = substr(pack('d', 1), 0, 2) eq '?ð';	# endian
 	
 	my $offset = 4;
 	my $i = 0;
 	my ($keys, $values, $lefts) = ([], [], []);		# three arrays
 
-	while ($i < $noentries)				# walk the page
-		{
+	# walk the page
+	while ($i < $noentries) {
 		# get the values for entry
 		my ($left, $recno, $key)
 			= unpack 'VVa*', substr($data, $offset, $keylength + 8);
-		if ($numdate)
-			{			# some decoding for numbers
-			$key = reverse $key if $bigend;
+		if ($numdate) {			# some decoding for numbers
+			$key = reverse $key if $XBase::Index::BIGEND;
 			$key = unpack 'd', $key;
-			}
+		}
 		print "$i: \@$offset VVa$keylength -> ($left, $recno, $key)\n" if $DEBUG > 1;
 		push @$keys, $key;
 		push @$values, ($recno ? $recno : undef);
@@ -453,12 +437,11 @@ sub new
 		if ($i == 0 and defined $left)
 			{ $noentries++; }	# fixup for nonleaf page
 				### shouldn't this be for last page only?
-		}
-	continue
-		{
+	}
+	continue {
 		$i++;
 		$offset += $keyreclength;
-		}
+	}
 
 	my $self = bless { 'keys' => $keys, 'values' => $values,
 		'num' => $num, 'keylength' => $keylength,
@@ -469,10 +452,10 @@ sub new
 			$parent->{'last_key_is_just_overflow'} and
 			$parent->{'lefts'}[$#{$parent->{'lefts'}}] == $num)) {
 		$self->{'last_key_is_just_overflow'} = 1;
-		}
+	}
 
 	$self;
-	}
+}
 
 # ###########
 # Clipper NTX
@@ -482,8 +465,7 @@ use strict;
 use vars qw( @ISA $DEBUG );
 @ISA = qw( XBase::Base XBase::Index );
 
-sub read_header
-	{
+sub read_header {
 	my $self = shift;
 	my %opts = @_;
 	my $header;
@@ -503,7 +485,7 @@ sub read_header
 	if ($self->{'signature'} != 3 and $self->{'signature'} != 6) {
 		__PACKAGE__->Error("$self: bad signature value `$self->{'signature'}' found\n");
 		return;
-		}
+	}
 	$self->{'key_string'} =~ s/[\000 ].*$//s;
 	$self->{'record_len'} = 1024;
 	$self->{'header_len'} = 0;
@@ -515,19 +497,19 @@ sub read_header
 		if (not defined $field_type) {
 			__PACKAGE__->Error("Couldn't find key string `$key_string' in dbf file, can't determine field type\n");
 			return;
-			}
 		}
+	}
 	elsif (defined $opts{'type'}) {
 		$field_type = $opts{'type'};
-		}
+	}
 	else {
 		__PACKAGE__->Error("Index type (char/numeric) unknown for $self\n");
 		return;
-		}
+	}
 	$self->{'key_type'} = ($field_type =~ /^[NDIF]$/ ? 1 : 0);
 
 	$self;
-	}
+}
 sub last_record
 	{ -1; }
 
@@ -540,15 +522,14 @@ use vars qw( @ISA $DEBUG );
 *DEBUG = \$XBase::Index::DEBUG;
 
 # Constructor for the ntx page
-sub new
-	{
+sub new {
 	my ($indexfile, $num) = @_;
 	my $parent;
-	if ((ref $indexfile) =~ /::Page$/)
-		{			# we could be called from parent page
+	# we could be called from parent page
+	if ((ref $indexfile) =~ /::Page$/) {			
 		$parent = $indexfile;
 		$indexfile = $parent->{'indexfile'};
-		}
+	}
 	my $data = $indexfile->read_record($num) or return;	# get data
 	my $maxnumitem = $indexfile->{'max_item'} + 1;	# limit from header
 	my $keylength = $indexfile->{'key_length'};
@@ -562,20 +543,19 @@ sub new
 	print "page $num, noentries $noentries, keylength $keylength; pointers @pointers\n" if $DEBUG;
 	
 	my ($keys, $values, $lefts) = ([], [], []);
-	for (my $i = 0; $i < $noentries; $i++)		# walk the pointers
-		{
+	# walk the pointers
+	for (my $i = 0; $i < $noentries; $i++) {
 		my $offset = $pointers[$i];
 		my ($left, $recno, $key)
 			= unpack 'VVa*', substr($data, $offset, $keylength + 8);
 
-		if ($numdate)
-			{
+		if ($numdate) {
 			### if looks like with ntx the numbers are
 			### stored as ASCII strings or something
 			### To Be Done
 			if ($key =~ tr!,+*)('&%$#"!0123456789!) { $key = '-' . $key; }
 			$key += 0;
-			}
+		}
 
 		print "$i: \@$offset VVa$keylength -> ($left, $recno, $key)\n" if $DEBUG > 1;
 		push @$keys, $key;
@@ -587,13 +567,13 @@ sub new
 		if ($i == 0 and defined $left)
 			{ $noentries++; }
 				### shouldn't this be for last page only?
-		}
+	}
 
 	my $self = bless { 'num' => $num, 'indexfile' => $indexfile,
 		'keys' => $keys, 'values' => $values, 'lefts' => $lefts, },
 								__PACKAGE__;
 	$self;
-	}
+}
 
 # ###########
 # FoxBase IDX
@@ -605,8 +585,7 @@ use vars qw( @ISA $DEBUG );
 
 *DEBUG = \$XBase::Index::DEBUG;
 
-sub read_header
-	{
+sub read_header {
 	my $self = shift;
 	my %opts = @_;
 	my $header;
@@ -631,7 +610,7 @@ sub read_header
 		}
 
 	$self;
-	}
+}
 
 sub last_record {
 	shift->{'total_pages'};
@@ -745,16 +724,15 @@ use vars qw( @ISA $DEBUG );
 
 ### $DEBUG = 1;
 # Constructor for the idx page
-sub new
-	{
+sub new {
 	local $^W = 0;
 	my ($indexfile, $num) = @_;
 	my $parent;
-	if ((ref $indexfile) =~ /::Page$/)
-		{			# we can be called from parent page
+	# we can be called from parent page
+	if ((ref $indexfile) =~ /::Page$/) {			
 		$parent = $indexfile;
 		$indexfile = $parent->{'indexfile'};
-		}
+	}
 	my $data = $indexfile->read_record($num) or return;	# get 512 bytes
 	my ($attributes, $noentries, $left_brother, $right_brother)
 		= unpack 'vvVV', $data;		# parse header of the page
@@ -763,33 +741,32 @@ sub new
 
 	print "page $num, noentries $noentries, keylength $keylength\n" if $DEBUG;
 	my $numdate = $indexfile->{'key_type'};		# numeric or string?
-	my $bigend = substr(pack('d', 1), 0, 2) eq '?ð';	# endian
 	
 	my $offset = 12;
 	my $i = 0;
 	my ($keys, $values, $lefts) = ([], [], []);		# three arrays
 
-	while ($i < $noentries)				# walk the page
-		{
+	# walk the page
+	while ($i < $noentries) {
 		# get the values for entry
 		my ($key, $recno) = unpack "\@$offset a$keylength N", $data;
 		my $left;
 		unless ($attributes & 2) {
 			$left = $recno / 512;
 			$recno = undef;
-			}
+		}
 		print "$i: \@$offset a$keylength N -> ($left, $recno, $key)\n" if $DEBUG > 1;
 		### use Data::Dumper; print Dumper $indexfile;
-		if ($numdate)
-			{			# some decoding for numbers
+		# some decoding for numbers
+		if ($numdate) {			
 			if ((substr($key, 0, 1) & "\200") ne "\200") {
 				$key ^= "\377\377\377\377\377\377\377\377";
 			} else {
 				$key ^= "\200";
 			}
-			if (not $bigend) { $key = reverse $key; }
+			if (not $XBase::Index::BIGEND) { $key = reverse $key; }
 			$key = unpack 'd', $key;
-			}
+		}
 		print "$i: \@$offset a$keylength N -> ($left, $recno, $key)\n" if $DEBUG > 1;
 		push @$keys, $key;
 		push @$values, ($recno ? $recno : undef);
@@ -799,12 +776,11 @@ sub new
 		if ($i == 0 and defined $left)
 			{ $noentries++; }	# fixup for nonleaf page
 				### shouldn't this be for last page only?
-		}
-	continue
-		{
+	}
+	continue {
 		$i++;
 		$offset += $keyreclength;
-		}
+	}
 
 	my $self = bless { 'keys' => $keys, 'values' => $values,
 		'num' => $num, 'keylength' => $keylength,
@@ -813,7 +789,7 @@ sub new
 		'left_brother' => $left_brother,
 		'right_brother' => $right_brother }, __PACKAGE__;
 	$self;
-	}
+}
 
 # ############
 # dBase IV MDX
@@ -842,8 +818,7 @@ sub read_header
 	$self->{'record_len'} = 512;
 	$self->{'header_len'} = 0;
 
-	for my $i (1 .. $self->{'tags_used'})
-		{
+	for my $i (1 .. $self->{'tags_used'}) {
 		my $len = $self->{'tag_length'};
 		
 		$self->seek_to(544 + ($i - 1) * $len) or do
@@ -869,19 +844,18 @@ sub read_header
 			key_type_1 res key_length max_no_keys_per_page
 			second_key_type key_record_length res unique) }
 				 = unpack 'VVca1vvvvva3c', $header;
-		}
+	}
 
 ## use Data::Dumper;
 ## print Dumper $self;
 
-	if (defined $expr_name and defined $self->{'tags'}{$expr_name})
-		{
+	if (defined $expr_name and defined $self->{'tags'}{$expr_name}) {
 		$self->{'active'} = $self->{'tags'}{$expr_name};
 		$self->{'start_page'} = $self->{'active'}{'start_page'};
-		}
+	}
 
 	$self;
-	}
+}
 sub last_record
 	{ -1; }
 
@@ -893,16 +867,15 @@ use vars qw( @ISA $DEBUG );
 *DEBUG = \$XBase::Index::DEBUG;
 
 # Constructor for the mdx page
-sub new
-	{
+sub new {
 	my ($indexfile, $num) = @_;
 
 	my $parent;
-	if ((ref $indexfile) =~ /::Page$/)		### parent page
-		{
+	### parent page
+	if ((ref $indexfile) =~ /::Page$/) {
 		$parent = $indexfile;
 		$indexfile = $parent->{'indexfile'};
-		}
+	}
 	$indexfile->seek_to_record($num) or return;
 	my $data;
 	$indexfile->{'fh'}->read($data, 1024) == 1024 or return;
@@ -920,8 +893,7 @@ sub new
 
 	my ($keys, $values, $lefts) = ([], [], []);
 
-	for (my $i = 0; $i < $noentries; $i++)
-		{
+	for (my $i = 0; $i < $noentries; $i++) {
 		my ($left, $key)
 			= unpack "\@${offset}Va${keylength}", $data;
 
@@ -933,13 +905,13 @@ sub new
 		else
 			{ push @$values, $left; }
 		$offset += $keyreclength;
-		}
+	}
 
 	my $self = bless { 'num' => $num, 'indexfile' => $indexfile,
 		'keys' => $keys, 'values' => $values, 'lefts' => $lefts, },
 								__PACKAGE__;
 	$self;
-	}
+}
 
 # ###########
 # FoxBase CDX
@@ -963,13 +935,13 @@ sub prepare_write_header {
 		key_string
 		) };
 	$data;
-	}
+}
 sub write_header {
 	my $self = shift;
 	my $data = $self->prepare_write_header;
 	$self->{'fh'}->seek($self->{'adjusted_offset'} || 0, 0);
 	$self->{'fh'}->print($data);
-	}
+}
 sub read_header
 	{
 	my ($self, %opts) = @_;
@@ -1005,14 +977,14 @@ sub read_header
 ## 	print STDERR "I won't be able to write the header back\n",
 ## 	unpack("H*", $out), "\n ++\n",
 ## 	unpack("H*", $header), "\n";
-## 	}
+## }
 
 	if (not defined $self->{'tag'}) {	# top level
 		$self->prepare_select;
 		while (my ($tag) = $self->fetch) {
 			push @{$self->{'tags'}}, $tag;
-			}
 		}
+	}
 ### use Data::Dumper; print Dumper \%opts;
 
 	if (defined $opts{'tag'}) {
@@ -1033,31 +1005,31 @@ sub read_header
 		my $field_type;
 		if (defined $opts{'type'}) {
 			$field_type = $opts{'type'};
-			}
+		}
 		elsif (defined $subidx->{'dbf'}) {
 			$field_type = $subidx->{'dbf'}->field_type($key_string);
 			if (not defined $field_type) {
 				__PACKAGE__->Error("Couldn't find key string `$key_string' in dbf file, can't determine field type\n");
 				return;
-				}
 			}
+		}
 		else {
 			__PACKAGE__->Error("Index type (char/numeric) unknown for $subidx\n");
 			return;
-			}
+		}
 		$subidx->{'key_type'} = ($field_type =~ /^[NDIF]$/ ? 1 : 0);
 		if ($field_type eq 'D') {
 			$subidx->{'key_type'} = 2;
 			require Time::JulianDay;
-			}
+		}
 
 		for (keys %$self) { delete $self->{$_} }
 		for (keys %$subidx) { $self->{$_} = $subidx->{$_} }
 		$self = $subidx;
 ### use Data::Dumper; print Dumper $self;
-		}
-	$self;
 	}
+	$self;
+}
 
 sub last_record
 	{ shift->{'total_pages'}; }
@@ -1085,7 +1057,6 @@ sub new
 
 	print "page $num, attr $attributes, noentries $noentries, keylength $keylength (bro $left_brother, $right_brother)\n" if $DEBUG;
 	my $numdate = $indexfile->{'key_type'};		# numeric or string?
-	my $bigend = substr(pack('d', 1), 0, 2) eq '?ð';	# endian
 
 	my ($keys, $values, $lefts) = ([], [], undef);
 
@@ -1138,67 +1109,63 @@ sub new
 ### print " *** In: ", unpack("H*", $key), "\n";
 				if (0x80 & unpack('C', $key)) {
 					substr($key, 0, 1) &= "\177";
-					}
+				}
 				else { $key = ~$key; }
 				if ($keylength == 8) {
-					$key = reverse $key unless $bigend;
+					$key = reverse $key unless $XBase::Index::BIGEND;
 					$key = unpack 'd', $key;
-					}
-				else {
+				} else {
 					$key = unpack 'N', $key;
-					}
+				}
 				if ($numdate == 2 and $key) {	# date
 					$key = sprintf "%04d%02d%02d",
 						Time::JulianDay::inverse_julian_day($key);
-					}
 				}
-			else {
+			} else {
 				substr($key, -$trail) = '' if $trail;
-				}
+			}
 
 			print "$key -> $recno\n" if $DEBUG > 4;
 			push @$keys, $key;
 			push @$values, $recno;
-			}
 		}
-	else {
+	} else {
 		for (my $i = 0; $i < $noentries; $i++) {
 			my $offset = 12 + $i * ($keylength + 8);
 			my ($key, $recno, $page)
 				= unpack "\@$offset a$keylength NN", $data;
-			if ($numdate)
-				{		# some decoding for numbers
+			# some decoding for numbers
+			if ($numdate) {		
 				if (0x80 & unpack('C', $key)) {
 				### if ("\200" & substr($key, 0, 1)) {
 ### print STDERR "Declean\n";
 ### print STDERR unpack("H*", $key), ' -> ';
 					substr($key, 0, 1) &= "\177";
 ### print STDERR unpack("H*", $key), "\n";
-					}
+				}
 				else { $key = ~$key; }
 				if ($keylength == 8) {
-					$key = reverse $key unless $bigend;
+					$key = reverse $key unless $XBase::Index::BIGEND;
 					$key = unpack 'd', $key;
-					}
-				else {
+				} else {
 					$key = unpack 'N', $key;
-					}
+				}
 				if ($numdate == 2 and $key) {	# date
 					$key = sprintf "%04d%02d%02d",
 						Time::JulianDay::inverse_julian_day($key);
-					}
 				}
+			}
 			else {
 				$key =~ s/\000+$//;
-				}
+			}
 			print "item: $key -> $recno via $page\n" if $DEBUG > 4;
 			push @$keys, $key;
 			push @$values, $recno;
 			$lefts = [] unless defined $lefts;
 			push @$lefts, $page / 512;
-			}
-		$opts{'last_key_is_just_overflow'} = 1;
 		}
+		$opts{'last_key_is_just_overflow'} = 1;
+	}
 
 	my $self = bless { 'keys' => $keys, 'values' => $values,
 		'num' => $num, 'keylength' => $keylength,
@@ -1213,13 +1180,12 @@ sub new
 		print "I won't be able to write this page back.\n",
 			unpack("H*", $outdata), "\n ++\n",
 			unpack("H*", $origdata), "\n";
-		}
-	else {
+	} else {
 		### print STDERR " ** Bingo: I will be able to write this page back ($num).\n";
-		}
+	}
 
 	$self;
-	}
+}
 
 # Create "new" page -- allocates memory in the file and returns
 # structure that can reasonably used as XBase::cdx::Page
@@ -1227,7 +1193,7 @@ sub create {
 	my ($class, $indexfile) = @_;
 	if (not defined $indexfile and ref $class) {
 		$indexfile = $class->{'indexfile'};
-		}
+	}
 	my $fh = $indexfile->{'fh'};
 	$fh->seek(0, 2);		# seek to the end;
 	my $position = $fh->tell;	# get the length of the file
@@ -1235,12 +1201,12 @@ sub create {
 		$fh->print("\000" x (512 - ($position % 512)));
 					# pad the file to multiply of 512
 		$position = $fh->tell;	# get the length of the file
-		}
+	}
 	$fh->print("\000" x 512);
 	return bless { 'num' => $position / 512,
 		'keylength' => $indexfile->{'key_length'},
 		'indexfile' => $indexfile }, $class;
-	}
+}
 
 sub prepare_scalar_for_write {
 	my $self = shift;
@@ -1253,7 +1219,6 @@ sub prepare_scalar_for_write {
 		$right_brother;
 	
 	my $indexfile = $self->{'indexfile'};
-	my $bigend = substr(pack('d', 1), 0, 2) eq '?ð';	# endian
 	my $numdate = $indexfile->{'key_type'};		# numeric or string?
 	my $record_len = $indexfile->{'record_len'};
 	my $keylength = $self->{'keylength'};
@@ -1267,7 +1232,7 @@ sub prepare_scalar_for_write {
 					$holding_recno) = 
 			@{$self}{ qw! recno_count duplicate_count trailing_count
 					holding_recno !  };
-			}
+		}
 
 ### print STDERR "Hmmm. We are setting hardcoded values for bitmasks, not good. Write to adelton.\n";
 		my ($recno_mask, $duplicate_mask, $trailing_mask)
@@ -1285,35 +1250,34 @@ sub prepare_scalar_for_write {
 			my $dupl = 0;
 
 			my $out = $key;
-			if ($numdate)
-				{		# some encoding for numbers
+			# some encoding for numbers
+			if ($numdate) {		
 				if ($keylength == 8) {
 					$out = pack 'd', $out;
-					$out = reverse $out unless $bigend;
-					}
-				else {
+					$out = reverse $out unless $XBase::Index::BIGEND;
+				} else {
 					$out = pack 'N', $out;
-					}
+				}
 
 
 				unless (0x80 & unpack('C', $out)) {
 					substr($out, 0, 1) |= "\200";
-					}
-				else { $out = ~$out; }
 				}
+				else { $out = ~$out; }
+			}
 
 			for my $i (0 .. length($out) - 1) {
 				unless (substr($out, $i, 1) eq substr($prevkey, $i, 1)) {
 					last;
-					}
+				}
 				$dupl++;
-				}	
+			}	
 
 			my $trail = $keylength - length $out;
 			while (substr($out, -1) eq "\000") {
 				$out = substr($out, 0, length($out) - 1);
 				$trail++;
-				}
+			}
 			$keys_string = substr($out, $dupl) . $keys_string;
 
 
@@ -1328,7 +1292,7 @@ sub prepare_scalar_for_write {
 
 			$prevkey = $out;
 			$row++;
-			}
+		}
 		### print $keys_string, "\n";	
 
 ### print STDERR "Hmmm. The \$numdata is really just a hack -- the shifts have to be made 64 bit clean.\n"; 
@@ -1341,37 +1305,35 @@ sub prepare_scalar_for_write {
 		$data .= $recno_data;
 		$data .= "\000" x ($record_len - length($data) - length($keys_string));
 		$data .= $keys_string;
-		}
-	else {
+	} else {
 		my $row = 0;
 		for my $key (@{$self->{'keys'}}) {
 			my $out = $key;
-			if ($numdate)
-				{		# some encoding for numbers
+			# some encoding for numbers
+			if ($numdate) {		
 				if ($keylength == 8) {
 					$out = pack 'd', $out;
-					$out = reverse $out unless $bigend;
-					}
-				else {
+					$out = reverse $out unless $XBase::Index::BIGEND;
+				} else {
 					$out = pack 'N', $out;
-					}
+				}
 
 
 				unless (0x80 & unpack('C', $out)) {
 					substr($out, 0, 1) |= "\200";
-					}
+				}
 				else { $out = ~$out; }
 ### print " *** Out2: ", unpack("H*", $out), "\n";
-				}
+			}
 			$data .= pack "a$keylength NN", $out,
 				$self->{'values'}[$row],
 				$self->{'lefts'}[$row] * 512;
 			$row++;
-			}
-		$data .= "\000" x ($record_len - length($data));
 		}
-	$data;
+		$data .= "\000" x ($record_len - length($data));
 	}
+	$data;
+}
 
 sub write_page {
 	my $self = shift;
@@ -1381,7 +1343,7 @@ sub write_page {
 	die "Data is too long in cdx::write_page for $self->{'num'}\n"
 						if length $data > 512;
 	$indexfile->write_record($self->{'num'}, $data);
-	}
+}
 
 # Saves current page, taking into account all neighbour and parent
 # pages. We can safely assume that this method is called for pages
@@ -1413,12 +1375,12 @@ sub write_with_context {
 			my $fix_brother = $indexfile->get_record($right_brother_num / 512);
 			$fix_brother->{'left_brother'} = $left_brother_num;
 			$fix_brother->write_page;
-			}
+		}
 		if ($left_brother_num != 0xFFFFFFFF) {
 			my $fix_brother = $indexfile->get_record($left_brother_num / 512);
 			$fix_brother->{'right_brother'} = $right_brother_num;
 			$fix_brother->write_page;
-			}
+		}
 
 		# now we need to release ourselves from parent as well
 		my $parent = $self->get_parent_page or die "Index corrupt: no parent for page $self ($self_num)\n";
@@ -1431,14 +1393,14 @@ sub write_with_context {
 				splice @{$parent->{'values'}}, $i, 1;
 				splice @{$parent->{'lefts'}}, $i, 1;
 				last;
-				}
 			}
+		}
 		if ($i > $maxindex) {
 			die "Index corrupt: parent doesn't point to us in write_with_context $self ($self_num)\n";
-			}
+		}
 		$parent->write_with_context;
 		return;
-		}
+	}
 
 
 	if (length $data > 512) {	# we need to split the page
@@ -1457,7 +1419,7 @@ sub write_with_context {
 		if ($half_rows == 0) { $half_rows++; }
 		if ($half_rows == $total_rows) {
 			die "Fatal trouble: page $self ($self_num) is full but I'm not able to split it\n";
-			}
+		}
 
 		# new page is right brother (will get bigger values)
 		$new_page->{'right_brother'} = $self->{'right_brother'};
@@ -1468,7 +1430,7 @@ sub write_with_context {
 			my $fix_brother = $indexfile->get_record($new_page->{'right_brother'} / 512);
 			$fix_brother->{'left_brother'} = $new_page->{'num'} * 512;
 			$fix_brother->write_page;
-			}
+		}
 
 		# we'll split keys and values
 		$new_page->{'keys'} = [ @{$self->{'keys'}}[$half_rows .. $total_rows - 1] ];
@@ -1483,10 +1445,10 @@ sub write_with_context {
 			for my $q (@{$new_page->{'lefts'}}) {
 				if (defined $q and defined $indexfile->{'pages_cache'}{$q}) {
 					$indexfile->{'pages_cache'}{$q}{'parent'} = $new_page_num;
-					}
 				}
-			splice @{$self->{'lefts'}}, $half_rows, $total_rows - $half_rows - 1;
 			}
+			splice @{$self->{'lefts'}}, $half_rows, $total_rows - $half_rows - 1;
+		}
 
 		my $parent;
 		if ($self_num == $indexfile->{'start_page'}) {
@@ -1510,8 +1472,7 @@ sub write_with_context {
 			$parent->{'values'} = [ $self->{'values'}[-1],
 						$new_page->{'values'}[-1] ];
 			$parent->{'lefts'} = [ $self_num, $new_page->{'num'} ];
-			}
-		else {	# update pointers in parent page
+		} else {	# update pointers in parent page
 			$parent = $self->get_parent_page or die "Index corrupt: no parent for page $self ($self_num)\n";
 			my $maxindex = $#{$parent->{'lefts'}};
 			my $i = 0;
@@ -1520,11 +1481,11 @@ sub write_with_context {
 			while ($i <= $maxindex) {
 				last if $parent->{'lefts'}[$i] == $self_num;
 				$i++;
-				}
+			}
 			
 			if ($i > $maxindex) {
 				die "Index corrupt: parent doesn't point to us in write_with_context $self ($self_num)\n";
-				}
+			}
 
 			# now $i is index in parent of the record pointing to us
 
@@ -1534,7 +1495,7 @@ sub write_with_context {
 				$self->{'values'}[-1], $new_page->{'values'}[-1];
 			splice @{$parent->{'lefts'}}, $i, 1,
 				$self_num, $new_page->{'num'};
-			}
+		}
 
 		$self->write_page;
 
@@ -1542,7 +1503,7 @@ sub write_with_context {
 		$new_page->write_page;
 
 		$parent->write_with_context;
-		}
+	}
 	elsif ($self_num != $indexfile->{'start_page'}) {
 		# the output data is OK, write is out
 		# but this is not root page, so we need to make sure the
@@ -1560,11 +1521,11 @@ sub write_with_context {
 		while ($i <= $maxindex) {
 			last if $parent->{'lefts'}[$i] == $self_num;
 			$i++;
-			}
+		}
 		
 		if ($i > $maxindex) {
 			die "Index corrupt: parent doesn't point to us in write_with_context $self ($self_num)\n";
-			}
+		}
 
 		# now $i is index in parent of the record pointing to us
 
@@ -1573,15 +1534,14 @@ sub write_with_context {
 			$parent->{'values'}[$i] = $self->{'values'}[-1];
 			$parent->{'keys'}[$i] = $self->{'keys'}[-1];
 			$parent->write_with_context;
-			}
+		}
 		
-		}
-	else {	# write out root page
+	} else {	# write out root page
 		$indexfile->write_record($self_num, $data);
-		}
+	}
 
 	print STDERR "XBase::cdx::Page::write_with_context finished ($self->{'num'})\n" if $DEBUG;
-	}
+}
 
 # finds parent page for the object
 sub get_parent_page_num {
@@ -1603,11 +1563,11 @@ sub get_parent_page_num {
 		if ("$self" eq "$indexfile->{'pages'}[$pageindex]") {
 			print STDERR "Parent page for $self->{'num'} is $indexfile->{'pages'}[$pageindex - 1]{'num'}.\n";
 			return $indexfile->{'pages'}[$pageindex - 1]->{'num'};
-			}
-		$pageindex--;
 		}
-	return undef;
+		$pageindex--;
 	}
+	return undef;
+}
 sub get_parent_page {
 	my $self = shift;
 	my $parent_num = $self->get_parent_page_num or return;
@@ -1630,7 +1590,7 @@ __END__
 	while (my @data = $cur->fetch()) {
 		last if $data[0] != 1097;
 		print "@data\n";
-		}
+	}
 
 This is a snippet of code to print ID and NAME fields from dbf
 data.dbf where ID equals 1097. Provided you have index on ID in
@@ -1830,7 +1790,7 @@ directory.
 
 =head1 VERSION
 
-0.162
+0.170
 
 =head1 AUTHOR
 
