@@ -1,29 +1,54 @@
 
-This is README file for the DBD::XBase package. Please note that this
-is a new module, so the doc need more polishing and it will be coming
-briefly. I only release this version (0.024) because quite a lot of
-people seemed interested in the module.
+		------------------------------------
+			XBase and DBD::XBase
+		------------------------------------
 
-Install: download the tar.gz, unpack it, change to the DBD-XBase-*
-directory. Then do
+This is the README file for the XBase and DBD::XBase packages.
 
-	perl Makefile.PL
-	make
-	make install
+Module XBase provides access to XBase data files, namely .dbf and
+.dbt. It provides "native" interface to the table's content.
+Currently, it reads and writes these two types of files.
 
-The man page XBase(3) is included.
+The man page XBase(3) is included. DBD::XBase is intended DBD::*
+interface to XBase but it does not exist yet.
 
-Briefly, what is this about? This module should replace the Xbase-1.07
-module, the main change are the added writing capabilities. The
-package that actualy deals with the data files, is XBase. DBD::XBase
-is intended DBD::* interface but it does not exist yet.
+I would appreciate any nice little scripts that I could put into the
+t directory. Also, nice tables with interesting features would help me
+in writing the parsers.
 
-There are no tests in this version and that is definitely to be
-considered a bug. It will be fixed but if you send me a nice scripts,
-I will be glad to put them into the t directory.
+Briefly, what is this about, why is not Xbase-1.07 enough? It might be
+enough, but: This is an independent attempt to make interface to dBase
+and Fox* tables. The main change (currently) are the added writing
+capabilities. The interface is different and hopefully more pleasant.
+The module is use strict clean and tries to handle error nicely.
 
 And yes, this is alpha software. I will be glad to hear about you
 testing it and I will try to fix any bugs and add new features but
 please, test it on a backup copy of your data. The more tests we do
 now, the sooner we can feel the module is safe and usable.
+
+
+Installation: Download the tar.gz, unpack it, change to the DBD-XBase-*
+	directory. Then do
+
+	perl Makefile.PL
+	make
+	make test
+	make install
+
+or you can use CPAN module and just type "install DBD::XBase".
+
+Problems: If anything goes wrong when installing, please send me output
+of you installation messages and of make test TEST_VERBOSE=1. If there
+are error when actually running it on your data, please send me the
+messages (errstr) and if possible, you data files that cause the
+problems.
+
+Available:
+	http://www.fi.muni.cz/~adelton/perl/ and on your favorite CPAN
+	site.
+
+Copyright: (c) 1997 Jan Pazdziora, adelton@fi.muni.cz. All rights
+	reserved. This library is free software; you can redistribute
+	it and/or modify it under the same terms as Perl itself.
 

@@ -1,0 +1,30 @@
+
+This is the to-do list for package XBase and DBD::XBase:
+
+Short term (I will do them):
+
+	Create XBase should also create necessary memo files.
+
+	Review error messages.
+
+	Tests for create.
+
+
+Mid term (would appreciate help or comments):
+
+	DBD::XBase -- just not I am stuck because I do not know how to
+	(for example) get dsn data inside prepare.
+
+	Locking -- will probably lock the whole file when starting
+	some operation. This way however, the select (or so) will not
+	be atomic unleess we read all the data upon execute and not
+	on fetchrow.
+
+
+Long term (it really depends on many things):
+
+	Indexing: how should this work? Am I able to rewrite _all_ the
+	indexing algorithms around from all the versions of dBase,
+	FoxBase, FoxPro, Clipper, some, some other?
+
+
