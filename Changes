@@ -1,6 +1,9 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
+0.200 Sun Aug 19 13:48:27 MET DST 2001
+	Source code reformated to unified indentation.
+
 0.190 Sat Aug 18 18:02:04 MEST 2001
 	XBase::SDBM: documentation added.
 

@@ -11,7 +11,7 @@ use vars qw( @ISA $DEBUG $VERSION $VERBOSE $BIGEND );
 use XBase::Base;
 @ISA = qw( XBase::Base );
 
-$VERSION = '0.170';
+$VERSION = '0.200';
 
 $DEBUG = 0;
 
@@ -49,8 +49,7 @@ print "XBase::Index::new($class, $file, @_)\n" if $XBase::Index::VERBOSE;
 }
 
 # For XBase::*x object, a record is one page, object XBase::*x::Page here
-sub get_record
-	{
+sub get_record {
 	my ($self, $num) = @_;
 	return $self->{'pages_cache'}{$num}
 			if defined $self->{'pages_cache'}{$num};
@@ -73,8 +72,7 @@ sub get_record
 # current level of the "cursor", 'pages' holding an array of pages
 # currently open for each level and 'rows' with an array of current row
 # in each level
-sub fetch
-	{
+sub fetch {
 	my $self = shift;
 	my ($level, $page, $row, $key, $val, $left);
 	
@@ -107,10 +105,11 @@ sub fetch
 		# get current row for current level and increase it
 		# (or setup to zero)
 		my $row = $self->{'rows'}[$level];
-		if (not defined $row)
-			{ $row = $self->{'rows'}[$level] = 0; }
-		else
-			{ $self->{'rows'}[$level] = ++$row; }
+		if (not defined $row) {
+			$row = $self->{'rows'}[$level] = 0;
+		} else {
+			$self->{'rows'}[$level] = ++$row;
+		}
 
 		# get the (key, value, pointer) from the page
 		($key, $val, $left) = $page->get_key_val_left($row);
@@ -158,8 +157,9 @@ sub fetch
 			# this is a hook for ntx files where we do not
 			# want to miss a values that are stored inside
 			# the structure, not only in leaves.
-			if (not defined $page->{'last_key_is_just_overflow'} and defined $backleft and defined $backval)
-				{ return ($backkey, $backval); }
+			if (not defined $page->{'last_key_is_just_overflow'} and defined $backleft and defined $backval) {
+				return ($backkey, $backval);
+			}
 		}
 	}
 	return;	
@@ -282,8 +282,9 @@ sub get_key_val_left {
 	return;
 }
 
-sub num_keys
-	{ $#{shift->{'keys'}}; }
+sub num_keys {
+	$#{shift->{'keys'}};
+}
 
 sub delete {
 	my ($self, $key, $value) = @_;
@@ -386,8 +387,9 @@ sub read_header {
 	$self;
 }
 
-sub last_record
-	{ shift->{'total_pages'}; }
+sub last_record {
+	shift->{'total_pages'};
+}
 
 package XBase::ndx::Page;
 use strict;
@@ -510,8 +512,9 @@ sub read_header {
 
 	$self;
 }
-sub last_record
-	{ -1; }
+sub last_record {
+	-1;
+}
 
 
 package XBase::ntx::Page;
@@ -803,8 +806,7 @@ use strict;
 use vars qw( @ISA $DEBUG );
 @ISA = qw( XBase::Base XBase::Index );
 
-sub read_header
-	{
+sub read_header {
 	my $self = shift;
 	my %opts = @_;
 	my $expr_name = $opts{'tag'};
@@ -850,8 +852,7 @@ sub read_header
 				 = unpack 'VVca1vvvvva3c', $header;
 	}
 
-## use Data::Dumper;
-## print Dumper $self;
+### use Data::Dumper; print Dumper $self;
 
 	if (defined $expr_name and defined $self->{'tags'}{$expr_name}) {
 		$self->{'active'} = $self->{'tags'}{$expr_name};
@@ -860,8 +861,10 @@ sub read_header
 
 	$self;
 }
-sub last_record
-	{ -1; }
+
+sub last_record {
+	-1;
+}
 
 package XBase::mdx::Page;
 use strict;
@@ -891,9 +894,9 @@ sub new {
 	my ($noentries, $noleaf) = unpack 'VV', $data;
 
 	print "page $num, noentries $noentries, keylength $keylength; noleaf: $noleaf\n" if $DEBUG;
-	if ($noleaf == 54 or $noleaf == 20 or $noleaf == 32
-						or $noleaf == 80)
-		{ $noentries++; }
+	if ($noleaf == 54 or $noleaf == 20 or $noleaf == 32 or $noleaf == 80) {
+		$noentries++;
+	}
 
 	my ($keys, $values, $lefts) = ([], [], []);
 
@@ -946,8 +949,7 @@ sub write_header {
 	$self->{'fh'}->seek($self->{'adjusted_offset'} || 0, 0);
 	$self->{'fh'}->print($data);
 }
-sub read_header
-	{
+sub read_header {
 	my ($self, %opts) = @_;
 	$self->{'dbf'} = $opts{'dbf'} if not exists $self->{'dbf'};
 
@@ -1035,8 +1037,9 @@ sub read_header
 	$self;
 }
 
-sub last_record
-	{ shift->{'total_pages'}; }
+sub last_record {
+	shift->{'total_pages'};
+}
 
 package XBase::cdx::Page;
 use strict;
@@ -1046,8 +1049,7 @@ use vars qw( @ISA $DEBUG );
 *DEBUG = \$XBase::Index::DEBUG;
 
 # Constructor for the cdx page
-sub new
-	{
+sub new {
 	my ($indexfile, $num) = @_;
 	my $data = $indexfile->read_record($num)
 		or do { print $indexfile->errstr; return; };	# get 512 bytes
@@ -1108,8 +1110,7 @@ sub new
 			$prevkeyval = $key;
 
 ### print "Numdate $numdate\n";
-			if ($numdate)
-				{		# some decoding for numbers
+			if ($numdate) {		# some decoding for numbers
 ### print " *** In: ", unpack("H*", $key), "\n";
 				if (0x80 & unpack('C', $key)) {
 					substr($key, 0, 1) &= "\177";
@@ -1158,8 +1159,7 @@ sub new
 					$key = sprintf "%04d%02d%02d",
 						Time::JulianDay::inverse_julian_day($key);
 				}
-			}
-			else {
+			} else {
 				$key =~ s/\000+$//;
 			}
 			print "item: $key -> $recno via $page\n" if $DEBUG > 4;
@@ -1794,7 +1794,7 @@ directory.
 
 =head1 VERSION
 
-0.170
+0.200
 
 =head1 AUTHOR
 

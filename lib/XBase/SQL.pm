@@ -8,7 +8,7 @@ package XBase::SQL;
 use strict;
 use vars qw( $VERSION %COMMANDS );
 
-$VERSION = '0.190';
+$VERSION = '0.200';
 
 # #################################
 # Type conversions for create table
@@ -322,13 +322,13 @@ sub find_verbatim_select_names {
 		if ($result[$i] eq 'SELECTEXPFIELD') {
 			my @out = $self->get_verbatim_select_names(@result[$i, $i + 1]);
 			push @{$self->{'selectnames'}}, uc join '', @out;
-			}
+		}
 		elsif (ref $result[$i + 1] eq 'ARRAY') {
 			$self->find_verbatim_select_names(@{$result[$i + 1]});
-			}
-		$i += 2;
 		}
+		$i += 2;
 	}
+}
 sub get_verbatim_select_names {
 	my ($self, @result) = @_;
 	my $i = 1;
@@ -336,14 +336,13 @@ sub get_verbatim_select_names {
 	while ($i < @result) {
 		if (ref $result[$i] eq 'ARRAY') {
 			push @out, $self->get_verbatim_select_names(@{$result[$i]});
-			}
-		else {
+		} else {
 			push @out, $result[$i];
-			}
-		$i += 2;
 		}
-	@out;
+		$i += 2;
 	}
+	@out;
+}
 
 #######
 
@@ -352,8 +351,7 @@ sub get_verbatim_select_names {
 
 # First, we call match. Then, after we know that the match was
 # successfull, we call store_results
-sub parse
-	{
+sub parse {
 	$^W = 0;
 	my ($class, $string) = @_;
 	my $self = bless {}, $class;
@@ -364,43 +362,43 @@ sub parse
 
 	# after the parse, nothing should have left from the $string
 	# if it does, it's some rubbish
-	if ($srest ne '' and not $error)
-		{ $error = 1; $errstr = 'Extra characters in SQL command'; }
+	if ($srest ne '' and not $error) {
+		$error = 1;
+		$errstr = 'Extra characters in SQL command';
+	}
 	
 	# we want to have meaningfull error messages. if it heasn't
 	# been specified so far, let's just say Error	
-	if ($error)
-		{
-		if (not defined $errstr) { $errstr = 'Error in SQL command'; }
+	if ($error) {
+		if (not defined $errstr) {
+			$errstr = 'Error in SQL command';
+		}
 
 		# and only show the relevant part of the SQL string
 		substr($srest, 40) = '...' if length $srest > 44;
 		if ($srest ne '') {
 			$self->{'errstr'} = "$errstr near `$srest'";
-			}
-		else {
+		} else {
 			$self->{'errstr'} = "$errstr at the end of query";
-			}
 		}
-	else
-		{
+	} else {
 		# take the results and store them to $self
 
 		$self->find_verbatim_select_names(@result);
 		$self->store_results(\@result, \%STORE);
-		if (defined $self->{'whereerror'})
-			{ $self->{'errstr'} = "Some deeper problem: eval failed: $self->{'whereerror'}"; }
-		### use Data::Dumper; print STDERR "Parsed $string to\n", Dumper $self if $ENV{'SQL_DUMPER'};
+		if (defined $self->{'whereerror'}) {
+			$self->{'errstr'} = "Some deeper problem: eval failed: $self->{'whereerror'}";
 		}
-	$self;
+		### use Data::Dumper; print STDERR "Parsed $string to\n", Dumper $self if $ENV{'SQL_DUMPER'};
 	}
+	$self;
+}
 
 ##########
 
 # Function match is called with a string and a list of regular
 # expressions we need to match
-sub match
-	{
+sub match {
 	my $string = shift;
 	my @regexps = @_;
 
@@ -411,148 +409,145 @@ sub match
 	# to match; it's mainly used to find correct error message
 	my $title;
 
-	if (@regexps == 1 and defined $COMMANDS{$regexps[0]})
-		{
+	if (@regexps == 1 and defined $COMMANDS{$regexps[0]}) {
 		$title = $regexps[0];
 		my $c = $COMMANDS{$regexps[0]};
 
 		# if we are to match a thing in %COMMANDS, let's expand it
 		@regexps = expand( ( ref $c ) ? @$c :
 					grep { $_ ne '' } split /\s+/, $c);
-		}
+	}
 
 	# as the first element of the @regexp list, we might have got
 	# modifiers -- ? or * -- we will use them in cse of non-match
 	my $modif;
-	if (@regexps and $regexps[0] eq '?' or $regexps[0] eq '*')
-		{ $modif = shift @regexps; }
+	if (@regexps and $regexps[0] eq '?' or $regexps[0] eq '*') {
+		$modif = shift @regexps;
+	}
 
 	# let's walk through the @regexp list and see
 	my @result;
 	my $i = 0;
-	while ($i < @regexps)
-		{
+	while ($i < @regexps) {
 		my $regexp = $regexps[$i];
 		my ($error, $errstr, @r);
 
 		# if it's an array, call match recursivelly
-		if (ref $regexp)
-			{ ($string, $error, $errstr, @r) = match($string, @$regexp); }
+		if (ref $regexp) {
+			($string, $error, $errstr, @r) = match($string, @$regexp);
+		}
 		# if it's a thing in COMMANDS, call match recursivelly
-		elsif (defined $COMMANDS{$regexp})
-			{ ($string, $error, $errstr, @r) = match($string, $regexp); }
+		elsif (defined $COMMANDS{$regexp}) {
+			($string, $error, $errstr, @r) = match($string, $regexp);
+		}
 		
 		# if we've found |, it means that one alternative matched
 		# fine and we can leave the loop -- we use next to go
 		# through continue
-		elsif ($regexp eq '|')
-			{ $i = $#regexps; next; }
+		elsif ($regexp eq '|') {
+			$i = $#regexps; next;
+		}
 
 		# otherwise do a regexp match
-		elsif ($string =~ s/^\s*?($regexp)(?:$|\b|(?=\W))//si)
-			{ @r = $1; }
+		elsif ($string =~ s/^\s*?($regexp)(?:$|\b|(?=\W))//si) {
+			@r = $1;
+		}
 	
 		# and yet otherwise we have a problem
-		else
-			{ $error = 1; }
+		else {
+			$error = 1;
+		}
 
 		# if we have a problem
-		if (defined $error)
-			{
+		if (defined $error) {
 			# if nothing has matched yet, try to find next
 			# alternative
-			if ($origstring eq $string)
-				{
-				while ($i < @regexps)
-					{ last if $regexps[$i] eq '|'; $i++; }
+			if ($origstring eq $string) {
+				while ($i < @regexps) {
+					last if $regexps[$i] eq '|'; $i++;
+				}
 				next if $i < @regexps;
 				last if defined $modif;
-				}
+			}
 
 			# if we got here, we haven't found any alternative
 			# and no modifier was specified for this list
 			# so just form the errstr and return with shame
-			if (not defined $errstr)
-				{
-				if (defined $ERRORS{$regexp})
-					{ $errstr = $ERRORS{$regexp}; }
-				elsif (defined $title and defined $ERRORS{$title})
-					{ $errstr = $ERRORS{$title}; }
+			if (not defined $errstr) {
+				if (defined $ERRORS{$regexp}) {
+					$errstr = $ERRORS{$regexp};
+				} elsif (defined $title and defined $ERRORS{$title}) {
+					$errstr = $ERRORS{$title};
 				}
-
-			return ($string, 1, $errstr, @result);
 			}
 
-		# add result to @result
-		if (ref $regexp)
-			{ push @result, @r; }
-		elsif (@r > 1)
-			{ push @result, $regexp, [ @r ]; }
-		else
-			{ push @result, $regexp, $r[0]; }
+			return ($string, 1, $errstr, @result);
 		}
-	continue
-		{
+
+		# add result to @result
+		if (ref $regexp) {
+			push @result, @r;
+		} elsif (@r > 1) {
+			push @result, $regexp, [ @r ];
+		} else {
+			push @result, $regexp, $r[0];
+		}
+	}
+	continue {
 		$i++;
 		# if we hve *, let's try another round
-		if (defined $modif and $modif eq '*' and $i >= @regexps)
-			{ $origstring = $string; $i = 0; }
+		if (defined $modif and $modif eq '*' and $i >= @regexps) {
+			$origstring = $string; $i = 0;
 		}
-
-	return ($string, undef, undef, @result);
 	}
 
-sub expand
-	{
+	return ($string, undef, undef, @result);
+}
+
+sub expand {
 	my @result;
 	my $i = 0;
-	while ($i < @_)
-		{
+	while ($i < @_) {
 		my $t = $_[$i];
-		if ($t eq '(')
-			{
+		if ($t eq '(') {
 			$i++;
 			my $begin = $i;
 			my $nest = 1;
-			while ($i < @_ and $nest)
-				{
+			while ($i < @_ and $nest) {
 				my $t = $_[$i];
 				if ($t eq '(') { $nest++; }
 				elsif ($t eq ')') { $nest--; }
 				$i++;
-				}
+			}
 			$i--;
 			push @result, [ expand(@_[$begin .. $i - 1]) ];	
-			}
-		elsif ($t eq '?' or $t eq '*')
-			{
+		} elsif ($t eq '?' or $t eq '*') {
 			my $prev = pop @result;
 			push @result, [ $t, ( ref $prev ? @$prev : $prev ) ];
-			}
-		else
-			{ push @result, $t; }
-		$i++;
+		} else {
+			push @result, $t;
 		}
-	@result;
+		$i++;
 	}
+	@result;
+}
 #
 # We run this method on the XBase::SQL object, with the tree structure
 # in the $result arrayref
-sub store_results
-	{
+sub store_results {
 	my ($self, $result) = @_;
 
 	my $i = 0;
 	
 	# Walk through the list
-	while ($i < @$result)
-		{
+	while ($i < @$result) {
 		# get the key and the value matched for the key
 		my ($key, $match) = @{$result}[$i, $i + 1];
 
 		# if there is some structure below, process it
-		if (ref $match)
-			{ $self->store_results($match); }
+		if (ref $match) {
+			$self->store_results($match);
+		}
 
 		# see what are we supposed to do for this key
 		my $store_value = $STORE{$key};
@@ -560,15 +555,15 @@ sub store_results
 		if (defined $store_value) {
 			if (ref $store_value eq 'CODE') {
 				my @out = &{$store_value}($self, (ref $match ? @$match : $match));
-				if (@out == 1)
-					{ $result->[$i+1] = $out[0]; }
-				else
-					{ $result->[$i+1] = [ @out ]; }
+				if (@out == 1) {
+					$result->[$i+1] = $out[0];
+				} else {
+					$result->[$i+1] = [ @out ];
 				}
-			else {
+			} else {
 				push @{$self->{$store_value}}, get_strings($match);
-				}
 			}
+		}
 
 =comment
 
@@ -596,42 +591,42 @@ sub store_results
 =cut
 
 		$i += 2;
-		}
 	}
+}
 #
 #
-sub get_strings
-	{
+sub get_strings {
 	my @strings = @_;
-	if (@strings == 1 and ref $strings[0])
-		{ @strings = @{$strings[0]}; }
-	my @result;	my $i = 1;
-	while ($i < @strings)
-		{
-		if (ref $strings[$i])
-			{ push @result, get_strings($strings[$i]); }
-		else
-			{ push @result, $strings[$i]; }
-		$i += 2;
-		}
-	@result;
+	if (@strings == 1 and ref $strings[0]) {
+		@strings = @{$strings[0]};
 	}
-sub print_result
-	{
+	my @result;
+	my $i = 1;
+	while ($i < @strings) {
+		if (ref $strings[$i]) {
+			push @result, get_strings($strings[$i]);
+		} else {
+			push @result, $strings[$i];
+		}
+		$i += 2;
+	}
+	@result;
+}
+sub print_result {
 	my $result = shift;
 	my @result = @$result;
 	my @before = @_;
 	my $i = 0;
-	while ($i < @result)
-		{
+	while ($i < @result) {
 		my ($regexp, $string) = @result[$i, $i + 1];
-		if (ref $string)
-			{ print_result($string, @before, $regexp); }
-		else
-			{ print "$string:\t @before $regexp\n"; }
-		$i += 2;
+		if (ref $string) {
+			print_result($string, @before, $regexp);
+		} else {
+			print "$string:\t @before $regexp\n";
 		}
+		$i += 2;
 	}
+}
 
 
 # #######################################
@@ -677,29 +672,29 @@ sub field {
 	if ($type eq 'N')	{ $self->{'number'} = 1; }
 	else			{ $self->{'string'} = 1; }
 	$self;
-	}
+}
 sub string {
 	my $self = shift->new;
 	$self->{'value'} = shift;
 	$self->{'string'} = 1;
 	$self;
-	}
+}
 sub number {
 	my $self = shift->new;
 	$self->{'value'} = shift;
 	$self->{'number'} = 1;
 	$self;
-	}
+}
 sub null {
 	my $self = shift->new;
 	$self->{'value'} = undef;
 	$self;
-	}
+}
 sub other {
 	my $class = shift;
 	my $other = shift;
 	$other;
-	}
+}
 sub function {
 	my ($class, $function, $table, $values, @params) = @_;
 	my $self = $class->new;
@@ -708,72 +703,66 @@ sub function {
 		$self->{'value'} = length($params[0]->value);
 		delete $self->{'string'};
 		$self->{'number'} = 1;
-		}
-	elsif ($function eq 'TRIM') {
+	} elsif ($function eq 'TRIM') {
 		($self->{'value'} = $params[0]->value) =~ s/^\s+|\s+$//g;
-		}
-	elsif ($function eq 'LTRIM') {
+	} elsif ($function eq 'LTRIM') {
 		($self->{'value'} = $params[0]->value) =~ s/^\s+//;
-		}
-	elsif ($function eq 'RTRIM') {
+	} elsif ($function eq 'RTRIM') {
 		($self->{'value'} = $params[0]->value) =~ s/\s+$//;
-		}
-	elsif ($function eq 'CONCAT') {
+	} elsif ($function eq 'CONCAT') {
 		$self->{'value'} = join '', map { $_->value } @params;
-		}
-	elsif ($function eq 'SUBSTR' or $function eq 'SUBSTRING') {
+	} elsif ($function eq 'SUBSTR' or $function eq 'SUBSTRING') {
 		my ($string, $start, $length) = map { $_->value } @params;
 		if ($start == 0) { $start = 1; }
 		$self->{'value'} = substr($string, $start - 1, $length);
-		}
-	$self;
 	}
+	$self;
+}
 
 1;
 #
 # Function working on Expr objects
 #
-sub less
-	{
+sub less {
 	my ($self, $other, $reverse) = @_;
 	my $answer;
-	if (defined $self->{'string'} or defined $other->{'string'})
-		{ $answer = ($self->value lt $other->value); }
-	else
-		{ $answer = ($self->value < $other->value); }
+	if (defined $self->{'string'} or defined $other->{'string'}) {
+		$answer = ($self->value lt $other->value);
+	} else {
+		$answer = ($self->value < $other->value);
+	}
 	return -$answer if $reverse;
 	$answer;
-	}
-sub lesseq
-	{
+}
+sub lesseq {
 	my ($self, $other, $reverse) = @_;
 	my $answer;
-	if (defined $self->{'string'} or defined $other->{'string'})
-		{ $answer = ($self->value le $other->value); }
-	else
-		{ $answer = ($self->value <= $other->value); }
+	if (defined $self->{'string'} or defined $other->{'string'}) {
+		$answer = ($self->value le $other->value);
+	} else {
+		$answer = ($self->value <= $other->value);
+	}
 	return -$answer if $reverse;
 	$answer;
-	}
-sub notequal
-	{
+}
+sub notequal {
 	my ($self, $other) = @_;
 	local $^W = 0;
-	if (defined $self->{'string'} or defined $other->{'string'})
-		{ ($self->value ne $other->value); }
-	else
-		{ ($self->value != $other->value); }
+	if (defined $self->{'string'} or defined $other->{'string'}) {
+		($self->value ne $other->value);
+	} else {
+		($self->value != $other->value);
 	}
+}
 
-sub likematch
-	{
+sub likematch {
 	my $class = shift;
 	my ($field, $string) = @_;
 
 	my $regexp = $string->value;
 	$regexp =~ s/(\\\\[%_]|.)/ ($1 eq '%') ? '.*' : ($1 eq '_') ? '.' : "\Q$1" /seg;
 	$field->value =~ /^$regexp$/si;
-	}
+}
 
 1;
 
