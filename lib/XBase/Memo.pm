@@ -20,7 +20,7 @@ types and they specify B<read_record> and B<write_record> methods.
 
 =head1 VERSION
 
-0.03
+0.034
 
 =head1 AUTHOR
 
@@ -46,7 +46,7 @@ use vars qw( $VERSION @ISA );
 @ISA = qw( XBase::Base );
 
 
-$VERSION = "0.03";
+$VERSION = "0.034";
 
 sub read_header
 	{
@@ -98,6 +98,20 @@ sub write_record
 	}
 
 sub last_record	{ shift->{'next_for_append'} - 1; }
+
+sub create
+	{
+	my $self = shift;
+	my %options = @_;
+	$self->create_file($options{'name'}) or return;
+	my $version = $options{'version'};
+	$version = 3 unless defined $version;
+	$version = 0 if $version == 4;
+	my $header = 
+	$self->write_to(0, pack "VVa8Ca495", 1, 0, '', $version) or return;
+	$self->close();
+	return $self;
+	}
 
 
 # ################################

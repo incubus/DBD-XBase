@@ -362,11 +362,10 @@ sub init_memo_field
 	{
 	my $self = shift;
 	return $self->{'memo'} if defined $self->{'memo'};
-	my $filename = $self->{'filename'};
-	$filename =~ s/\.dbf//i;
-	$filename .= '.dbt';
-	require 'XBase/Memo.pm';
-	return XBase::Memo->new($filename);
+	my $dbtname = $self->{'filename'};
+	$dbtname =~ s/(\.dbf)?$/.dbt/i;
+	require XBase::Memo;
+	return XBase::Memo->new($dbtname);
 	}
 
 sub close
@@ -559,9 +558,8 @@ sub process_list_on_read
 			}
 		elsif ($type =~ /^[MGBP]$/)
 			{
-			$data[$num] = $self->{'memo'}->read_record($value)
-				if defined $self->{'memo'} and
-					not $value =~ /^ +$/;
+			if (defined $self->{'memo'} and $value !~ /^ +$/)
+				{ $data[$num] = $self->{'memo'}->read_record($value); }
 			}
 		else
 			{ $data[$num] = $value;	}
@@ -804,10 +802,21 @@ sub create
 	substr($header, 8, 4) = pack "vv", (length $header), $record_len;
 
 	my $tmp = $class->new();
-	$tmp->create_file($options{'name'}, 0700) or return;
+	my $newname = $options{'name'};
+	if (defined $newname and $newname !~ /\.dbf$/) { $newname .= ".dbf"; }
+	$tmp->create_file($newname, 0700) or return;
 	$tmp->write_to(0, $header) or return;
 	$tmp->update_last_change();
 	$tmp->close();
+
+	if (grep { /^[MBGP]$/ } @{$options{'field_types'}})
+		{
+		my $dbtname = $options{'name'};
+		$dbtname =~ s/(\.dbf)?$/.dbt/i;
+		my $dbttmp = XBase::Memo->new();
+		$dbttmp->create('name' => $dbtname,
+			'version' => $options{'version'}) or return;
+		}
 
 	return $class->new($options{'name'});
 	}
