@@ -12,7 +12,7 @@ use XBase;
 $::XBaseloaded = 1;
 print "ok 1\n";
 
-my $dir = ( -d "t" ? "t" : "" );
+my $dir = ( -d "t" ? "t" : "." );
 
 $XBase::Base::DEBUG = 1;        # We want to see any problems
 $XBase::CLEARNULLS = 1;         # Yes, we want that
