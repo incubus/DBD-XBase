@@ -23,7 +23,7 @@ use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
 
-$VERSION = '0.0593';
+$VERSION = '0.0594';
 
 *errstr = \$XBase::Base::errstr;
 
@@ -90,9 +90,14 @@ sub read_header
 			{ push @$readproc, \&_read_number; }
 		elsif ($type =~ /^[MGBP]$/)
 			{
-			push @$readproc, \&_read_memo;
-			$self->{'memo'} = $self->init_memo_field()
-					unless defined $self->{'memo'};
+			my $memo = $self->{'memo'};
+			$memo = $self->{'memo'} = $self->init_memo_field()
+							unless defined $memo;
+			push @$readproc, sub {
+				my $value = shift;
+				return undef unless $value =~ /\d/;
+				$memo->read_record($value);
+				};
 			}
 
 		push @$names, $name;
@@ -274,13 +279,23 @@ sub dump_records
 # record (starting from 0) and optionally names of the required
 # fields. If no names are specified, all fields are returned. The
 # first value in the returned list if always 1/0 deleted flag. Returns
-# empty list on error
+# empty list on error.
 
 sub get_record
 	{
 	my ($self, $num) = (shift, shift);
 	$self->NullError();
 	$self->get_record_nf( $num, map { $self->field_name_to_num($_); } @_);
+	}
+*get_record_as_hash = \&get_record_hash;
+sub get_record_hash
+	{
+	my ($self, $num) = @_;
+	my @list = $self->get_record($num) or return;
+	my $hash = {};
+	@{$hash}{ '_DELETED', $self->field_names() } = @list;
+	return %$hash if wantarray;
+	$hash;
 	}
 sub get_record_nf
 	{
@@ -292,54 +307,36 @@ sub get_record_nf
 	my $unpack = join ' ', '@0a1', map {
 		my $e = $self->{'field_unpacks'}[$_];
 		defined $e ? $e : '@0a0'; } @fieldnums;
-
-	my @fns = (\&_read_deleted, map { 
-		my $e = $self->{'field_rproc'}[$_];
-		defined $e ? $e : sub { undef; }; } @fieldnums);
+	
+	my $rproc = $self->{'field_rproc'};
+	my @fns = (\&_read_deleted, map { defined $rproc->[$_] ? $rproc->[$_] : sub { undef; }; } @fieldnums);
 
 	my @out = unpack $unpack, $data;
 
 	for (@out)
-		{ $_ = &{ shift @fns }($self, $_); }
+		{ $_ = &{ shift @fns }($_); }
 
 	@out;
-	}
-sub get_record_as_hash
-	{
-	my ($self, $num) = @_;
-	my @list = $self->get_record($num) or return;
-	my $hash = {};
-	@{$hash}{ '_DELETED', $self->field_names() } = @list;
-	return %$hash if wantarray;
-	$hash;
 	}
 
 # Processing on read
 sub _read_deleted
 	{
-	my $value = $_[1];
+	my $value = shift;
 	if ($value eq '*') { return 1; } elsif ($value eq ' ') { return 0; }
 	undef;
 	}
 sub _read_char
-	{ my $value = $_[1]; $value =~ s/\s+$// if $CLEARNULLS; $value; }
+	{ my $value = shift; $value =~ s/\s+$// if $CLEARNULLS; $value; }
 sub _read_boolean
 	{
-	my ($self, $value) = @_;
+	my $value = shift;
 	if ($value =~ /^[YyTt]$/) { return 1; }
 	if ($value =~ /^[NnFf]$/) { return 0; }
 	undef;
 	}
 sub _read_number
-	{ ### print STDERR join "\n", caller(), ''; 
-	my $value = $_[1]; (($value =~ /\d/) ? $value + 0 : undef); }
-sub _read_memo
-	{
-	my ($self, $value) = @_;
-	if ($value =~ /\d/ and defined $self->{'memo'})
-		{ return $self->{'memo'}->read_record($value); }
-	undef;
-	}
+	{ my $value = shift; (($value =~ /\d/) ? $value + 0 : undef); }
 
 # #############
 # Write records
@@ -390,6 +387,12 @@ sub write_record
 		}
 	$self->update_last_change or return;
 	$ret;
+	}
+sub _new_set_record
+	{
+	my ($self, $num) = (shift, shift);
+	$self->NullError();
+	
 	}
 
 # Delete and undelete record
