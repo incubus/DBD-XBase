@@ -91,10 +91,10 @@ print "not " if $last_record != 2;
 print "ok 6\n";
 
 
-print "And now we will append data\n";
+print "And now we will append data and read them back\n";
 
 $table->set_record(3, 245, "New record no 4", "New note for record 4", undef, "19700102");
-$table->get_record(0);		# Force emptying caches
+$table->get_record(0);			# Force flushing cache
 my $result2 = join ":", map { defined $_ ? $_ : "" } $table->get_record(3);
 
 print "Got: $result2\n";
@@ -109,5 +109,4 @@ print "Expecting 3, got $last_record\n";
 print "not " if $last_record != 3;
 print "ok 8\n";
 
-
-
+1;

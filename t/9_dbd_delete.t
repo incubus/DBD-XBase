@@ -2,17 +2,20 @@
 
 use strict;
 
-BEGIN	{ $| = 1;
-	print "Load DBI\n";
+BEGIN	{
+	$| = 1;
 	eval 'use DBI';
 	if ($@ ne '')
 		{
 		print "1..0\n";
 		print "DBI couldn't be loaded, aborting test\n";
+		print "Error returned from eval was:\n", $@;
 		print "ok 1\n";
 		exit;
 		}
-	print "1..7\n"; }
+	print "1..7\n";
+	print "DBI loaded\n";
+	}
 
 END	{ print "not ok 1\n" unless $::DBIloaded; }
 

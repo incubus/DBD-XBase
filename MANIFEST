@@ -15,9 +15,7 @@ lib/XBase/cdx.pm
 t/1_header.t
 t/2_read.t
 t/3_write.t
-t/4_create.t
-t/5_drop.t
-t/6_more_read.t
+t/4_create_drop.t
 t/7_dbd_select.t
 t/8_dbd_sel_where.t
 t/9_dbd_delete.t

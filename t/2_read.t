@@ -64,23 +64,83 @@ print "Get record 0 as hash\n";
 my %hash = $table->get_record_as_hash(0);
 
 my @keys = keys %hash;
-my @values = map { defined $_ ? qq["$_"] : "undef" } values %hash;
+my $gotvalues = join ', ',
+	map { defined $_ ? ( /^\d+$/ ? $_ : qq["$_"] ) : 'undef' }
+							values %hash;
+my $expectedvalues = 'undef, 19960813, 1, 0, "This is a memo for record no one", "Record no 1"';
 
-print "Got \@hash{ qw( @keys ) } = (", join(", ", @values), ");\n";
+print "Got \@hash{ qw( @keys ) } =\n  ($gotvalues);\n";
+print "Expected\n  ($expectedvalues)\n";
 
-print "Now check values ID, _DELETED, BOOLEAN\n";
-
-my $id = $hash{'ID'};
-print "not " if not defined $id or $id != 1;
+print "not " if $gotvalues ne $expectedvalues;
 print "ok 8\n";
 
-my $deleted = $hash{'_DELETED'};
-print "not " if not defined $deleted or $deleted != 0;
+
+print "Create the new XBase object, load the data from table rooms.dbf\n";
+
+$table = new XBase("$dir/rooms");
+print XBase->errstr unless defined $table;
+print "not " unless defined $table;
 print "ok 9\n";
 
-my $boolean = $hash{'BOOLEAN'};
-print "not " if defined $boolean;
+exit unless defined $table;	# It doesn't make sense to continue here ;-)
+
+my $read_table = join "\n", (map { join ':', $table->get_record($_) }
+				(0 .. $table->last_record())), '';
+
+my $read_expected_data = join '', <DATA>;
+
+print "Read records and check what we've got\n";
+if ($read_table ne $read_expected_data)
+	{
+	print "Expected result:\n$read_expected_data";
+	print "Got:\n$read_table";
+	print "not ";
+	}
 print "ok 10\n";
 
 1;
 
+__DATA__
+0: None:
+0:Bay  1:Main
+0:Bay 14:Main
+0:Bay  2:Main
+0:Bay  5:Main
+0:Bay 11:Main
+0:Bay  6:Main
+0:Bay  3:Main
+0:Bay  4:Main
+0:Bay 10:Main
+0:Bay  8:Main
+0:Gigapix:Main
+0:Bay 12:Main
+0:Bay 15:Main
+0:Bay 16:Main
+0:Bay 17:Main
+0:Bay 18:Main
+0:Mix A:Audio
+0:Mix B:Audio
+0:Mix C:Audio
+0:Mix D:Audio
+0:Mix E:Audio
+0:ADR-Foley:Audio
+0:Mach Rm:Audio
+0:Transfer:Audio
+0:Bay 19:Main
+0:Dub:Main
+0:Flambe:Audio
+0:FILM 1:Film
+0:FILM 2:Film
+0:FILM 3:Film
+0:SCANNING:Film
+0:Mix F:Audio
+0:Mix G:Audio
+0:Mix H:Audio
+0:BullPen:Film
+0:Celco:Film
+0:MacGrfx:Main
+0:Mix J:Audio
+0:AVID:Main
+0:BAY 7:Main
+0::

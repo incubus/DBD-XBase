@@ -68,9 +68,9 @@ print "not " if not $errstr =~ /^Error opening file nonexistent.dbf:/;
 print "ok 8\n";
 
 
-print "Get verbose header info\n";
+print "Get verbose header info (using header_info)\n";
 
-my $verinfo = $table->get_header_info();
+my $verinfo = $table->header_info();
 my $goodinfo = <<'EOF';
 Filename:	t/test.dbf
 Version:	0x83 (ver. 3 with DBT file)
@@ -81,16 +81,15 @@ Last change:	1996/8/17
 Num fields:	5
 Field info:
 Num	Name		Type	Len	Decimal
-1.	ID              N       5       0       
-2.	MSG             C       254     0       
-3.	NOTE            M       10      0       
-4.	BOOLEAN         L       1       0       
-5.	DATES           D       8       0       
+1.	ID              N       5       0
+2.	MSG             C       254     0
+3.	NOTE            M       10      0
+4.	BOOLEAN         L       1       0
+5.	DATES           D       8       0
 EOF
 
-print "Got\n", $verinfo;
-
-print "not " if $verinfo ne $goodinfo;
+if ($verinfo ne $goodinfo)
+	{ print "Expected\n", $goodinfo, "Got\n", $verinfo, "not "; }
 print "ok 9\n";
 
 
