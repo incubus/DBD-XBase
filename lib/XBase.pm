@@ -18,7 +18,7 @@ use XBase::Base;		# will give us general methods
 use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
-$VERSION = '0.068';
+$VERSION = '0.069';
 $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 
 *errstr = \$XBase::Base::errstr;
@@ -80,7 +80,8 @@ sub read_header
 		if ($type eq 'C')		# char
 			{
 			# fixup for char length > 256
-			$length += 256 * $decimal; $decimal = 0;
+			if ($decimal and not $self->{'openoptions'}{'nolongchars'})
+				{ $length += 256 * $decimal; $decimal = 0; }
 			$rproc = sub { my $value = shift;
 				if ($self->{'ChopBlanks'})
 					{ $value =~ s/\s+$//; } ### $value =~ s/^\s+//; }
@@ -736,6 +737,10 @@ the dbt file and you do not need it. Default is false.
 B<memosep> separator of memo records in the dBaseIII dbt files,
 default C<"\x1a\x1a">.
 
+B<nolongchars> prevents XBase to treat the decimal value of character
+fields as high byte of the length -- there are some products around
+producing character fields with decimal values set.
+
     my $table = new XBase "table.dbf" or die XBase->errstr;
 	
     my $table = new XBase "name" => "table.dbf",
@@ -1036,7 +1041,7 @@ Thanks a lot.
 
 =head1 VERSION
 
-0.068
+0.069
 
 =head1 AUTHOR
 

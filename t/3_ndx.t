@@ -113,6 +113,10 @@ print "ok 10\n";
 
 print "find_eq(2450795), which is Julian date for 1997/12/12 and fetch results\n";
 $cur->find_eq(2450795);
+
+use Data::Dumper;
+print Dumper $cur;
+
 $result = ''; $expected_result = '';
 while (my @data = $cur->fetch())
 	{ $result .= "@data\n"; }

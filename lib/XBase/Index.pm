@@ -7,13 +7,41 @@ XBase::Index - base class for the index files for dbf
 
 package XBase::Index;
 use strict;
-use vars qw( @ISA $VERSION $DEBUG );
+use vars qw( @ISA );
 use XBase::Base;
 @ISA = qw( XBase::Base );
 
+sub new
+	{
+	my ($class, $file) = (shift, shift);
+	if ($file =~ /\.ndx$/i)
+		{ return new XBase::ndx $file, @_; }
+	elsif ($file =~ /\.ntx$/i)
+		{ return new XBase::ntx $file, @_; }
+	else
+		{ __PACKAGE__->Error("Unknown extension of index file\n"); }
+	}
+
+sub prepare_select
+	{ }
+
+sub get_record
+	{
+	my ($self, $num) = @_;
+	my $newpage = ref $self;
+	$newpage .= '::Page::new';
+	return $self->$newpage($num);
+	}
+
+
+package XBase::ndx;
+use strict;
+use vars qw( @ISA $VERSION $DEBUG );
+@ISA = qw( XBase::Base XBase::Index );
+
 $DEBUG = 0;
 
-$VERSION = '0.0631';
+$VERSION = '0.090';
 
 sub read_header
 	{
@@ -31,9 +59,6 @@ sub read_header
 
 	$self;
 	}
-
-sub prepare_select
-	{ }
 
 sub prepare_select_eq
 	{
@@ -107,13 +132,7 @@ sub fetch
 sub last_record
 	{ shift->{'total_pages'}; }
 
-sub get_record
-	{
-	my ($self, $num) = @_;
-	return $self->XBase::IndexPage::new($num);
-	}
-
-package XBase::IndexPage;
+package XBase::ndx::Page;
 use strict;
 use vars qw( $DEBUG );
 
@@ -123,7 +142,7 @@ sub new
 	{
 	my ($indexfile, $num) = @_;
 	my $data = $indexfile->read_record($num) or return;
-	my $noentries = unpack 'V', $data;
+	my $noentries = unpack 'v', $data;
 	print "Page $num, " if $DEBUG;
 	### if ($num == $indexfile->{'start_page'}) { $noentries++; print "(actually rootpage) " if $DEBUG; }
 	### $noentries++;
@@ -173,6 +192,131 @@ sub num_keys
 	{ $#{shift->{'keys'}}; }
 sub is_ref
 	{ shift->{'is_ref'}; }
+
+
+package XBase::ntx;
+use strict;
+use vars qw( @ISA );
+@ISA = qw( XBase::Base XBase::Index );
+
+sub read_header
+	{
+	my $self = shift;
+	my $header;
+	$self->{'fh'}->read($header, 1024) == 1024 or do
+		{ __PACKAGE__->Error("Error reading header of $self->{'filename'}: $!\n"); return; };
+	
+	@{$self}{ qw( signature compiler_version start_offset first_unused
+		key_record_length key_length decimals max_item
+		half_page key_string unique ) }
+		= unpack 'vvVVvvvvva256c', $header;
+
+	$self->{'key_string'} =~ s/[\000 ].*$//s;
+	$self->{'record_len'} = 1024;
+	$self->{'header_len'} = 0;
+	
+	$self->{'start_page'} = $self->{'start_offset'} / $self->{'record_len'};
+
+	$self;
+	}
+
+sub fetch
+	{
+	my $self = shift;
+	my $level = $#{$self->{'actives'}};
+	if ($level < 0)
+		{
+		$self->{'pages'}[0] = $self->get_record($self->{'start_page'});
+		$level = 0;
+		}
+
+	my ($key, $val, $left);
+	while ($level >= 0 and not defined $val)
+		{
+		if (defined $self->{'actives'}[$level])
+			{ $self->{'actives'}[$level]++; }
+		else
+			{ $self->{'actives'}[$level] = 0; }
+		my ($page, $active) = ( $self->{'pages'}[$level],
+					$self->{'actives'}[$level] );
+		($key, $val, $left) = $page->get_key_val_left($active);
+		if (not defined $val)	{ $level--; }
+		}
+	return unless defined $val;
+
+	while ($val < 0)
+		{
+		$level++;
+		my $page = $self->get_record($val);
+		$self->{'actives'}[$level] = 0;
+		$self->{'pages'}[$level] = $page;
+		($key, $val, $left) = $page->get_key_val_left(0);
+		}
+
+### print "pages @{[ map { $_->{'num'} } @{$self->{'pages'}} ]}, actives @{$self->{'actives'}}\n";
+	($key, $val);
+	}
+
+sub last_record
+	{ -1; }
+
+
+package XBase::ntx::Page;
+use strict;
+use vars qw( $DEBUG );
+
+$DEBUG = 1;
+
+sub new
+	{
+	my ($indexfile, $num) = @_;
+	my $data = $indexfile->read_record($num) or return;
+	my $noentries = unpack 'v', $data;
+
+	my @pointers = unpack "\@2 v$noentries", $data;
+
+	my $keylength = $indexfile->{'key_length'};
+
+	print "noentries $noentries, keylength $keylength, keyreclen $indexfile->{'key_record_length'}; pointers @pointers\n" if $DEBUG;
+	
+	my $record_len = $indexfile->{'record_len'};
+	my ($keys, $values, $lefts) = ([], [], []);
+	for my $offset (@pointers)
+		{
+		my ($left, $recno, $key);
+		($left, $recno, $key) = unpack "\@$offset VVa$keylength", $data;
+		print "\@$offset VVa$keylength -> ($left, $recno, $key)\n" if $DEBUG;
+		push @$keys, $key;
+		push @$values, $recno;
+
+		push @$lefts, ($left / $record_len);
+		}
+	print "Page $num:\tkeys: @{[ map { s/\s+$//; $_; } @$keys]} -> values: @$values\n\tlefts: @$lefts\n" if $DEBUG;
+	my $self = bless { 'keys' => $keys, 'values' => $values,
+		'num' => $num, 'keylength' => $keylength,
+		'lefts' => $lefts }, __PACKAGE__;
+	$self;
+	}
+sub get_key_val_left
+	{
+	my ($self, $num) = @_;
+	my $printkey = $self->{'keys'}[$num];
+	{
+		local $^W = 0;
+		$printkey =~ s/\s+$//;
+		print "Getkeyval: $num: $printkey, $self->{'values'}[$num], $self->{'lefts'}[$num]\n"
+					if $DEBUG and $num <= $#{$self->{'keys'}};
+	}
+	return ($self->{'keys'}[$num], $self->{'values'}[$num], $self->{'lefts'}[$num])
+				if $num <= $#{$self->{'keys'}};
+	();
+	}
+sub num_keys
+	{ $#{shift->{'keys'}}; }
+sub is_ref
+	{ shift->{'is_ref'}; }
+
+
 1;
 
 __END__

@@ -35,6 +35,6 @@ WriteMakefile(
 	'EXE_FILES'	=> [ 'bin/dbfdump' ],
         'dist'		=> { COMPRESS => 'gzip -9f', SUFFIX => 'gz',
 		POSTOP => 'mv $(DISTNAME)-$(VERSION).tar.gz ../' },
-	'clean'		=> { FILES => 'bin/dbfdump'},	
+	'clean'		=> { FILES => 'bin/dbfdump t/newtable.dbf t/newtable.dbt t/write.dbf t/write.dbt'},	
 	);
 

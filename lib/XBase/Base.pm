@@ -147,7 +147,7 @@ sub read_record
 	my ($self, $num, $in_length) = @_;
 	if (not defined $num)
 		{ $self->Error("Number of the record must be defined when reading it\n"); return; }
-	if ($num > $self->last_record)
+	if ($self->last_record > 0 and $num > $self->last_record)
 		{ $self->Error("Can't read record $num, there is not so many of them\n"); return; }
 	if (not defined $in_length)
 		{ $in_length = $self->{'record_len'}; }

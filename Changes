@@ -1,6 +1,10 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
+0.069
+
+	XBase: added nolongchars.
+
 0.068 Thu Aug 20 18:43:17 MET DST 1998
 
 	DBD::XBase: added support for ORDER BY, defined using substh.
