@@ -9,7 +9,7 @@ package XBase::SQL;
 use strict;
 use vars qw( $VERSION $DEBUG %COMMANDS );
 $VERSION = '0.044';
-$DEBUG = 3;
+$DEBUG = 0;
 
 # ##################
 # Regexp definitions

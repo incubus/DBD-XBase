@@ -76,7 +76,7 @@ in the file.
 
 =head1 VERSION
 
-0.034
+0.045
 
 =head1 AUTHOR
 
@@ -104,7 +104,7 @@ use Exporter;
 # ##############
 # General things
 
-$VERSION = "0.0396";
+$VERSION = "0.045";
 
 # Sets the debug level
 $DEBUG = 0;
@@ -149,7 +149,7 @@ sub new
 	my $class = shift;
 	my $new = {};
 	bless $new, $class;
-	if (@_)	{ $new->open(shift) and return $new; return; }
+	if (@_)	{ $new->open(@_) and return $new; return; }
 	return $new;
 	}
 # Open the file. This is the second chance when filename can be
@@ -182,7 +182,7 @@ sub open
 	unless ($self->can('read_header'))
 		{ Error "Method read_header not defined for $self\n"; return; }
 	
-	unless ($self->read_header())	# read_header should be
+	unless ($self->read_header(@_))	# read_header should be
 		{ return; }		# defined in the derived class
 
 	1;
@@ -296,6 +296,7 @@ sub seek_to
 sub read_record
 	{
 	my ($self, $num, $in_length) = @_;
+
 	if (not defined $num)
 		{ $self->Error("Record number to read must be specified\n"); return; }
 	if ($num > $self->last_record())
@@ -314,15 +315,18 @@ sub read_record
 	my ($fh, $record_len) = @{$self}{ qw( fh record_len ) };
 	my $buffer;
 
-	my $length = $record_len if ((not defined $in_length) or $in_length == -1);
-	my $readlen = $fh->read($buffer, $length);
+	$in_length = $record_len unless defined $in_length;
 
-	if ((not defined $in_length or $in_length != -1) and $readlen != $length)
+	my $actually_read = $fh->read($buffer, ($in_length == -1 ?
+						$record_len : $in_length));
+	
+	if ($actually_read != $in_length and $in_length != -1)
 		{
 		$self->Warning("Error reading the whole record num $num\n");
 		return unless FIXPROBLEMS;
 		};
-	$self->{'tell'} = (defined $tell) ? $tell + $length : $fh->tell();
+	
+	$self->{'tell'} = (defined $tell) ? $tell + $actually_read : $fh->tell();
 	
 	$self->{'cached_num'} = $num;
 	if (defined $self->{'unpack_template'})

@@ -20,7 +20,7 @@ types and they specify B<read_record> and B<write_record> methods.
 
 =head1 VERSION
 
-0.0392
+0.045
 
 =head1 AUTHOR
 
@@ -46,48 +46,45 @@ use vars qw( $VERSION @ISA );
 @ISA = qw( XBase::Base );
 
 
-$VERSION = "0.0392";
+$VERSION = "0.045";
 
 sub read_header
 	{
 	my $self = shift;
 
 	my $header;
-	$self->{'fh'}->read($header, 17) == 17 or do
+	$self->{'fh'}->read($header, 512) == 512 or do
 		{ Error "Error reading header of $self->{'filename'}\n";
 		return; };
 
-	my ($next_for_append, $dummy, $block_size, $dbf_filename, $version);
+	my ($next_for_append, $block_size, $version);
 	if ($self->{'filename'} =~ /\.fpt$/i)
 		{
-		($next_for_append, $dummy, $block_size) = unpack "Nvv", $header;
+		($next_for_append, $block_size) = unpack 'N@6n', $header;
+		$version = 5;
+		bless $self, 'XBase::Memo::Fox';
 		}
 	else
 		{
-		($next_for_append, $block_size, $dbf_filename, $version)
-						= unpack "VVA8C", $header;
+		($next_for_append, $version, $block_size)
+					= unpack 'V@16C@20v', $header;
+		if ($version == 3)
+			{
+			$block_size = 512;
+			bless $self, 'XBase::Memo::dBaseIII';
+			}
+		else
+			{
+			$version = 4;
+			bless $self, 'XBase::Memo::dBaseIV';
+			}
 		}
 
-	if (not defined $version)
-		{
-		bless $self, "XBase::Memo::Fox";
-		$version = 5;
-		}
-	elsif ($version == 0)
-		{
-		bless $self, "XBase::Memo::dBaseIV";
-		$version = 4;
-		}
-	else		# $version == 3;
-		{
-		bless $self, "XBase::Memo::dBaseIII";
-		$version = 3;
-		$block_size = 512;
-		}
+	$block_size = 512 if int($block_size) == 0;
 
 	@{$self}{ qw( next_for_append header_len record_len version ) }
 		= ( $next_for_append, 0, $block_size, $version );
-	
+
 	1;
 	}
 
@@ -212,7 +209,7 @@ sub write_record
 	my $length = length $data;
 
 	my $startfield = pack "CCCC", "\xff", "\xff", "\x08", 0;
-	if (ref $self =~ /Fox$/)
+	if (ref $self eq 'XBase::Memo::Fox')
 		{
 		if ($type eq 'P')	{ $startfield = pack 'V', 0; }
 		elsif ($type eq 'M')	{ $startfield = pack 'V', 1; }

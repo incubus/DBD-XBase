@@ -23,9 +23,9 @@ XBase files. For DBI compliant database access, check DBD::XBase and
 DBI module.
 
 B<Warning> for now: It doesn't support any index files at the present
-time! That means if you change your dbf, your idx&mdx (if you have
-any) will not match -- you'll need to regenerate them using other
-tool -- probably using tools that make use of the index files.
+time! That means if you change your dbf, your idx/mdx (if you have
+any) will not match. You will need to regenerate them using other
+tools -- probably those that later make use of them.
 
 The following methods are supported by XBase module:
 
@@ -112,16 +112,16 @@ so on success, get_record will never return empty list.
 =item get_record_as_hash
 
 Returns hash (in list context) or reference to hash (in scalar
-context) containing field values indexed by field names. The deleted
-flag is named _DELETED. The only argument in the call is the record
-number.
+context) containing field values indexed by field names. The name of
+the deleted flag is _DELETED. The only argument in the call is the
+record number.
 
 =back
 
 =head2 Writing the data
 
-All three writing methods always undelete the record. They return the
-record number actually written, number 0 is returned as true.
+All three writing methods always undelete the record. On success they
+return true -- the record number actually written.
 
 =over 4
 
@@ -238,11 +238,12 @@ itself.
 
 Please send all bug reports or patches CC'ed to my e-mail, since I
 might miss your post in c.l.p.misc or dbi-users (or other groups). Any
-comments both about the Perl and XBase are welcome.
+comments about both the Perl and XBase issues of this module are also
+welcome.
 
 =head1 VERSION
 
-0.042
+0.046
 
 =head1 AUTHOR
 
@@ -275,7 +276,7 @@ use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
 
-$VERSION = "0.042";
+$VERSION = "0.046";
 
 $errstr = "Use of \$XBase::errstr is depreciated, please use XBase->errstr() instead\n";
 
@@ -378,12 +379,12 @@ sub init_memo_field
 
 	my $memoname = $self->{'filename'};
 	$memoname =~ s/\.DBF?$/.DBT/;	$memoname =~ s/(\.dbf)?$/.dbt/;
-	my $memo = return XBase::Memo->new($memoname);
+	my $memo = return XBase::Memo->new($memoname, $self->{'version'});
 	if (not defined $memo)
 		{
 		$memoname = $self->{'filename'};
 		$memoname =~ s/\.DBF?$/.FPT/;	$memoname =~ s/(\.dbf)?$/.fpt/;
-		$memo = return XBase::Memo->new($memoname);
+		$memo = return XBase::Memo->new($memoname, $self->{'version'});
 		}
 	$memo;
 	}
