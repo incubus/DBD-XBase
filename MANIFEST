@@ -28,6 +28,7 @@ lib/XBase/Index.pm
 lib/XBase/Memo.pm
 lib/XBase/SDBM.pm
 lib/XBase/SQL.pm
+new-XBase
 t/1_header.t
 t/2_read.t
 t/2_read_stream.t
