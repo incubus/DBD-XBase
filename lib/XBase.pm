@@ -20,7 +20,7 @@ use XBase::Base;		# will give us general methods
 use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
-$VERSION = '0.176';
+$VERSION = '0.177';
 $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 
 *errstr = \$XBase::Base::errstr;
@@ -216,6 +216,13 @@ sub read_header
 		push @$writeproc, $wproc;
 		$lastoffset += $length;
 		}
+
+	if ($lastoffset > $self->{'record_len'}
+		and not defined $self->{'openoptions'}{'nolongchars'}) {
+		$self->seek_to(0);
+		$self->{'openoptions'}{'nolongchars'} = 1;
+		return $self->read_header;
+	}
 
 	my $hashnames = {};		# create name-to-num_of_field hash
 	@{$hashnames}{ reverse @$names } = reverse ( 0 .. $#$names );
@@ -1349,7 +1356,7 @@ Thanks a lot.
 
 =head1 VERSION
 
-0.176
+0.177
 
 =head1 AUTHOR
 

@@ -1,6 +1,10 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
+	Mon Mar 19 18:51:39 MET 2001
+	XBase: retry with nolongchars if the char lengths do not match
+	the record length.
+
 	Memo field not written when empty, suggested by Sascha Knific.
 
 	XBase::Base::open: now allows option 'fh' to point to
