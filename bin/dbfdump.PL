@@ -20,7 +20,7 @@ use Getopt::Long;
 my %options;
 Getopt::Long::GetOptions( \%options,
 	'help', 'version', 'info', 'rs=s', 'fs=s', 'undef=s', 'fields=s',
-	'nomemo'
+	'nomemo', 'memofile=s',
 	) or exit;
 
 if (defined $options{'version'})
@@ -35,6 +35,7 @@ Usage: dbfdump [ options ] files
 	--fs		field separator
 	--fields	comma separated list of fields to print
 	--undef		what to print for NULL values
+	--memofile	sepcifies unstandard name of attached memo file
     all having as parameter a string; and also
 	--nomemo	do not try to read the memo (dbt/fpt) file 
 	--info		print info about the file and fields
@@ -52,6 +53,7 @@ my $file;
 for $file (@ARGV)
 	{
 	my $table = new XBase 'name' => $file, %addopts;
+
 	if (not defined $table)
 		{
 		print STDERR XBase->errstr;

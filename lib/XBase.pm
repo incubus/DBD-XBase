@@ -18,7 +18,7 @@ use XBase::Base;		# will give us general methods
 use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
-$VERSION = '0.0695';
+$VERSION = '0.0696';
 $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 
 *errstr = \$XBase::Base::errstr;
@@ -35,6 +35,8 @@ sub open
 	if (scalar(@_) % 2) { $options{'name'} = shift; }	
 	$self->{'openoptions'} = { %options, @_ };
 	my $filename = $self->{'openoptions'}{'name'};
+	if ($filename eq '-')
+		{ return $self->SUPER::open($filename); }
 	for my $ext ('', '.dbf', '.DBF')
 		{
 		if (-f $filename.$ext)
@@ -52,7 +54,7 @@ sub read_header
 	my $fh = $self->{'fh'};
 
 	my $header;				# read the header
-	$fh->read($header, 32) == 32 or do
+	$self->read($header, 32) == 32 or do
 		{ __PACKAGE__->Error("Error reading header of $self->{'filename'}: $!\n"); return; };
 
 	@{$self}{ qw( version last_update num_rec header_len record_len ) }
@@ -62,15 +64,14 @@ sub read_header
 	my ($names, $types, $lengths, $decimals) = ( [], [], [], [] );
 	my ($unpacks, $readproc, $writeproc) = ( [], [], [] );
 	my $lastoffset = 1;
-	
-	while (tell($fh) < $header_len - 1)	# read the field desc's
+
+	while ($self->tell() < $header_len - 1)	# read the field desc's
 		{
 		my $field_def;
-		my $read = $fh->read($field_def, 32);
-		last if substr($field_def, 0, 1) eq "\r";
-						# we have found the terminator
-		
-		if ($read != 32)	
+		$self->read($field_def, 1);
+		last if $field_def eq "\r";	# we have found the terminator
+		my $read = $self->read($field_def, 31, 1);
+		if ($read != 31)	
 			{ __PACKAGE__->Error("Error reading field description: $!\n"); return; };
 
 		my ($name, $type, $length, $decimal)
@@ -114,12 +115,17 @@ sub read_header
 			$rproc = sub { unpack 'V', shift; };
 			$wproc = sub { pack 'V', shift; };
 			}
-		elsif ($type =~ /^[MGBP]$/)	# memo fields
+		elsif ($type eq 'B')		# Fox double
+			{
+			$rproc = sub { unpack 'd', reverse scalar shift; };
+			$wproc = sub { reverse scalar pack 'd', shift; };
+			}
+		elsif ($type =~ /^[MGP]$/)	# memo fields
 			{
 			my $memo = $self->{'memo'};
 			if (not defined $memo and not $self->{'openoptions'}{'ignorememo'})
 				{ $memo = $self->{'memo'} = $self->init_memo_field() or return; }
-			if (defined $memo)
+			if (defined $memo and $length == 10)
 				{
 				$rproc = sub {
 					my $value = shift;
@@ -130,6 +136,16 @@ sub read_header
 					my $value = $memo->write_record(-1, $type, shift) if defined $memo;
 					sprintf '%*.*s', $length, $length,
 						(defined $value ? $value + 1: ''); };
+				}
+			elsif (defined $memo and $length == 4)
+				{
+				$rproc = sub {
+					my $value = unpack 'V', shift;
+					$memo->read_record($value - 1) if defined $memo;
+					};
+				$wproc = sub {
+					my $value = $memo->write_record(-1, $type, shift) if defined $memo;
+					pack 'V', (defined $value ? $value + 1: 0); };
 				}
 			else
 				{
@@ -160,6 +176,8 @@ sub read_header
 			$hashnames, $#$names, $unpacks,
 			$readproc, $writeproc, $CLEARNULLS );
 
+### use Data::Dumper; print STDERR Dumper $self;
+
 	1;	# return true since everything went fine
 	}
 # When there is a memo field in dbf, try to open the memo file
@@ -174,14 +192,14 @@ sub init_memo_field
 	if (defined $self->{'openoptions'}{'memofile'})
 		{ return XBase::Memo->new($self->{'openoptions'}{'memofile'}, %options); }
 	
-	my $memo;
-	my $memoname = $self->{'filename'};
-	$memoname =~ s/\.DBF$/.FPT/ or $memoname =~ s/(\.dbf)?$/.fpt/;
-	$memo = XBase::Memo->new($memoname, %options) and return $memo;
-	
-	$memoname = $self->{'filename'};
-	$memoname =~ s/\.DBF$/.DBT/ or $memoname =~ s/(\.dbf)?$/.dbt/;
-	$memo = XBase::Memo->new($memoname, %options) and return $memo;
+	for (qw( FPT fpt DBT dbt ))
+		{
+		my $memo;
+		my $memoname = $self->{'filename'};
+		($memoname =~ s/\.dbf$/.$_/i or $memoname =~ s/(\.dbf)?$/.$_/i)
+			and $memo = XBase::Memo->new($memoname, %options)
+			and return $memo;
+		}
 	return;
 	}
 # Close the file (and memo)
@@ -237,7 +255,7 @@ sub get_header_info
 	{
 	my $self = shift;
 	my $hexversion = sprintf '0x%02x', $self->version;
-	my $longversion = $self->get_version_info;
+	my $longversion = $self->get_version_info()->{'string'};
 	my $printdate = $self->get_last_change;
 	my $numfields = $self->last_field() + 1;
 	my $result = sprintf <<"EOF";
@@ -277,20 +295,24 @@ sub get_version_info
 	{
 	my $version = shift;
 	$version = $version->version() if ref $version;
-	my ($vbits, $dbtflag, $memo, $sqltable) = (0, 0, 0, 0);
-	if ($version == 3)	{ $vbits = 3; }
-	elsif ($version == 0x83)	{ $vbits = 3; $memo = 0; $dbtflag = 1;}
-	else {
-		$vbits = $version & 0x07;
-		$dbtflag = ($version >> 7) & 1;
-		$memo = ($version >> 3) & 1;
-		$sqltable = ($version >> 4) & 0x07;
-		}
-	
-	my $result = "ver. $vbits";
-	if ($memo)	{ $result .= ' with memo file'; }
-	elsif ($dbtflag)	{ $result .= ' with DBT file'; }
-	$result .= ' containing SQL table' if $sqltable;
+	my $result = {};
+	$result->{'vbits'} = $version & 0x07;
+	if ($version == 0x30 or $version == 0xf5)
+		{ $result->{'vbits'} = 5; $result->{'foxpro'} = 1; }
+	elsif ($version & 0x08)
+		{ $result->{'vbits'} = 4; $result->{'memo'} = 1; }
+	elsif ($version & 0x80)
+		{ $result->{'dbt'} = 1; }
+
+	my $string = "ver. $result->{'vbits'}";
+	if (exists $result->{'foxpro'})
+		{ $string .= " (FoxPro)"; }
+	if (exists $result->{'memo'})
+		{ $string .= " with memo file"; }
+	elsif (exists $result->{'dbt'})
+		{ $string .= " with DBT file"; }
+	$result->{'string'} = $string;
+
 	$result;
 	}
 
@@ -1056,7 +1078,7 @@ Thanks a lot.
 
 =head1 VERSION
 
-0.0695
+0.0696
 
 =head1 AUTHOR
 

@@ -1,10 +1,37 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
+0.0696 Mon Oct 26 11:57:01 MET 1998
+
+	DBD::XBase: added bug reporting by INSERT command and fixed
+	example in man page, spotted by Dmitry Dorofeev. Added DESC
+	part of ORDER BY clause, requested by Dmitry Dorofeev. Fixed
+	number of fields returned with ORDER BY clause, patch by
+	Paul Lindner. If the directory is not specified in call to
+	connect, it now defaults to current directory, not to root.
+	Fixed the fetch method -- it doesn't deadlock anymore, problem
+	reported by Ken Yamaguchi.
+
+	XBase::Index: added some MDX code.
+
+	XBase::Memo: header_len is now set to block_size, not 512,
+	patch by Fergus Lee.
+
+	XBase.pm: The type B is Fox double, not memo, spotted by
+	George F. Frazier. Added support for Fox* 4 byte memo fields,
+	data provided by William McKee.
+
+	All of the reads/tells rewritten to allow stream-lined processing,
+	suggested by Sergey Lukashevich. Use with caution, however.
+
+	Added autoflush to each opened file, so it's safe to read the
+	table with other process before closing the table in the first
+	one, spotted by Thomas Hahn.
+
 0.0694 Tue Aug 25 23:24:35 MET DST 1998
 
-	XBase::Memo: Fixed error by 8 in dBaseIV readingwriting code,
-	bug reported by Kendal Van Dyke.
+	XBase::Memo: Fixed error by 8 in dBaseIV reading/writing
+	code, bug reported by Kendal Van Dyke.
 
 	t/5_dbd_select.t changed to be non-unique-key in sort
 	independent, reported by Larry W. Virden.

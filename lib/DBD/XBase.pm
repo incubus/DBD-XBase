@@ -19,7 +19,7 @@ use vars qw($VERSION @ISA @EXPORT $err $errstr $drh);
 
 require Exporter;
 
-$VERSION = '0.0693';
+$VERSION = '0.0695';
 
 $err = 0;
 $errstr = '';
@@ -257,12 +257,21 @@ sub execute
 			{
 			my %newval;
 			@newval{ @{$parsed_sql->{'fields'} } } = @values;
-			$xbase->set_record($last + 1);
-			$xbase->update_record_hash($last + 1, %newval);
+			$xbase->set_record($last + 1) and
+			$xbase->update_record_hash($last + 1, %newval)
+				or do {
+					${$dbh->{'Err'}} = 48;
+					${$dbh->{'Errstr'}} = "Insert failed: " . $xbase->errstr;
+					return;
+					};
 			}
 		else
 			{
-			$xbase->set_record($last + 1, @values);
+			$xbase->set_record($last + 1, @values) or do {
+				${$dbh->{'Err'}} = 49;
+				${$dbh->{'Errstr'}} = "Insert failed: " . $xbase->errstr;
+				return;
+				};
 			}
 		return 1;
 		}
@@ -277,7 +286,7 @@ sub execute
 	my $cursor = $xbase->prepare_select( @{$parsed_sql->{'usedfields'}} );
 	my $wherefn = $parsed_sql->{'wherefn'};
 	my @fields = @{$parsed_sql->{'fields'}} if defined $parsed_sql->{'fields'};
-	### use Data::Dumper; print Dumper $parsed_sql;
+	### use Data::Dumper; print STDERR Dumper $parsed_sql;
 	if ($command eq 'select')
 		{
 		if (defined $parsed_sql->{'orderfield'})
@@ -295,18 +304,25 @@ sub execute
 			$substh->execute(@{$sth->{'param'}});
 			my $data = $substh->fetchall_arrayref;
 			my $type = $xbase->field_type($orderfield);
-			if ($type =~ /^[CML]$/)
+			my $sortfn;
+			if (not defined $parsed_sql->{'orderdesc'})
 				{
-				$sth->{'xbase_lines'} =
-					[ map { shift @$_; [ @$_ ] }
-						sort { $a->[0] cmp $b->[0] } @$data ];
-				}
+				if ($type =~ /^[CML]$/)
+					{ $sortfn = sub { $_[0] cmp $_[1] } }
 				else
-				{
-				$sth->{'xbase_lines'} =
-					[ map { shift @$_; [ @$_ ] }
-						sort { $a->[0] <=> $b->[0] } @$data ];
+					{ $sortfn = sub { $_[0] <=> $_[1] } }
 				}
+			else
+				{
+				if ($type =~ /^[CML]$/)
+					{ $sortfn = sub { $_[1] cmp $_[0] } }
+				else
+					{ $sortfn = sub { $_[1] <=> $_[0] } }
+				}
+			$sth->{'xbase_lines'} =
+				[ map { shift @$_; [ @$_ ] }
+					sort { &{$sortfn}($a->[0], $b->[0]) } @$data ];
+			shift(@{$parsed_sql->{'fields'}});
 			}
 		else
 			{
@@ -348,7 +364,6 @@ sub execute
 		}
 	1;
 	}
-
 sub fetch
 	{
         my $sth = shift;
@@ -370,9 +385,9 @@ sub fetch
 		$retarray = [ @{$values}{ @{$sth->{'xbase_parsed_sql'}{'fields'}}} ]
 			if defined $values;
 		}
-	else
-		{ return; }
-	
+
+	return unless defined $retarray;
+
 	my $i = 0;
 	for my $ref ( @{$sth->{'xbase_bind_col'}} )
 		{
@@ -472,7 +487,7 @@ and constants and use C<and> and C<or>. Examples:
     select * from salaries where name = "Smith"	
     select first,last from people where login = "ftp"
 						or uid = 1324
-    select id,name employ where id = ?
+    select id,name from employ where id = ?
 
 You can use bind parameters in the where clause, as the last example
 shows. The actual value has to be supplied via bind_param or in the

@@ -360,6 +360,8 @@ use vars qw( @ISA );
 sub read_header
 	{
 	my $self = shift;
+	my $expr_name = shift;
+
 	my $header;
 	$self->{'fh'}->read($header, 544) == 544 or do
 		{ __PACKAGE__->Error("Error reading header of $self->{'filename'}: $!\n"); return; };
@@ -368,11 +370,17 @@ sub read_header
 		block_size_adder production noentries tag_length res
 		tags_used res nopages first_free noavail last_update ) }
 			= unpack 'Ca3A16vvccccvvVVVa3', $header;
-use Data::Dumper;
+	
+	$self->{'record_len'} = 512;
+	$self->{'header_len'} = 0;
 
 	for my $i (1 .. $self->{'tags_used'})
 		{
 		my $len = $self->{'tag_length'};
+		
+		$self->seek_to(544 + ($i - 1) * $len) or do
+			{ __PACKAGE__->Error($self->errstr); return; };
+
 		$self->{'fh'}->read($header, $len)  == $len or do
 			{ __PACKAGE__->Error("Error reading tag header $i in $self->{'filename'}: $!\n"); return; };
 	
@@ -380,35 +388,128 @@ use Data::Dumper;
 		@{$tag}{ qw( header_page tag_name key_format fwd_low
 			fwd_high backward res key_type ) }
 				= unpack 'VA11ccccca1', $header;
-	
+
 		$self->{'tags'}{$tag->{'tag_name'}} = $tag;
-		}
 
-print Dumper $self;
+		$self->seek_to($tag->{'header_page'} * 512) or do
+			{ __PACKAGE__->Error($self->errstr); return; };
 
-	### for my $tag ($self->{'tags'}{'TSCODE'})
-	for my $tag (values %{$self->{'tags'}})
-		{
-		my $offset = $tag->{'header_page'};
-		### $self->seek_to($offset * $self->{'block_size_adder'}) or return;
-		$self->seek_to($offset * 512) or return;
-		$self->{'fh'}->read($header, 544) == 544 or do
+		$self->{'fh'}->read($header, 24) == 24 or do
 			{ __PACKAGE__->Error("Error reading tag definition in $self->{'filename'}: $!\n"); return; };
-
-		my %new;
-		@new{ qw( root_page_ptr file_size key_format_1
-			key_type_1 res idx_key_length max_no_keys_per_page
-			second_key_type idx_key_item_length res unique) }
+	
+		@{$tag}{ qw( start_page file_size key_format_1
+			key_type_1 res key_length max_no_keys_per_page
+			second_key_type key_record_length res unique) }
 				 = unpack 'VVca1vvvvva3c', $header;
-		$new{'name'} = $tag->{'tag_name'};
-
-print Dumper \%new;
-
-		$self->seek_to($new{'root_page_ptr'} * $self->{'block_size_adder'}) or return;
-		$self->{'fh'}->read($header, 50);
-		print "$header\n";
+		$self->seek_to($tag->{'root_page_ptr'} * 512) or do
+			{ __PACKAGE__->Error($self->errstr); return; };
 		}
 
+## use Data::Dumper;
+## print Dumper $self;
+
+	if (defined $self->{'tags'}{$expr_name})
+		{
+		$self->{'active'} = $self->{'tags'}{$expr_name};
+		$self->{'start_page'} = $self->{'active'}{'start_page'};
+		}
+
+	$self;
+	}
+sub last_record
+	{ -1; }
+
+package XBase::mdx::Page;
+use strict;
+use vars qw( $DEBUG @ISA );
+@ISA = qw( XBase::mdx );
+
+$DEBUG = 1;
+
+sub new
+	{
+	my ($indexfile, $num) = @_;
+
+	my $parent;
+	if ((ref $indexfile) =~ /::Page$/)		### parent page
+		{
+		$parent = $indexfile;
+		$indexfile = $parent->{'indexfile'};
+		}
+	$indexfile->seek_to_record($num) or return;
+	my $data;
+	$indexfile->{'fh'}->read($data, 1024) == 1024 or return;
+
+	my $keylength = $indexfile->{'active'}{'key_length'};
+	my $keyreclength = $indexfile->{'active'}{'key_record_length'};
+	my $offset = 8;
+
+	my ($noentries, $noleaf) = unpack 'VV', $data;
+
+	print "page $num, noentries $noentries, keylength $keylength; noleaf: $noleaf\n" if $DEBUG;
+	if ($noleaf == 54 or $noleaf == 20 or $noleaf == 32
+						or $noleaf == 80)
+		{ $noentries++; }
+
+	my ($keys, $values, $lefts) = ([], [], []);
+
+	for (my $i = 0; $i < $noentries; $i++)
+		{
+		my ($left, $key)
+			= unpack "\@${offset}Va${keylength}", $data;
+
+=comment
+
+		if ($indexfile->{'active'}{'key_type'} eq 'N')
+			{
+			my $f = substr $key, 0, 8;
+			my $exp = substr $key, 8, 2;
+			print "$key $f $exp\n";
+
+			$f = unpack 'V', $f;
+			$exp = unpack 'v', $exp;
+
+			print "$key $f $exp\n";
+		
+			$f &= 0xfffffffffffff;
+			$exp >>= 4;
+			
+			print "$key $f $exp\n";
+
+
+			print "$key $f $exp\n";
+
+			$f = pack 'V', $f;
+			$exp = pack 'v', $exp;
+
+			print "$key $f $exp\n";
+			exit;
+			
+			my $bigend = substr(pack( "d", 1), 0, 2) eq '?ð';
+			if ($bigend)
+				{
+				$key = reverse $key if $bigend;
+				### $key = unpack "d", $key;
+				}
+			}
+
+=cut
+
+		push @$keys, $key;
+
+		if ($noleaf == 54 or $noleaf == 20 or $noleaf == 32 or
+		$noleaf == 80)
+			{ push @$lefts, $left; }
+		else
+			{ push @$values, $left; }
+		$offset += $keyreclength;
+		}
+
+	print "Page $num:\tkeys: @{[ map { s/\s+$//; $_; } @$keys]} -> values: @$values\n\tlefts: @$lefts\n" if $DEBUG;
+
+	my $self = bless { 'num' => $num, 'indexfile' => $indexfile,
+		'keys' => $keys, 'values' => $values, 'lefts' => $lefts, },
+								__PACKAGE__;
 	$self;
 	}
 

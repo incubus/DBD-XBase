@@ -29,10 +29,12 @@ t/XBase.dbtest
 t/XBase.mtest
 t/1_header.t
 t/2_read.t
+t/2_read_stream.t
 t/2_write.t
 t/3_create_drop.t
 t/3_ndx.t
 t/3_ntx.t t
+t/4_dbfdump.t
 t/5_dbd_select.t
 t/6_dbd_delete.t
 t/7_dbd_update.t

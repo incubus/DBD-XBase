@@ -46,7 +46,8 @@ my %TYPES = ( 'char' => 'C', 'varchar' => 'C',
 
 # select fields
 
-	'SELECTFIELDS' =>	'FIELDNAME ( , FIELDNAME ) *',
+	'SELECTFIELDS' =>	'SELECTFIELD ( , SELECTFIELD ) *',
+	'SELECTFIELD' =>	'FIELDNAME',
 	'SELECTALL' =>	q'\*',
 
 # where clause
@@ -66,7 +67,8 @@ my %TYPES = ( 'char' => 'C', 'varchar' => 'C',
 	'BINDPARAM' => q'\?',
 	'NULL' => 'null',
 
-	'ORDERBY' => 'order by ORDERFIELDNAME',
+	'ORDERBY' => 'order by ORDERFIELDNAME ( asc | ORDERDESC ) ?',
+	'ORDERDESC' => 'desc',
 	'ORDERFIELDNAME' => 'FIELDNAME',
 
 # insert definitions
@@ -146,8 +148,10 @@ my %SIMPLIFY = (
 my %STORE = (
 	'SELECT' => sub { shift->{'command'} = 'select'; },
 	'SELECTALL' => 'selectall',
-	'SELECTFIELDS' => sub { my ($self, @fields) = @_;
-		while (@fields) { push @{$self->{'fields'}}, shift @fields; shift @fields; }},
+	'SELECTFIELD' => 'fields',
+	
+	### 'SELECTFIELDS' => sub { my ($self, @fields) = @_;
+	###	while (@fields) { push @{$self->{'fields'}}, shift @fields; shift @fields; }},
 
 	'INSERT' => sub { shift->{'command'} = 'insert'; },
 	'INSERTCONSTANTS' => sub { my $self = shift;
@@ -202,6 +206,7 @@ my %STORE = (
 		$self->{'bindsbeforewhere'} = $self->{'numofbinds'}; },
 	
 	'ORDERFIELDNAME' => 'orderfield',
+	'ORDERDESC' => 'orderdesc',
 	);
 
 sub parse

@@ -18,6 +18,8 @@ $VERSION = '0.0632';
 $DEBUG = 0;
 sub DEBUG () { $DEBUG };
 
+my $SEEK_VIA_READ = 0;
+
 # Holds the text of the global error, if there was one
 $errstr = '';
 # Fetch the error message
@@ -52,9 +54,24 @@ sub open
 
 	my $fh = new IO::File;
 	my $rw;
-	if ($fh->open($filename, 'r+'))		{ $rw = 1; }
-	elsif ($fh->open($filename, 'r'))	{ $rw = 0; }
-	else { __PACKAGE__->Error("Error opening file $filename: $!\n"); return; }
+	
+	if ($filename eq '-')
+		{
+		$fh->fdopen(fileno(STDIN), 'r');
+		$self->{'stream'} = 1;
+		SEEK_VIA_READ(1);
+		$rw = 0;
+		}
+	else
+		{
+		if ($fh->open($filename, 'r+'))		{ $rw = 1; }
+		elsif ($fh->open($filename, 'r'))	{ $rw = 0; }
+		else { __PACKAGE__->Error("Error opening file $filename: $!\n"); return; }
+		}
+
+	$self->{'tell'} = 0 if $SEEK_VIA_READ;
+	$fh->autoflush();
+
 	binmode($fh);
 	@{$self}{ qw( fh filename rw ) } = ($fh, $filename, $rw);
 	## $self->locksh();
@@ -73,6 +90,24 @@ sub close
 	delete $self->{'fh'};
 	1;
 	}
+# Read from the filehandle
+sub read
+	{
+	my $self = shift;
+	my $fh = $self->{'fh'} or return;
+	my $result = $fh->read(@_);
+	if (defined $result and defined $self->{'tell'})
+		{ $self->{'tell'} += $result; }
+	$result;
+	}
+# Tell the position
+sub tell
+	{
+	my $self = shift;
+	if (defined $self->{'tell'})
+		{ return $self->{'tell'}; }
+	return $self->{'fh'}->tell();
+	}
 # Drop (unlink) the file
 sub drop
 	{
@@ -87,6 +122,7 @@ sub drop
 		}
 	1;	
 	}
+
 # Create new file
 sub create_file
 	{
@@ -128,7 +164,7 @@ sub seek_to_record
 	$self->seek_to($offset);
 	}
 # Seek to absolute position
-sub seek_to
+sub seek_to_seek
 	{
 	my ($self, $offset) = @_;
 	unless (defined $self->{'fh'})
@@ -137,7 +173,33 @@ sub seek_to
 		{ $self->Error("Seek error (file $self->{'filename'}, offset $offset): $!\n"); return; };
 	1;
 	}
-
+sub seek_to_read
+	{
+	my ($self, $offset) = @_;
+	unless (defined $self->{'fh'})
+		{ $self->Error("Cannot seek on unopened file\n"); return; }
+	my $tell = $self->tell();
+	if ($offset < $tell)
+		{ $self->Error("Cannot seek backwards without using seek ($offset < $tell)\n"); return; };
+	if ($offset > $tell)
+		{
+		my $undef;
+		$self->read($undef, $offset - $tell);
+		$tell = $self->tell();
+		}
+	if ($tell != $offset)
+		{ $self->Error("Some error occured during read-seek: $!\n"); return; };
+	1;
+	}
+sub SEEK_VIA_READ
+	{
+	local $^W = 0;
+	if ($_[0])
+		{ *seek_to = \&seek_to_read; $SEEK_VIA_READ = 1; }
+	else
+		{ *seek_to = \&seek_to_seek; $SEEK_VIA_READ = 0; }
+	}
+SEEK_VIA_READ(0);
 
 # Read the record of given number. The second parameter is the length of
 # the record to read. It can be undefined, meaning read the whole record,
@@ -166,7 +228,7 @@ sub read_from
 	my $length = $in_length;
 	$length = -$length if $length < 0;
 	my $buffer;
-	my $read = $self->{'fh'}->read($buffer, $length);
+	my $read = $self->read($buffer, $length);
 	if (not defined $read or ($in_length > 0 and $read != $in_length))
 		{ $self->Error("Error reading $in_length bytes from $self->{'filename'}\n"); return; }
 	$buffer;

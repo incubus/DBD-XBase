@@ -12,7 +12,7 @@ use XBase::Base;
 
 use vars qw( $VERSION @ISA );
 @ISA = qw( XBase::Base );
-$VERSION = '0.0694';
+$VERSION = '0.0696';
 
 # Read header is called from open to fill the object structures
 sub read_header
@@ -21,7 +21,7 @@ sub read_header
 	my %options = @_;
 
 	my $header;
-	$self->{'fh'}->read($header, 512) == 512 or do
+	$self->read($header, 512) == 512 or do
 		{ $self->Error("Error reading header of $self->{'filename'}: $!\n"); return; };
 
 	my ($next_for_append, $block_size, $version);
@@ -53,7 +53,7 @@ sub read_header
 	$block_size = 512 if int($block_size) == 0;
 
 	@{$self}{ qw( next_for_append header_len record_len version ) }
-		= ( $next_for_append, 512, $block_size, $version );
+		= ( $next_for_append, $block_size, $block_size, $version );
 
 	$self->{'memosep'} = ( $options{'memosep'} or "\x1a\x1a" );
 
@@ -249,7 +249,7 @@ specify their specific B<read_record> and B<write_record> methods.
 
 =head1 VERSION
 
-0.0694
+0.0696
 
 =head1 AUTHOR
 
