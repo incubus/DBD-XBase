@@ -5,9 +5,6 @@ XBase::Memo - Generic support for various memo formats
 
 =cut
 
-# ###################################
-# Here starts the XBase::Memo package
-
 package XBase::Memo;
 
 use strict;
@@ -15,9 +12,9 @@ use XBase::Base;
 
 use vars qw( $VERSION @ISA );
 @ISA = qw( XBase::Base );
+$VERSION = "0.0595";
 
-$VERSION = "0.0593";
-
+# Read header is called from open to fill the object structures
 sub read_header
 	{
 	my $self = shift;
@@ -155,7 +152,7 @@ sub read_record
 	my $result = '';
 	my $last = $self->last_record;
 
-	my $buffer = $self->SUPER::read_record($num, -1));
+	my $buffer = $self->SUPER::read_record($num, -1);
 	if (not defined $buffer) { return; }
 	my ($unused_id, $length) = unpack 'VV', $buffer;
 	my $block_size = $self->{'record_len'};

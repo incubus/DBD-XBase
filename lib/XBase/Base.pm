@@ -12,10 +12,7 @@ use IO::File;
 
 use vars qw( $VERSION $DEBUG $errstr );
 
-# ##############
-# General things
-
-$VERSION = "0.0591";
+$VERSION = '0.0595';
 
 # Sets the debug level
 $DEBUG = 0;
@@ -23,22 +20,21 @@ sub DEBUG () { $DEBUG };
 
 # Holds the text of the global error, if there was one
 $errstr = '';
+# Fetch the error message
 sub errstr ()	{ ( ref $_[0] ? $_[0]->{'errstr'} : $errstr ); }
 
-# Prints error on STDERR if there is debug level set and sets errstr
+# Print error on STDERR if there is debug level set and set errstr
 sub Error (@)
 	{
 	my $self = shift;
 	( ref $self ? $self->{'errstr'} : $errstr ) = join '', @_;
 	}
-
-# Nulls the errstr
+# Null the errstr
 sub NullError
 	{ shift->Error(''); }
 
-# ##########
-# Contructor. If it is passed a name of the file, it opens it and
-# calls method read_header to load the internal data structures
+
+# Build the object in the memory, open the file
 sub new
 	{
 	__PACKAGE__->NullError();
@@ -47,7 +43,7 @@ sub new
 	if (@_ and not $new->open(@_)) { return; }
 	return $new;
 	}
-# Open the specified file. Uses the read_header to load the header data
+# Open the specified file. Use the read_header to load the header data
 sub open
 	{
 	__PACKAGE__->NullError();
@@ -65,7 +61,7 @@ sub open
 		# read_header should be defined in the derived class
 	$self->read_header();
 	}
-# Closes the file
+# Close the file
 sub close
 	{
 	my $self = shift;
@@ -98,21 +94,18 @@ sub create_file
 	if (not defined $filename)
 		{ __PACKAGE__->Error("Name has to be specified when creating new file\n"); return; }
 	if (-f $filename)
-		{ __PACKAGE__->Error("File '$filename' already exists\n"); return; }
+		{ __PACKAGE__->Error("File $filename already exists\n"); return; }
 
 	$perms = 0644 unless defined $perms;
 	my $fh = new IO::File;
-	unless ($fh->open($filename, "w+", $perms))
-		{ return; }
+	$fh->open($filename, "w+", $perms) or return;
 	binmode($fh);
 	@{$self}{ qw( fh filename rw ) } = ($fh, $filename, 1);
 	return $self;
 	}
 
-# Computes the correct offset, asumes that header_len and record_len
-# are defined in the object, probably set up by the read_header.
-# Assumes that the file has got header and then records, numbered from
-# zero
+
+# Compute the offset of the record
 sub get_record_offset
 	{
 	my ($self, $num) = @_;
@@ -124,51 +117,42 @@ sub get_record_offset
 		{ $self->Error("Number of the record must be specified in get_record_offset\n"); return; }
 	return $header_len + $num * $record_len;
 	}
-# Will get ready to write record of specified number
+
+
+# Seek to start of the record
 sub seek_to_record
 	{
 	my ($self, $num) = @_;
-	my $offset = $self->get_record_offset($num);
-	return unless defined $offset;
+	defined (my $offset = $self->get_record_offset($num)) or return;
 	$self->seek_to($offset);
 	}
-# Will get ready to write at given position
+# Seek to absolute position
 sub seek_to
 	{
 	my ($self, $offset) = @_;
-
 	unless (defined $self->{'fh'})
 		{ $self->Error("Cannot seek on unopened file\n"); return; }
-
-	unless ($self->{'fh'}->seek($offset, 0))	# seek to the offset
-		{ $self->Error("Error seeking to offset $offset on $self->{'filename'}: $!\n"); return; };
+	unless ($self->{'fh'}->seek($offset, 0))
+		{ $self->Error("Seek error (file $self->{'filename'}, offset $offset): $!\n"); return; };
 	1;
 	}
 
+
 # Read the record of given number. The second parameter is the length of
 # the record to read. It can be undefined, meaning read the whole record,
-# and it can be -1, meaning read at most the whole record
+# and it can be negative, meaning at most the length
 sub read_record
 	{
 	my ($self, $num, $in_length) = @_;
-
-	unless (defined $num)
-		{ $self->Error("Record number to read must be specified for read record\n"); return; }
-	if ($num > $self->last_record())
+	if ($num > $self->last_record)
 		{ $self->Error("Can't read record $num, there is not so many of them\n"); return; }
+	if (not defined $in_length)
+		{ $in_length = $self->{'record_len'}; }
+	if ($in_length < 0)
+		{ $in_length = -$self->{'record_len'}; }
 
-	$self->seek_to_record($num) or return;
-
-	$in_length = $self->{'record_len'} unless defined $in_length;
-	
-	my $buffer;
-	my $actually_read = $self->{'fh'}->read($buffer,
-		($in_length == -1 ?  $self->{'record_len'} : $in_length));
-	
-	if ($in_length != -1 and $actually_read != $in_length)
-		{ $self->Error("Error reading the whole record num $num\n"); return; };
-
-	$buffer;
+	defined (my $offset = $self->get_record_offset($num)) or return;
+	$self->read_from($offset, $in_length);
 	}
 sub read_from
 	{
@@ -180,7 +164,8 @@ sub read_from
 	$length = -$length if $length < 0;
 	my $buffer;
 	my $read = $self->{'fh'}->read($buffer, $length);
-	return if not defined $read or ($in_length > 0 and $read != $in_length);
+	if (not defined $read or ($in_length > 0 and $read != $in_length))
+		{ $self->Error("Error reading $in_length bytes from $self->{'filename'}\n"); return; }
 	$buffer;
 	}
 
@@ -189,10 +174,9 @@ sub read_from
 sub write_record
 	{
 	my ($self, $num) = (shift, shift);
-	my $offset = $self->get_record_offset($num);
-	my $ret = $self->write_to($offset, @_);
-	unless (defined $ret) { return; }
-	( $num == 0 ) ? '0E0' : $num;
+	defined (my $offset = $self->get_record_offset($num)) or return;
+	defined $self->write_to($offset, @_) or return;
+	$num == 0 ? '0E0' : $num;
 	}
 # Write data directly to offset
 sub write_to
@@ -201,12 +185,19 @@ sub write_to
 	if (not $self->{'rw'})
 		{ $self->Error("The file $self->{'filename'} is not writable\n"); return; }
 	$self->seek_to($offset) or return;
-	
 	local ($,, $\) = ('', '');
 	$self->{'fh'}->print(@_) or
-		do { $self->Error("Error writing at offset $offset: $!\n"); return; } ;
-	( $offset == 0 ) ? '0E0' : $offset;
+		do { $self->Error("Error writing to offset $offset in file $self->{'filename'}: $!\n"); return; } ;
+	$offset == 0 ? '0E0' : $offset;
 	}
+
+
+sub lock	{ _lock(shift->{'fh'}) }
+sub unlock	{ _unlock(shift->{'fh'}) }
+
+sub _lock	{ flock(shift, 2); }
+sub _unlock	{ flock(shift, 8); }
+
 
 1;
 
@@ -220,8 +211,9 @@ Used indirectly, via XBase or XBase::Memo.
 
 This module provides catch-all I/O methods for other XBase classes,
 should be used by people creating additional XBase classes/methods.
-The methods return nothing (undef) or error and the error message can
-be retrieved using the B<errstr> method.
+There is nothing interesting in here for users of the XBase(3) module.
+Methods in XBase::Base return nothing (undef) on error and the error
+message can be retrieved using the B<errstr> method.
 
 Methods are:
 
@@ -246,39 +238,44 @@ Closes the file, doesn't destroy the object.
 
 Unlinks the file.
 
+=item create_file
+
+Creates file of given name. Second (optional) paramater is the
+permission specification for the file.
+
 =back
 
-The methods assume that the file has got header of length header_len
-bytes (possibly 0) and then records of length record_len. These two
-values should be set by the read_header method.
+The reading/writing methods assume that the file has got header of
+length header_len bytes (possibly 0) and then records of length
+record_len. These two values should be set by the read_header method.
 
 =over 4
 
-=item seek_to_record, seek_to
+=item seek_to, seek_to_record
 
-Seeks to record of given number or to absolute position.
+Seeks to absolute position or to the start of the record.
 
-=item read_record
+=item read_record, read_from
 
-Reads specified record from get_record_offset position. You can give
-second parameter saying length (in bytes) you want to read. The
-default is record_len. If the required length is -1, it will read
-record_len but will not complain if the file is shorter. Whis is nice
-at the end of the file.
+Reads data from specified position (offset) or from the given record.
+The second parameter (optional for B<read_record>) is the length to
+read. It can be negative, and at that case the read will not complain
+if the file is shorter than requested.
 
-When the unpack_template value is specified in the object, read_record
-unpacks the string read and returns list of resulting values.
+=item write_to, write_record
 
-=item write_record, write_to
-
-Writes data to specified record position or to the absolute position
-in the file. The data is not padded to record_len, just written out.
+Writes data to the absolute position or to specified record position.
+The data is not padded to record_len, just written out.
 
 =back
 
+General locking methods are B<lock> and B<unlock>, they call B<_lock>
+and B<_unlock> which can be redefined to allow any way for locking
+(not only the default flock).
+
 =head1 VERSION
 
-0.059
+0.0595
 
 =head1 AUTHOR
 
