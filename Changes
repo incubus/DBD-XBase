@@ -1,9 +1,5 @@
+Revision history for Perl extension DBD::Xbase.
 
-Revision history for Perl extension XBase and DBD::Xbase.
-
-0.024 Mon Oct 20 22:17:44 MET DST 1997
-
-	The original release. Includes XBase that reads dbf and dbt
-	and writes dbf (but not dbt ;-) Put on CPAN mainly for other
-	people to test and comment on it.
+0.01  Mon Oct  6 18:28:40 1997
+	- original version; created by h2xs 1.16
 

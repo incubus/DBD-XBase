@@ -5,14 +5,15 @@ XBase::Base - Base input output module for XBase suite
 
 =head1 SYNOPSIS
 
-Used indirectly, via XBase.
+Used indirectly, via XBase or XBase::Memo.
 
 =head1 DESCRIPTION
 
-This module provides catch all I/O methods for other XBase classes,
+This module provides catch-all I/O methods for other XBase classes,
 should be used by people creating additional XBase classes/methods.
-The methods return true or nothing and they set the $errstr on error.
-If the $DEBUG is true, they also print the message on stderr, so the
+The methods return nothing (undef) or error and the error message can
+be retrieved using the B<errstr> method. If the $XBase::Base::DEBUG
+variable is true, they also print the message on stderr, so the
 caller doesn't need to do this, just die or ignore the problem.
 
 Methods are:
@@ -56,21 +57,34 @@ it assumes the users that will do print afterwards would not update it.
 
 =item read_record
 
-Read $record_len bytes from get_record_offset position.
+Reads specified record from get_record_offset position. You can give
+second parameter saying length (in bytes) you want to read. The
+default is record_len. If the required length is -1, it will read
+record_len but will not complain if the file is shorter. Whis is nice
+on the end of memo file.
+
+The method caches last record read. Also, when key unpack_template
+is specified in the object, it unpacks the string read and returns
+list of resulting values.
+
+=item write_record, write_to
+
+Writes data to specified record position or to the absolute position
+in the file.
 
 =back
 
 =head1 VERSION
 
-0.0292
+0.0293
 
 =head1 AUTHOR
 
-Jan Pazdziora, adelton@fi.muni.cz
+(c) Jan Pazdziora, adelton@fi.muni.cz
 
 =head1 SEE ALSO
 
-perl(1), XBase(3), DBD::XBase(3), DBI(3)
+perl(1), XBase(3)
 
 =cut
 
@@ -91,10 +105,10 @@ use Exporter;
 # ##############
 # General things
 
-$VERSION = "0.0292";
+$VERSION = "0.0293";
 
 # Sets the debug level
-$DEBUG = 1;
+$DEBUG = 0;
 sub DEBUG () { $DEBUG };
 
 # FIXPROBLEMS can be set to make XBase to try to work with (read)
@@ -134,8 +148,8 @@ sub new
 	my $class = shift;
 	my $new = {};
 	bless $new, $class;
-	if (@_)	{ $new->open(shift) and return $new; }
-	return;
+	if (@_)	{ $new->open(shift) and return $new; return; }
+	return $new;
 	}
 # Open the file. This is the second chance when filename can be
 # specified. It uses the read_header to load the header data
@@ -158,7 +172,10 @@ sub open
 		{ Error "Error opening file $filename: $!\n"; return; };
 				# open the file
 
-	@{$self}{ qw( opened fh writable ) } = ( 1, $fh, $writable );
+	my $perms = (stat($filename))[2] & 0777;
+
+	@{$self}{ qw( opened fh writable perms ) }
+				= ( 1, $fh, $writable, $perms );
 
 	unless ($self->can('read_header'))
 		{ Error "Method read_header not defined for $self\n"; return; }
@@ -179,7 +196,25 @@ sub close
 	delete @{$self}{'opened', 'fh'};
 	1;
 	}
-
+# Create new file
+sub create_file
+	{
+	my $self = shift;
+	my ($name, $perms) = @_;
+	if (not defined $name)
+		{
+		Error "Name has to be specified when creating new table\n";
+		return;
+		}
+	my $fh = new IO::File;
+	$fh->open($name, "w+", $perms) and do
+		{
+		@{$self}{ qw( fh filename perms writable opened ) }
+			= ( $fh, $name, $perms, 1, 1 );
+		return $self;
+		};
+	return;
+	}
 
 # Computes the correct offset, asumes that header_len and record_len
 # are defined in the object, probably set up by the read_header.
@@ -287,7 +322,6 @@ sub write_record
 	my ($self, $num) = (shift, shift);
 	if (not defined $num)
 		{ Error "Record number to write must be specified\n"; return; }
-
 	if (defined $self->{'cached_num'} and $num == $self->{'cached_num'})
 		{ delete $self->{'cached_num'}; }
 	$self->seek_to_record($num) or return;
@@ -297,7 +331,7 @@ sub write_record
 	my $fh = $self->{'fh'};
 	$fh->print(@_) or
 		do { Error "Error writing record $num: $!\n"; return; } ;
-	$num;
+	( $num == 0 ) ? "0E0" : $num;
 	}
 
 # Write to offset
@@ -312,7 +346,7 @@ sub write_to
 	my $fh = $self->{'fh'};
 	$fh->print(@_) or
 		do { Error "Error writing at offset $offset: $!\n"; return; } ;
-	$offset;
+	( $offset == 0 ) ? "0E0" : $offset;
 	}
 
 1;

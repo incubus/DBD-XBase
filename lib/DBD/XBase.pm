@@ -11,19 +11,20 @@ DBD::XBase - DBI driver for XBase
 
 =head1 DESCRIPTION
 
-We will put something here.
+This module is not usable now, I just start to realize how to write
+such a beast. Any help is appreciated.
 
 =head1 VERSION
 
-0.0292
+0.0293
 
 =head1 AUTHOR
 
-Jan Pazdziora, adelton@fi.muni.cz
+(c) Jan Pazdziora, adelton@fi.muni.cz
 
 =head1 SEE ALSO
 
-perl(1), XBase(3), DBD::XBase(3), DBI(3)
+perl(1), DBI(3), XBase(3)
 
 =cut
 
@@ -41,7 +42,7 @@ use vars qw($VERSION @ISA @EXPORT $err $errstr $drh);
 
 require Exporter;
 
-$VERSION = '0.0292';
+$VERSION = '0.0293';
 
 $err = 0;
 $errstr = '';
@@ -75,8 +76,8 @@ sub connect
 	if (not -d $dsn)
 		{
 		$DBD::XBase::errstr = "Directory $dsn doesn't exist";
+		return undef;
 		}
-	return undef unless -d $dsn;
 	my $this = DBI::_new_dbh($drh, {
 		'Name'	=> $dsn,
 		});
@@ -167,7 +168,7 @@ sub _parse_SQL
 			}
 		if ($errstr eq "" and not s/^\s*from\s*//)
 			{ $errstr = "From specification missing: $_"; }
-		if ($errstr eq "" and s/^(\w+)\s*$//)
+		if ($errstr eq "" and s/^([\w.]+)\s*$//)
 			{ $result->{'table'} = $+; }
 		elsif ($errstr eq "")
 			{ $errstr = "Table specification missing: $_"; }
