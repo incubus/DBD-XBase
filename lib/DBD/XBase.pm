@@ -6,17 +6,25 @@ DBD::XBase - DBI driver for XBase
 =head1 SYNOPSIS
 
 	use DBI;
-	my $dbh = DBI->connect("DBI:XBase:/directory/subdir");
-	...
+	my $dbh = DBI->connect("DBI:XBase:/directory/subdir")
+						or die $DBI::errstr;
+	my $sth = $dbh->prepare("select (ID, MSG) from test")
+						or die $dbh->errstr();
+	$sth->execute() or die $sth->errstr();
+
+	my @data;
+	while (@data = $sth->fetchrow_array())
+		{
+		...
+		}
 
 =head1 DESCRIPTION
 
-This module is not usable now, I just start to realize how to write
-such a beast. Any help is appreciated.
+DBI compliant driver for module XBase.
 
 =head1 VERSION
 
-0.031
+0.034
 
 =head1 AUTHOR
 
@@ -42,7 +50,7 @@ use vars qw($VERSION @ISA @EXPORT $err $errstr $drh);
 
 require Exporter;
 
-$VERSION = '0.031';
+$VERSION = '0.034';
 
 $err = 0;
 $errstr = '';
@@ -61,7 +69,6 @@ sub driver
 		'Attribution'	=> 'DBD::XBase by Jan Pazdziora',
 		});
 	}
-
 
 package DBD::XBase::dr;
 use strict;
@@ -94,8 +101,8 @@ sub prepare
 	{
 	my ($dbh, $statement, @attribs)= @_;
 	my $parsed_sql = DBD::XBase::db::_parse_SQL($statement);
-	if (not ref $parsed_sql or not defined $parsed_sql->{'command'})
-		{ print STDERR "Error: $parsed_sql\n"; return; }
+	if (not ref $parsed_sql)
+		{ $dbh->event("ERROR", 1, "Error: $parsed_sql\n"); return undef; }
 	my $sth = DBI::_new_sth($dbh, {
 		'Statement'	=> $statement,
 		'dbh'		=> $dbh,
@@ -103,6 +110,11 @@ sub prepare
 		});
 	$sth;
 	}
+
+# select fields from table [ where conditions ]
+# update table set operation [, operations ] [ where conditions ]
+# delete from table where conditions
+# insert into table [ fields ] values values
 
 sub _parse_SQL
 	{
@@ -133,9 +145,9 @@ sub _parse_SQL
 			my @fields = split /\s*,\s*/, $str;
 			$result->{'fields'} = [ @fields ];
 			}
-		if ($errstr eq "" and not s/^\s*from\s*//)
+		if ($errstr eq "" and not s/^\s*from\s*//i)
 			{ $errstr = "From specification missing: $_"; }
-		if ($errstr eq "" and s/^([\w.]+)\s*$//)
+		if ($errstr eq "" and s/^(\S+)\s*$//)
 			{ $result->{'table'} = $+; }
 		elsif ($errstr eq "")
 			{ $errstr = "Table specification missing: $_"; }
@@ -167,12 +179,7 @@ sub execute
 			$table = new XBase($filename);
 
 			if (not defined $table)
-				{
-				print STDERR $XBase::errstr
-							unless defined $table;
-				return;
-				}
-			
+				{ $sth->event("ERROR", 2, $XBase::errstr); return; }
 			$dbh->{'xbase_tables'}->{$from} = $table;
 			}
 		$sth->{'xbase_current_record'} = 0;
