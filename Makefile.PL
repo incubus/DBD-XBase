@@ -1,4 +1,4 @@
-	
+
 eval 'use XBase';
 if (not $@ and eval { $XBase::VERSION < 0.0342 } )
 	{
@@ -14,8 +14,8 @@ eval 'use DBI';
 if ($@ ne '')
 	{
 	print <<EOF;
-	You do not seem to have DBI installed, so you want be able to
-	use DBD::XBase (it's not ready yet, so don't worry about it now ;-).
+	You do not seem to have DBI installed, so you might not be able
+	to use DBD::XBase (but XBase should be running fine).
 EOF
 	}
 
@@ -27,3 +27,4 @@ WriteMakefile(
         'dist' =>	{ COMPRESS => 'gzip -9f', SUFFIX => 'gz',
 			POSTOP => 'mv $(DISTNAME)-$(VERSION).tar.gz ../' },
 	);
+

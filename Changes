@@ -1,9 +1,26 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
-0.059
+0.058 Mon Feb  9 19:15:03 MET 1998
+
+	XBase::SQL rewritten, DBD::XBase now supports select, delete,
+	insert, update and create table. Documentation for DBD::XBase
+	extended. DBD::XBase is still alpha, now my effort will go to
+	support everything that DBI 0.92 requires.
 
 	Added support for fpt memo files.
+
+	Fixed bug with dBase IV memo files, the block length is stored
+	somewhere else, patch by James LewisMoss. Fixed bug with field
+	names in newer dbf files, terminated by zero byte, patch by Petr
+	Olsak. Added binmode for the OSes that write to disk something
+	else that they are told to, reported by Robert Bauer. Removed
+	the test that caused read to fail on read-only files, reported
+	by Stewart Russell. Fixed bug on reading floating values,
+	spotted by Carlos Augusto de Almeida.
+
+	The error handling reviewed, most of the error messages are
+	now local to the object ($table->errstr()).
 
 0.039  Wed Dec 17 19:53:49 MET 1997
 

@@ -4,9 +4,7 @@ This is the to-do list for XBase and DBD::XBase package:
 
 Short term (I will do them as my time allows):
 
-	Review error messages.
-
-	Finish DBD::XBase.
+	Finish DBD::XBase (pretty close now).
 
 
 Mid term (would appreciate help or comments):

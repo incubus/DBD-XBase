@@ -10,7 +10,7 @@ package XBase::SQL;
 use strict;
 use vars qw( $VERSION $DEBUG %COMMANDS );
 
-$VERSION = '0.057';
+$VERSION = '0.058';
 $DEBUG = 0;
 
 # ##################

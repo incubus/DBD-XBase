@@ -3,258 +3,6 @@
 
 XBase - Perl module for reading and writing the dbf files
 
-=head1 SYNOPSIS
-
-  use XBase;
-  my $table = new XBase("dbase.dbf") or die XBase->errstr();
-  for (0 .. $table->last_record())
-	{
-	my ($deleted, $id, $msg)
-		= $table->get_record($_, "ID", "MSG");
-	print "$id:\t$msg\n" unless $deleted;
-	}
-
-=head1 DESCRIPTION
-
-This module can read and write XBase database file, known as dbf in
-dBase and FoxPro world. It also reads memo fields from the dbt and fpt
-files, if needed. Module XBase provides simple native interface to
-XBase files. For DBI compliant database access, check DBD::XBase and
-DBI module.
-
-B<Warning> for now: It doesn't support any index files at the present
-time! That means if you change your dbf, your idx/mdx (if you have
-any) will not match. You will need to regenerate them using other
-tools -- probably those that later make use of them.
-
-The following methods are supported by XBase module:
-
-=head2 General methods
-
-=over 4
-
-=item new
-
-Creates the XBase object, the argument gives the name of the dbf file
-(table, in fact). A suffix .dbf will be appended if needed. This method
-creates and initializes new object, will also check for memo file, if
-needed.
-
-=item close
-
-Closes the object/file.
-
-=item create
-
-Creates new database file on disk and initializes it with 0 records.
-A dbt (memo) file will be also created if the table contains some memo
-fields. Arguments to create are passed as hash.
-
-You can call this method as method of another XBase object and then
-you only need to pass B<name> value of the hash; the structure
-(fields) of the new file will be the same as of the original object.
-
-If you call create using class name (XBase), you have to (besides
-B<name>) also specify another four values, each being a reference
-to list: B<field_names>, B<field_types>, B<field_lengths> and
-B<field_decimals>. The field types are specified by one letter
-strings. If you set some value as undefined, create will make it into
-some reasonable default.
-
-The new file mustn't exist yet -- XBase will not allow you to
-overwrite existing table. Use B<drop> to delete them first (or unlink).
-
-=item drop
-
-This method closes the table and deletes it on disk (including dbt
-file, if there is any).
-
-=item last_record
-
-Returns number of the last record in the file. The lines deleted but
-present in the file are included in this number.
-
-=item last_field
-
-Returns number of the last field in the file, number of fields minus 1.
-
-=item field_names, field_types, field_lengths, field_decimals
-
-Return list of field names and so on for the dbf file.
-
-=item field_type, field_length, field_decimal
-
-For a field name, returns the appropriate value. Returns undef if the
-field doesn't exist in the table.
-
-=back
-
-=head2 Reading the data
-
-When dealing with the records, reading or writing, you always have
-to specify the number of the record in the file. The range is
-0 .. $table->last_record().
-
-=over 4
-
-=item get_record
-
-Returns a list of data (field values) from the specified record (line
-of the table). The first argument in the call is the number of the
-record. If you do not specify any other arguments, all fields are
-returned in the same order as they appear in the file.
-
-You can also put list of field names after the record number and then
-only those will be returned. The first value of the returned list is
-always the 1/0 _DELETED value saying if the record is deleted or not,
-so on success, get_record will never return empty list.
-
-=item get_record_as_hash
-
-Returns hash (in list context) or reference to hash (in scalar
-context) containing field values indexed by field names. The name of
-the deleted flag is _DELETED. The only argument in the call is the
-record number.
-
-=back
-
-=head2 Writing the data
-
-All three writing methods always undelete the record. On success they
-return true -- the record number actually written.
-
-=over 4
-
-=item set_record
-
-As arguments, takes the number of the record and the list of values
-of the fields. It writes the record to the file. Unspecified fields
-(if you pass less than you should) are set to undef/empty.
-
-=item set_record_hash
-
-Takes number of the record and hash as arguments, sets the fields,
-unspecified are undeffed/emptied.
-
-=item update_record_hash
-
-Like B<set_record_hash> but fields that do not have value specified
-in the hash retain their value.
-
-=item delete_record, undelete record
-
-Deletes/undeletes specified record.
-
-=back
-
-=head2 Errors and debugging
-
-If the method fails (returns false or null list), the error message
-can be retrieved via B<errstr> method. If the B<new> or B<create>
-method fails, you have no object so you get the error message using
-class syntax XBase->errstr().
-
-The methods B<get_header_info> returns (not prints) string with
-information about the file and about the fields. Method B<dump_records>
-prints all records from the file, one on a line, fields separated by
-commas.
-
-Module XBase::Base(3) defines some basic functionality and also following
-variables, that affect the internal behaviour:
-
-=over 4
-
-=item $DEBUG
-
-Enables error messages on stderr, zero by default.
-
-=item $FIXPROBLEMS
-
-When reading the file, try to continue, even if there is some
-(minor) missmatch in the data, true by default.
-
-=back
-
-In the module XBase there is variable $CLEARNULLS that specifies,
-whether will the reading methods cut off spaces and nulls from the
-end of fixed character fields on read. The default is true.
-
-=head1 LITTLE EXAMPLE
-
-This is a code to update field MSG in record where ID is 123.
-
-    use XBase;
-    my $table = new XBase("test.dbf") or die XBase->errstr();
-    for (0 .. $table->last_record())
-    	{
-    	my ($deleted, $id)
-    		= $table->get_record($_, "ID")
-    	die $table->errstr unless defined $deleted;
-    	next if $deleted;
-    	if ($id == 123)
-    		{
-    		$table->update_record_hash($_,
-    			"MSG" => "New message");
-    		last;
-    		}
-    	}
-
-=head1 MEMO FIELDS and INDEX FILES
-
-If there is a memo field in the dbf file, the module tries to open
-file with the same name but extension dbt or fpt. It uses module
-XBase::Memo(3) for this. It reads and writes this memo field
-transparently (you do not know about it).
-
-No index files are currently supported. Two reasons: you do not need
-them when reading the file because you specify the record number
-anyway and writing them is extremely difficult. I might try to add the
-support but do not promise anything ;-) There are too many too complex
-questions: how about compound indexes? Which index formats should
-I support? What files contain the index data? I do not have dBase nor
-Fox* so do not have data to experiment.
-
-Please send me examples of your data files and suggestions for
-interface if you need indexes.
-
-=head1 HISTORY
-
-I have been using the Xbase(3) module by Pratap Pereira for quite
-a time to read the dbf files, but it had no writing capabilities, it
-was not C<use strict> clean and the author did not support the
-module behind the version 1.07. So I started to make my own patches
-and thought it would be nice if other people could make use of them.
-I thought about taking over the development of the original Xbase
-package, but the interface seemed rather complicated to me.
-
-So with the help of article XBase File Format Description by Erik
-Bachmann on URL
-
- http://www.geocities.com/SiliconValley/Pines/2563/xbase.htm
-
-I have written a new module. It doesn't use any code from Xbase-1.07
-and you are free to use and distribute it under the same terms as Perl
-itself.
-
-Please send all bug reports or patches CC'ed to my e-mail, since I
-might miss your post in c.l.p.misc or dbi-users (or other groups). Any
-comments about both the Perl and XBase issues of this module are also
-welcome.
-
-=head1 VERSION
-
-0.057
-
-=head1 AUTHOR
-
-(c) Jan Pazdziora, adelton@fi.muni.cz, http://www.fi.muni.cz/~adelton/
-
-at Faculty of Informatics, Masaryk University in Brno, Czech Republic
-
-=head1 SEE ALSO
-
-perl(1); DBD::XBase(3) and DBI(3) for DBI interface
-
 =cut
 
 # ########
@@ -276,7 +24,7 @@ use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
 
-$VERSION = "0.057";
+$VERSION = "0.058";
 
 $errstr = "Use of \$XBase::errstr is depreciated, please use XBase->errstr() instead\n";
 
@@ -895,4 +643,262 @@ sub drop
 	}
 
 1;
+
+__END__
+
+=head1 SYNOPSIS
+
+  use XBase;
+  my $table = new XBase("dbase.dbf") or die XBase->errstr();
+  for (0 .. $table->last_record())
+	{
+	my ($deleted, $id, $msg)
+		= $table->get_record($_, "ID", "MSG");
+	print "$id:\t$msg\n" unless $deleted;
+	}
+
+=head1 DESCRIPTION
+
+This module can read and write XBase database file, known as dbf in
+dBase and FoxPro world. It also reads memo fields from the dbt and fpt
+files, if needed. Module XBase provides simple native interface to
+XBase files. For DBI compliant database access, check DBD::XBase and
+DBI module.
+
+B<Warning> for now: It doesn't support any index files at the present
+time! That means if you change your dbf, your idx/mdx (if you have
+any) will not match. You will need to regenerate them using other
+tools -- probably those that later make use of them.
+
+The following methods are supported by XBase module:
+
+=head2 General methods
+
+=over 4
+
+=item new
+
+Creates the XBase object, the argument gives the name of the dbf file
+(table, in fact). A suffix .dbf will be appended if needed. This method
+creates and initializes new object, will also check for memo file, if
+needed.
+
+=item close
+
+Closes the object/file.
+
+=item create
+
+Creates new database file on disk and initializes it with 0 records.
+A dbt (memo) file will be also created if the table contains some memo
+fields. Arguments to create are passed as hash.
+
+You can call this method as method of another XBase object and then
+you only need to pass B<name> value of the hash; the structure
+(fields) of the new file will be the same as of the original object.
+
+If you call create using class name (XBase), you have to (besides
+B<name>) also specify another four values, each being a reference
+to list: B<field_names>, B<field_types>, B<field_lengths> and
+B<field_decimals>. The field types are specified by one letter
+strings. If you set some value as undefined, create will make it into
+some reasonable default.
+
+The new file mustn't exist yet -- XBase will not allow you to
+overwrite existing table. Use B<drop> to delete them first (or unlink).
+
+=item drop
+
+This method closes the table and deletes it on disk (including dbt
+file, if there is any).
+
+=item last_record
+
+Returns number of the last record in the file. The lines deleted but
+present in the file are included in this number.
+
+=item last_field
+
+Returns number of the last field in the file, number of fields minus 1.
+
+=item field_names, field_types, field_lengths, field_decimals
+
+Return list of field names and so on for the dbf file.
+
+=item field_type, field_length, field_decimal
+
+For a field name, returns the appropriate value. Returns undef if the
+field doesn't exist in the table.
+
+=back
+
+=head2 Reading the data
+
+When dealing with the records, reading or writing, you always have
+to specify the number of the record in the file. The range is
+0 .. $table->last_record().
+
+=over 4
+
+=item get_record
+
+Returns a list of data (field values) from the specified record (line
+of the table). The first argument in the call is the number of the
+record. If you do not specify any other arguments, all fields are
+returned in the same order as they appear in the file.
+
+You can also put list of field names after the record number and then
+only those will be returned. The first value of the returned list is
+always the 1/0 _DELETED value saying if the record is deleted or not,
+so on success, get_record will never return empty list.
+
+=item get_record_as_hash
+
+Returns hash (in list context) or reference to hash (in scalar
+context) containing field values indexed by field names. The name of
+the deleted flag is _DELETED. The only argument in the call is the
+record number.
+
+=back
+
+=head2 Writing the data
+
+All three writing methods always undelete the record. On success they
+return true -- the record number actually written.
+
+=over 4
+
+=item set_record
+
+As arguments, takes the number of the record and the list of values
+of the fields. It writes the record to the file. Unspecified fields
+(if you pass less than you should) are set to undef/empty.
+
+=item set_record_hash
+
+Takes number of the record and hash as arguments, sets the fields,
+unspecified are undeffed/emptied.
+
+=item update_record_hash
+
+Like B<set_record_hash> but fields that do not have value specified
+in the hash retain their value.
+
+=item delete_record, undelete record
+
+Deletes/undeletes specified record.
+
+=back
+
+=head2 Errors and debugging
+
+If the method fails (returns false or null list), the error message
+can be retrieved via B<errstr> method. If the B<new> or B<create>
+method fails, you have no object so you get the error message using
+class syntax XBase->errstr().
+
+The methods B<get_header_info> returns (not prints) string with
+information about the file and about the fields. Method B<dump_records>
+prints all records from the file, one on a line, fields separated by
+commas.
+
+Module XBase::Base(3) defines some basic functionality and also following
+variables, that affect the internal behaviour:
+
+=over 4
+
+=item $DEBUG
+
+Enables error messages on stderr, zero by default.
+
+=item $FIXPROBLEMS
+
+When reading the file, try to continue, even if there is some
+(minor) missmatch in the data, true by default.
+
+=back
+
+In the module XBase there is variable $CLEARNULLS that specifies,
+whether will the reading methods cut off spaces and nulls from the
+end of fixed character fields on read. The default is true.
+
+=head1 LITTLE EXAMPLE
+
+This is a code to update field MSG in record where ID is 123.
+
+    use XBase;
+    my $table = new XBase("test.dbf") or die XBase->errstr();
+    for (0 .. $table->last_record())
+    	{
+    	my ($deleted, $id)
+    		= $table->get_record($_, "ID")
+    	die $table->errstr unless defined $deleted;
+    	next if $deleted;
+    	if ($id == 123)
+    		{
+    		$table->update_record_hash($_,
+    			"MSG" => "New message");
+    		last;
+    		}
+    	}
+
+Some more examples are in the eg directory of the distribution.
+
+=head1 MEMO FIELDS and INDEX FILES
+
+If there is a memo field in the dbf file, the module tries to open
+file with the same name but extension dbt or fpt. It uses module
+XBase::Memo(3) for this. It reads and writes this memo field
+transparently (you do not know about it).
+
+No index files are currently supported. Two reasons: you do not need
+them when reading the file because you specify the record number
+anyway and writing them is extremely difficult. I might try to add the
+support but do not promise anything ;-) There are too many too complex
+questions: how about compound indexes? Which index formats should
+I support? What files contain the index data? I do not have dBase nor
+Fox* so do not have data to experiment.
+
+Please send me examples of your data files and suggestions for
+interface if you need indexes.
+
+=head1 HISTORY
+
+I have been using the Xbase(3) module by Pratap Pereira for quite
+a time to read the dbf files, but it had no writing capabilities, it
+was not C<use strict> clean and the author did not support the
+module behind the version 1.07. So I started to make my own patches
+and thought it would be nice if other people could make use of them.
+I thought about taking over the development of the original Xbase
+package, but the interface seemed rather complicated to me.
+
+So with the help of article XBase File Format Description by Erik
+Bachmann on URL
+
+ http://www.geocities.com/SiliconValley/Pines/2563/xbase.htm
+
+I have written a new module. It doesn't use any code from Xbase-1.07
+and you are free to use and distribute it under the same terms as Perl
+itself.
+
+Please send all bug reports or patches CC'ed to my e-mail, since I
+might miss your post in c.l.p.misc or dbi-users (or other groups). Any
+comments about both the Perl and XBase issues of this module are also
+welcome.
+
+=head1 VERSION
+
+0.058
+
+=head1 AUTHOR
+
+(c) Jan Pazdziora, adelton@fi.muni.cz, http://www.fi.muni.cz/~adelton/
+
+at Faculty of Informatics, Masaryk University in Brno, Czech Republic
+
+=head1 SEE ALSO
+
+perl(1); DBD::XBase(3) and DBI(3) for DBI interface
+
+=cut
 

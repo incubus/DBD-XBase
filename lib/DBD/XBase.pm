@@ -83,7 +83,7 @@ types. Example:
 
 =head1 VERSION
 
-0.057
+0.058
 
 =head1 AUTHOR
 
@@ -110,7 +110,7 @@ use vars qw($VERSION @ISA @EXPORT $err $errstr $drh);
 
 require Exporter;
 
-$VERSION = '0.057';
+$VERSION = '0.058';
 
 $err = 0;
 $errstr = '';
@@ -351,5 +351,6 @@ sub fetch
 		}
 	$sth->finish(); return;
 	}
-	
+*fetchrow_arrayref = \&fetch;
+
 1;
