@@ -752,6 +752,7 @@ sub create {
 	my $header = pack 'CCCCVvvvCCa12CCv', $version, 0, 0, 0, 0,
 		(32 + length $fieldspack), $record_len, 0, 0, 0, '', 0, 0, 0;
 	$header .= $fieldspack;
+	$header .= "\x1a";
 
 	my $tmp = $class->new();
 	my $basename = $options{'name'};

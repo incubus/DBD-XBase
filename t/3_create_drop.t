@@ -50,9 +50,9 @@ print "not " unless -f "$dir/newtable.dbt";
 print "ok 4\n";
 
 
-print "Check their lengths (expect 193 and 512)\n";
+print "Check their lengths (expect 194 and 512)\n";
 my $len = -s "$dir/newtable.dbf";
-if ($len != 193)
+if ($len != 194)
 	{ print "Got $len\nnot "; }
 print "ok 5\n";
 $len = -s "$dir/newtable.dbt";
