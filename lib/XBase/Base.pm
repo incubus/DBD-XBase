@@ -173,6 +173,7 @@ sub open
 	$fh->open($filename, $mode) or do
 		{ Error "Error opening file $filename: $!\n"; return; };
 				# open the file
+	binmode($fh);		# f..k Windoze
 
 	my $perms = (stat($filename))[2] & 0777;
 
@@ -233,6 +234,7 @@ sub create_file
 		{
 		@{$self}{ qw( fh filename perms writable opened ) }
 			= ( $fh, $name, $perms, 1, 1 );
+		binmode($fh);		# f..k Windoze	
 		return $self;
 		};
 	return;
@@ -278,8 +280,8 @@ sub seek_to
 			# the file should really be opened and writable
 	if (not defined $self->{'opened'})
 		{ $self->Error("The file $filename is not opened\n"); return; }
-	if (not $self->{'writable'})
-		{ $self->Error("The file $filename is not writable\n"); return; }
+	### if (not $self->{'writable'})
+	###	{ $self->Error("The file $filename is not writable\n"); return; }
 
 	delete $self->{'tell'};	# we cancel the tell position
 
@@ -348,6 +350,8 @@ sub read_record
 sub write_record
 	{
 	my ($self, $num) = (shift, shift);
+	if (not $self->{'writable'})
+		{ $self->Error("The file $self->{'filename'} is not writable\n"); return; }
 	if (not defined $num)
 		{ $self->Error("Record number to write must be specified\n"); return; }
 	if (defined $self->{'cached_num'} and $num == $self->{'cached_num'})
@@ -366,7 +370,8 @@ sub write_record
 sub write_to
 	{
 	my ($self, $offset) = (shift, shift);
-	
+	if (not $self->{'writable'})
+		{ $self->Error("The file $self->{'filename'} is not writable\n"); return; }
 	$self->seek_to($offset) or return;
 	delete $self->{'tell'};
 	

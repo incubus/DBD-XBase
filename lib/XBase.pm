@@ -243,7 +243,7 @@ welcome.
 
 =head1 VERSION
 
-0.059
+0.057
 
 =head1 AUTHOR
 
@@ -276,7 +276,7 @@ use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
 
-$VERSION = "0.059";
+$VERSION = "0.057";
 
 $errstr = "Use of \$XBase::errstr is depreciated, please use XBase->errstr() instead\n";
 
@@ -314,7 +314,7 @@ sub read_header
 	my ($version, $last_update, $num_rec, $header_len, $record_len,
 		$res1, $incompl_trans, $enc_flag, $rec_thread,
 		$multiuser, $mdx_flag, $language_dr, $res2)
-		= unpack "Ca3Vvva2CCVa8CCa2", $header;
+		= unpack 'Ca3Vvva2CCVa8CCa2', $header;
 				# parse the data
 
 	my ($names, $types, $lengths, $decimals) = ( [], [], [], [] );
@@ -336,7 +336,7 @@ sub read_header
 		my ($name, $type, $address, $length, $decimal,
 			$multiuser1, $work_area, $multiuser2,
 			$set_fields_flag, $res, $index_flag)
-				= unpack "A11aVCCa2Ca2Ca7C", $field_def;
+				= unpack 'A11aVCCa2Ca2Ca7C', $field_def;
 
 		$name =~ s/[\000 ].*$//s;
 		$name = uc $name;
@@ -601,10 +601,8 @@ sub process_list_on_read
 			my $len = $self->{'field_lengths'}[$num - 1];
 			my $dec = $self->{'field_decimals'}[$num - 1];
 			if ($dec)
-				{ $data[$num] = sprintf "%-$len.${dec}f", $value; }
-			else
-				{ $data[$num] = sprintf "%-${len}d", $value; }
-			$data[$num] += 0;
+				{ substr($value, -$dec, 0) = '.'; }
+			$data[$num] = $value + 0;
 			}
 		elsif ($type =~ /^[MGBP]$/)
 			{
@@ -735,8 +733,14 @@ sub process_list_on_write
 		elsif ($type =~ /^[NFD]$/)
 			{
 			$value += 0;
-			$value = sprintf "%$length.${decimal}f", $value;
-			$value =~ s/[.,]//;
+			if ($decimal)
+				{
+				$length++;
+				$value = sprintf "%$length.${decimal}f", $value;
+				$value =~ s/[.,]//;
+				}
+			else
+				{ $value = sprintf "%$length.0f", $value; }
 			}
 		elsif ($type =~ /^[MGBP]$/)
 			{

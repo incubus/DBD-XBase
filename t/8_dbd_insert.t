@@ -13,7 +13,7 @@ BEGIN	{
 		print "ok 1\n";
 		exit;
 		}
-	print "1..7\n";
+	print "1..9\n";
 	print "DBI loaded\n";
 	}
 
@@ -61,7 +61,7 @@ my $dbh = DBI->connect("dbi:XBase:$dir") or do
 	};
 print "ok 3\n";
 
-my $command = 'insert into write values ("new room", "new facil")';
+my $command = 'insert into write values ("new room", "new facility")';
 print "Prepare command `$command'\n";
 my $sth = $dbh->prepare($command) or do
 	{
@@ -80,6 +80,26 @@ $sth->execute() or do
 	};
 print "ok 5\n";
 
+
+$command = 'insert into write ( facility ) values ("Lights")';
+print "Prepare command `$command'\n";
+$sth = $dbh->prepare($command) or do
+	{
+	print $dbh->errstr();
+	print "not ok 6\n";
+	exit;
+	};
+print "ok 6\n";
+
+print "Execute it\n";
+$sth->execute() or do
+	{
+	print $sth->errstr();
+	print "not ok 7\n";
+	exit;
+	};
+print "ok 7\n";
+
 print "And now we should check if it worked\n";
 my $selcom = 'select * from write';
 print "Prepare and execute '$selcom'\n";
@@ -87,16 +107,16 @@ print "Prepare and execute '$selcom'\n";
 my $select = $dbh->prepare($selcom) or do
 	{
 	print $dbh->errstr();
-	print "not ok 6\n";
+	print "not ok 8\n";
 	exit;
 	};
 $select->execute() or do
 	{
 	print $select->errstr();
-	print "not ok 6\n";
+	print "not ok 8\n";
 	exit;
 	};
-print "ok 6\n";
+print "ok 8\n";
 
 my $result = '';
 
@@ -113,7 +133,7 @@ if ($result ne $expected_result)
 	print "Got:\n$result";
 	print "not ";
 	}
-print "ok 7\n";
+print "ok 9\n";
 
 $sth->finish();
 $dbh->disconnect();
@@ -163,4 +183,5 @@ Mix J Audio
 AVID Main
 BAY 7 Main
  
-new room new facil
+new room new facili
+ Lights

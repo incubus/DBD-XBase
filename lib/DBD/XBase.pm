@@ -1,7 +1,7 @@
 
 =head1 NAME
 
-DBD::XBase - DBI driver for XBase
+DBD::XBase - DBI driver for XBase compatible db files
 
 =head1 SYNOPSIS
 
@@ -14,37 +14,76 @@ DBD::XBase - DBI driver for XBase
 
     my @data;
     while (@data = $sth->fetchrow_array())
-    	{
-    	...
-    	}
+		{
+		## further processing
+		}
 
 =head1 DESCRIPTION
 
-DBI compliant driver for module XBase. I still work on it, currently
-it supports just
+DBI compliant driver for module XBase. Please refer to DBI(3)
+documentation for how to actually use the module.
+In the I<connect> call, specify the directory for a database name.
+This is where the DBD::XBase will look for the tables.
+
+The SQL commands currently supported by DBD::XBase include:
 
 =over 4
 
 =item select
 
-	select fields from table [ where condition ]
+    select fields from table [ where condition ]
 
-Fields is a comma separated list of fields or a * for all. The where
-condition specifies which rows will be returned, you can compare
-fields and constants and stack expressions using and or or, and also
-(, ).
+Fields is a comma separated list of fields or a C<*> for all. The
+C<where> condition specifies which rows will be returned, you can
+compare fields and constants and stack expressions using C<and> or
+C<or>, and also use brackets. Examples:
+
+    select * from salaries where name = "Smith"	
+    select first,last from people where login = "ftp"
+						or uid = 1324
 
 =item delete
 
-	delete from table [ where condition ]
+    delete from table [ where condition ]
 
-The where condition si the same as for select.
+The C<where> condition si the same as for C<select>. Examples:
+
+    delete from jobs		## emties the table
+    delete from jobs where companyid = "ISW"
+
+=item insert
+
+    insert into table [ ( fields ) ] values ( list of values )
+
+Here fields is a comma separated list of fields to set, list of values
+is a list of values to assign. If the fields are not specified, the
+fields in the natural order in the table are set. Example:
+
+    insert into accounts (login, uid) values ("guest", 65534)
+
+=item update
+
+    update table set field = new value [ , set more fields ]
+					[ where condition ]
+
+Example:
+
+    update table set uid = 65534 where login = "guest"
+
+=item create table
+
+    create table table name ( columns specification )
+
+Columns specification is a comma separated list of column names and
+types. Example:
+
+    create table rooms ( roomid int, category int, balcony boolean)
 
 =over
 
 =head1 VERSION
 
-0.059
+0.057
 
 =head1 AUTHOR
 
@@ -71,7 +110,7 @@ use vars qw($VERSION @ISA @EXPORT $err $errstr $drh);
 
 require Exporter;
 
-$VERSION = '0.059';
+$VERSION = '0.057';
 
 $err = 0;
 $errstr = '';
@@ -257,7 +296,8 @@ sub execute
 			my @fields = @{$parsed_sql->{'insertfields'}};
 			my %newval;
 			@newval{ @fields } = map { eval $_; } @values;
-			$xbase->update_record_hash($last + 1, \%newval);
+			$xbase->set_record($last + 1);
+			$xbase->update_record_hash($last + 1, %newval);
 			}
 		else
 			{

@@ -1,7 +1,7 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
-0.
+0.059
 
 	Added support for fpt memo files.
 

@@ -10,7 +10,7 @@ package XBase::SQL;
 use strict;
 use vars qw( $VERSION $DEBUG %COMMANDS );
 
-$VERSION = '0.059';
+$VERSION = '0.057';
 $DEBUG = 0;
 
 # ##################
@@ -165,6 +165,7 @@ sub parse
 		{
 		### print_result(\@result);
 		$self->store_results(\@result, \%STORE);
+		### use Data::Dumper; print Dumper $self;
 		}
 	$self;
 	}
