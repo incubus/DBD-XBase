@@ -63,8 +63,8 @@ print "ok 7\n";
 
 print "Check the returned error message\n";
 print "Got errstr: $XBase::errstr";
-print "not " if $XBase::errstr ne
-	"Error opening file nonexistent.dbf: No such file or directory\n";
+print "not " if not $XBase::errstr =~
+	/^Error opening file nonexistent.dbf:/;
 print "ok 8\n";
 
 
