@@ -19,7 +19,7 @@ use vars qw( $VERSION @ISA @EXPORT $err $errstr $drh $sqlstate );
 
 require Exporter;
 
-$VERSION = '0.130';
+$VERSION = '0.131';
 
 $err = 0;
 $errstr = '';
@@ -181,7 +181,7 @@ my @TYPE_INFO_ALL = (
 	[ 'CHAR', DBI::SQL_CHAR, 65535, "'", "'", 'max length', 0, 1, 2, undef, 0, 0, undef, undef, undef ],
 	[ 'INTEGER', DBI::SQL_INTEGER, 0, '', '', 'number of digits', 1, 0, 2, 0, 0, 0, undef, 0, undef ],
 	[ 'FLOAT', DBI::SQL_FLOAT, 0, '', '', 'number of digits', 1, 0, 2, 0, 0, 0, undef, 0, undef ],
-	[ 'NUMERIC', DBI::SQL_FLOAT, 0, '', '', 'number of digits', 1, 0, 2, 0, 0, 0, undef, 0, undef ],
+	[ 'NUMERIC', DBI::SQL_NUMERIC, 0, '', '', 'number of digits', 1, 0, 2, 0, 0, 0, undef, 0, undef ],
 	[ 'BOOLEAN', DBI::SQL_BINARY, 0, '', '', 'number of digits', 1, 0, 2, 0, 0, 0, undef, 0, undef ],
 	[ 'DATE', DBI::SQL_DATE, 0, '', '', 'number of digits', 1, 0, 2, 0, 0, 0, undef, 0, undef ],
 	[ 'BLOB', DBI::SQL_LONGVARBINARY, 0, '', '', 'number of bytes', 1, 0, 2, 0, 0, 0, undef, 0, undef ],
@@ -205,13 +205,13 @@ sub type_info_all
 sub type_info
 	{
 	my ($dbh, $type) = @_;
-	my $result = [];
+	my @result = ();
 	for my $row ( 1 .. $#TYPE_INFO_ALL )
 		{
 		if ($type == DBI::SQL_ALL_TYPES or $type == $TYPE_INFO_ALL[$row][1])
-			{ push @$result, { map { ( $TYPE_INFO_ALL[0][$_] => $TYPE_INFO_ALL[$row][$_] ) } ( 0 .. $#{$TYPE_INFO_ALL[0]} ) } }
+			{ push @result, { map { ( $TYPE_INFO_ALL[0][$_] => $TYPE_INFO_ALL[$row][$_] ) } ( 0 .. $#{$TYPE_INFO_ALL[0]} ) } }
 		}
-	$result;
+	@result;
 	}
 
 package DBD::XBase::st;
@@ -481,6 +481,16 @@ sub FETCH
 			map { $sth->{'Database'}->{'xbase_tables'}->{$parsed_sql->{'table'}[0]}->field_type($_) }
 				@{$parsed_sql->{'fields'}} ];
 		}
+      elsif ($attrib eq 'PRECISION')
+              {
+              return [ map { $sth->{'Database'}->{'xbase_tables'}->{$parsed_sql->{'table'}[0]}->field_length($_) }
+                              @{$parsed_sql->{'fields'}} ];
+              }
+      elsif ($attrib eq 'SCALE')
+              {
+              return [ map { $sth->{'Database'}->{'xbase_tables'}->{$parsed_sql->{'table'}[0]}->field_decimal($_) }
+                              @{$parsed_sql->{'fields'}} ];
+              }
 	elsif ($attrib eq 'ChopBlanks')
 		{ return $parsed_sql->{'ChopBlanks'}; }
 	else
@@ -628,7 +638,7 @@ Example:
 
 =head1 VERSION
 
-0.130
+0.131
 
 =head1 AUTHOR
 

@@ -57,7 +57,7 @@ sub open
 	my $self = shift;
 	my %options;
 	if (scalar(@_) % 2) { $options{'name'} = shift; }
-		$self->{'openoptions'} = { %options, @_ };
+	$self->{'openoptions'} = { %options, @_ } unless defined $self->{'openoptions'};
 	%options = (%options, @_);
 	if (defined $self->{'fh'}) { $self->close(); }
 

@@ -1,6 +1,33 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
+0.132 Sun Apr 18 17:35:10 MET DST 1999
+	XBase::Base: dealing of openoptions fixed, problem spotted by
+	Zbigniew Malinowski.
+
+	XBase::SQL: added type numeric, patch by Nikolai Saoukh.
+
+	XBase::Index: added support for cdx (one page index so far),
+	added support for idx (untested).
+
+	DBD::XBase: added attributes PRECISION and SCALE, changed SQL
+	type for NUMERIC, patch by Nikolai Saoukh.
+
+	driver_characteristics now includes Tim's additions of Apr 4,
+	1999.
+
+	Created new XBase::FAQ.pod.
+
+0.131 Sun Apr 18  8:47:12 MET DST 1999
+	XBase: memo records marked -1 are returned empty now,
+	spotted by Zbigniew Malinowski.
+
+	XBase::SQL: added possibility to have expression to the left
+	from the relational operator, suggested by Nikolai Saoukh.
+
+	DBD::XBase: fixed type_info to return array, bug spotted by
+	Alan Grover.
+
 0.130 Sat Feb 27 18:09:04 MET 1999
 	DBD::XBase: fixed handling of the rows method.
 
@@ -8,7 +35,7 @@ Revision history for Perl extension XBase and DBD::Xbase.
 	DBD::XBase according to the draft by Tim Bunce.
 
 0.129 Fri Feb 26 22:02:12 MET 1999
-	XBase.pm: Added support for datetime fields T, testing data
+	XBase.pm: added support for datetime fields T, testing data
 	provided by William McKee. Fix for ignorememo.
 
 	XBase::SQL: added time and datetime names to the SQL parser.
@@ -32,7 +59,7 @@ Revision history for Perl extension XBase and DBD::Xbase.
 	Ilya Chelpanov.
 
 0.121 Thu Jan 21 20:07:04 MET 1999
-	XBase::Memo: Fixed a typo in measuring the next_for_append,
+	XBase::Memo: fixed a typo in measuring the next_for_append,
 	pointed out by Dan Albertsson.
 
 	t/2_write.t: added afox5.dbf/FPT and a Fox* test.
@@ -67,7 +94,7 @@ Revision history for Perl extension XBase and DBD::Xbase.
 0.105 Sun Dec 20 17:09:43 MET 1998
 	XBase::Base: added workaround for systems that not only write
 	to files something else than they are told to, but also damage
-	the files by merely opening it (open).
+	the files by merely opening it.
 
 	XBase::Memo: fixed problem with fpt files -- thanks to Dan
 	Albertsson for providing many test files.
@@ -89,8 +116,8 @@ Revision history for Perl extension XBase and DBD::Xbase.
 	by Bill Brinkley & Joe Johnston. A quick fix to avoid bug in
 	Perl with long blobs.
 
-	XBase::Memo: appending record to dBaseIV memo used to corrupt
-	the data -- reported by Dan Albertsson.
+	XBase::Memo: fixed appending record to dBaseIV memo used to
+	corrupt the data -- reported by Dan Albertsson.
 
 0.0696 Mon Oct 26 11:57:01 MET 1998
 
@@ -373,10 +400,9 @@ Revision history for Perl extension XBase and DBD::Xbase.
 	and writes dbf (but not dbt ;-) Put on CPAN mainly for other
 	people to test and comment on it.
 
+---
 
 Note: Versions tagged (*****) were major updates and code chnages.
-
----
 
 I have been using the Xbase(3) module by Pratap Pereira for quite
 a time to read the dbf files, but it had no writing capabilities, it

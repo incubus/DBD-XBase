@@ -141,7 +141,7 @@ sub read_header
 				else {
 					$rproc = sub {
 						my $value = shift;
-						return undef unless $value =~ /\d/;
+						return undef if not $value =~ /\d/ or $value < 0;
 						$memo->read_record($value - 1) if defined $memo;
 						};
 					$wproc = sub {
@@ -174,7 +174,7 @@ sub read_header
 				my $localday = $day - 2440588;
 				my $localtime = $localday * 24 * 3600;
 				$localtime += $time / 1000;
-print STDERR "day,time: ($day,$time -> $localtime)\n";
+### print STDERR "day,time: ($day,$time -> $localtime)\n";
 				return $localtime;
 
 				my $localdata = "[$localday] $localtime: @{[localtime($localtime)]}";
@@ -190,7 +190,7 @@ print STDERR "day,time: ($day,$time -> $localtime)\n";
 				my $day = int($localtime / (24 * 3600)) + 2440588;
 				my $time = int(($localtime % (3600 * 24)) * 1000);
 
-print STDERR "day,time: ($localtime -> $day,$time)\n";
+### print STDERR "day,time: ($localtime -> $day,$time)\n";
 
 				return pack 'VV', $day, $time;	
 				}
@@ -754,9 +754,9 @@ sub prepare_select_with_index
 	{
 	my ($self, $file) = ( shift, shift );
 	my @tagopts = ();
-	if (ref $file eq 'ARRAY') {		### this is suboptimal
-				### interface but should suffice for the moment
-		@tagopts = ( 'tag' => $file->[1]);
+	if (ref $file eq 'ARRAY') {             ### this is suboptimal
+					### interface but should suffice for now
+		@tagopts = ( 'tag' => $file->[1] );
 		$file = $file->[0];
 		}
 	my $fieldnames = [ @_ ];
@@ -809,12 +809,6 @@ sub names
 	{ shift->[3]; }
 sub rewind
 	{ shift->[1] = undef; '0E0'; }
-
-sub attach_index {
-	my $self = shift;
-	require XBase::Index;
-
-	}
 
 package XBase::IndexCursor;
 use vars qw( @ISA );

@@ -800,6 +800,14 @@ sub new
 
 	else { ### non leaf pages not ready yet
 
+		die <<'EOF';
+
+	You've got a cdx file that spans more than one page. I never
+	got to see such a file, so I'm unable to read it. But do not
+	worry -- just contact adelton@fi.muni.cz and I'm sure that if
+	you send him the cdx file, he should be able to fix me to
+	understand this file.				-- Yours XBase::Index
+EOF
 		}
 
 	my $self = bless { 'keys' => $keys, 'values' => $values,
@@ -823,8 +831,7 @@ __END__
 		"ID", "NAME);
 	$cur->find_eq(1097);
 
-	while (my @data = $cur->fetch())
-	        {
+	while (my @data = $cur->fetch()) {
 		last if $data[0] != 1097;
 		print "@data\n";
 		}
@@ -835,19 +842,87 @@ file id.ndx.
 
 =head1 DESCRIPTION
 
-This is the class that currently supports B<ndx> index files. The name
-will change in the furute as we later add other index formats, but for
-now this is the only index support.
+The module XBase::Index is a collection of packages to provide index
+support for XBase-like dbf database files.
 
-The support is read only. If you update your data, you have to reindex
-using some other tool than XBase::Index currently. Anyway, you have the
-tool to do that because XBase::Index doesn't support creating the
-index files either. So, read only.
+An index file is generaly a file that holds values of certain database
+field or expression in sorted order, together with the record number
+that the record occupies in the dbf file. So when you search for
+a record with some value, you first search in this sorted list and
+once you have the record number in the dbf, you directly fetch the
+record from dbf.
 
-I will stop documenting here for now because the module is not
-finalized and you might think that if I write something in the man
-page, it will stay so. Most probably not ;-) Please see eg/use_index
-in the distribution directory for more information.
+To make the searching in this ordered list fast, it's generally organized
+as a tree -- it starts with a root page and here records that point to
+pages at lower level, etc., until leaf pages where the pointer is no
+longer a pointer to the index but to the dbf. When you search for a
+record in the index file, you fetch the root page and scan it
+(lineary) until you find key value that is equal or grater than that you
+are looking for. That way you've avoided reading all pages describing
+the values that are lower. Here you descend one leve, fetch the page
+and again search the list of keys in that page. And you repeat this
+process until you get to the leaf (lowest) level and here you finaly
+find a pointer to the dbf.
+
+Some of the formats also support multiple indexes in one file --
+usually there is one top level index that for different field values
+points to different root pages in the index file.
+
+XBase::Index supports (or aims to support) the following index
+formats: ndx, ntx, mdx, cdx and idx. They differ in a way they store
+the keys and pointers but the idea is always the same: make a tree of
+pages, where the page contains keys and pointer either to pages at
+lower levels, or to dbf (or both). XBase::Index only supports
+read'only access to the index fiels at the moment (and if you need
+writing them as well, follow reading because we need to have the
+reading support stable before I get to work on updating the indexes).
+
+If you're not a programmer, you can test your index using the
+test_index script in the main directory of the DBD::XBase
+distribution. Just run
+
+	./test_index ~/path/index.ndx
+
+or whatever you index file is and what you should get is the content
+of the index file. On each row, there is the key value and a record
+number of the record in the dbf file. Let me know if you get results
+different from those you expect. I'd probably ask you to send me the
+index file (and possibly the dbf file as well), so that I can debug
+the problem.
+
+Programmers might find the following information usefull when trying
+to debug XBase::Index from their files:
+
+The XBase::Index module contains the basic XBase::Index package and
+also packages XBase::ndx, XBase::ntx, XBase::idx, XBase::mdx and
+XBase::cdx, and for each of these also a package
+XBase::index_type::Page. Reading the file goes like this: you create
+as object calling either new XBase::Index or new XBase::ndx (or
+whatever the index type is). This can also be done behind the scenes,
+for example XBase::prepare_select_with_index calls new XBase::Index.
+The index file is opened using the XBase::Base::new/open and then the
+XBase::index_type::read_header is called. This function fills the
+basic data fields of the object from the header of the file. The new
+method returns the object corresponding to the index type.
+
+Then you probably want to do $index->prepare_select or
+$index->prepare_select_eq, that would possition you just before record
+equal or greater that the parameter (record in the index file, that
+is). Then you do a series of fetch'es that return next pair of (key,
+pointer_to_dbf). Behind the scenes, prepare_select_eq or fetch call
+XBase::Index::get_record which in turn calls
+XBase::index_type::Page::new. From the index file perspective, the
+first lower item in the file is one index page (or block, or whatever
+you call it). The XBase::index_type::Page::new reads the block of data
+from the file and parses the information in the page -- pages have
+more or less complex structures. Page::new fills the structure, so
+that the fetch calls can easily check what values are in the page.
+
+You can use C<-d> option to test_index to see how pages are fetched and
+decoded, or debugger to see the calls.
+
+For some examples, please see eg/use_index in the distribution
+directory.
 
 =head1 VERSION
 

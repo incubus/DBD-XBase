@@ -8,12 +8,12 @@ package XBase::SQL;
 use strict;
 use vars qw( $VERSION %COMMANDS );
 
-$VERSION = '0.129';
+$VERSION = '0.131';
 
 # #################################
 # Type conversions for create table
 my %TYPES = ( 'char' => 'C', 'varchar' => 'C',
-		'num' => 'N', 'numeric' => 'N', 'int' => 'N',
+		'num' => 'N', 'numeric' => 'N', 'int' => 'N', 'decimal' => 'N',
 		'integer' => 'N', 'float' => 'F', 'boolean' => 'L',
 		'blob' => 'M', 'memo' => 'M', 'date' => 'D',
 		'time' => 'T', 'datetime' => 'T' );
@@ -58,7 +58,7 @@ my %TYPES = ( 'char' => 'C', 'varchar' => 'C',
 	'WHEREEXPR' =>	'BOOLEAN',
 
 	'BOOLEAN' =>	q'\( BOOLEAN \) | RELATION ( ( AND | OR ) BOOLEAN ) *',
-	'RELATION' =>   'EXPFIELDNAME ( is not ? null | LIKE CONSTANT_NOT_NULL | RELOP ARITHMETIC )',
+	'RELATION' =>   ' ARITHMETIC ( is not ? null | LIKE CONSTANT_NOT_NULL | RELOP ARITHMETIC )',
 	'EXPFIELDNAME' => 'FIELDNAME',
 	'AND' =>	'and',
 	'OR' =>		'or',
@@ -95,7 +95,7 @@ my %TYPES = ( 'char' => 'C', 'varchar' => 'C',
 	'FIELDTYPE' =>	'TYPECHAR | TYPENUM | TYPEBOOLEAN | TYPEMEMO | TYPEDATE',
 	
 	'TYPECHAR' =>	' ( varchar | char ) ( \( TYPELENGTH \) ) ?',
-	'TYPENUM' =>	'( num | numeric | float | int | integer ) ( \( TYPELENGTH ( , TYPEDEC ) ? \) ) ?',
+	'TYPENUM' =>	'( num | numeric | decimal | float | int | integer ) ( \( TYPELENGTH ( , TYPEDEC ) ? \) ) ?',
 	'TYPEDEC' =>	'\d+',
 
 	'TYPELENGTH' =>	'\d+',
