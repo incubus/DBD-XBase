@@ -1,7 +1,13 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
-0.120
+0.121 Thu Jan 21 20:07:04 MET 1999
+	XBase::Memo: Fixed a typo in measuring the next_for_append,
+	pointed out by Dan Albertsson.
+
+	t/2_write.t: added afox5.dbf/FPT and a Fox* test.
+
+0.120 Wed Jan 13 13:24:15 MET 1999 
 	XBase.pm: added XBase::Cursor::rewind, names,
 	prepare_select_nf. Added
 	readonly options. Added options 'table' for dump -- using

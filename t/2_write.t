@@ -2,7 +2,7 @@
 
 use strict;
 
-BEGIN	{ $| = 1; print "1..8\n"; }
+BEGIN	{ $| = 1; print "1..11\n"; }
 END	{ print "not ok 1\n" unless $::XBaseloaded; }
 
 print "Load the module: use XBase\n";
@@ -21,26 +21,46 @@ if (-f "$dir/write.dbf" and not unlink "$dir/write.dbf")
 	{ print "Error unlinking $dir/write.dbf: $!\n"; }
 if (-f "$dir/write.dbt" and not unlink "$dir/write.dbt")
 	{ print "Error unlinking $dir/write.dbt: $!\n"; }
+if (-f "$dir/write1.dbf" and not unlink "$dir/write1.dbf")
+	{ print "Error unlinking $dir/write1.dbf: $!\n"; }
+if (-f "$dir/write1.FPT" and not unlink "$dir/write1.FPT")
+	{ print "Error unlinking $dir/write1.FPT: $!\n"; }
 
 eval "use File::Copy;";
 if ($@)
 	{
-	print "Look's like you do not have File::Copy, we will do cp\n";
+	print STDERR <<'EOM';
+	
+	Look's like you do not have File::Copy, we will do cp.
+	Plese write to adelton@fi.muni.cz that on your installation
+	File::Copy is broken. Add output of your perl -V. I'm
+	considering to drop this workaround we will use here, so that
+	I know that I should postpone the change. But you have to let
+	me know. Thanks!
+EOM
+
 	system("cp", "$dir/test.dbf", "$dir/write.dbf");
 	system("cp", "$dir/test.dbt", "$dir/write.dbt");
+	system("cp", "$dir/afox5.dbf", "$dir/write1.dbf");
+	system("cp", "$dir/afox5.FPT", "$dir/write1.FPT");
 	}
 else
 	{
 	print "Will use File::Copy\n";
 	copy("$dir/test.dbf", "$dir/write.dbf");
 	copy("$dir/test.dbt", "$dir/write.dbt");
+	copy("$dir/afox5.dbf", "$dir/write1.dbf");
+	copy("$dir/afox5.FPT", "$dir/write1.FPT");
 	}
 
-unless (-f "$dir/write.dbf" and -f "$dir/write.dbt")
+unless (-f "$dir/write.dbf" and -f "$dir/write.dbt"
+		and -f "$dir/write1.dbf" and -f "$dir/write1.FPT")
 	{
 	print "The files to do the write tests were not created, aborting\nnot ok 2\n";
 	exit;		# Does not make sense to continue
 	}
+
+
 print "ok 2\n";
 
 
@@ -93,5 +113,30 @@ if ($last_record != 3)
 	{ print "Expecting 3, got $last_record\nnot "; }
 print "ok 8\n";
 
+
+print "Load the table write1.dbf\n";
+$table = new XBase("$dir/write1.dbf");
+print XBase->errstr, 'not ' unless defined $table;
+print "ok 9\n";
+
+exit unless defined $table;
+
+print "Append one record\n";
+$table->set_record(2, 'd22', 15, 'Mike', 'third desc.', 'third mess.')
+	or print STDERR $table->errstr();
+$table->get_record(0);		# Force emptying caches
+$result = join ':', map { defined $_ ? $_ : '' } $table->get_record(2);
+$result_expected = '0:d22:15:Mike:third desc.:third mess.';
+if ($result_expected ne $result)
+	{ print "Expected: $result_expected\nGot: $result\nnot "; }
+print "ok 10\n";
+
+
+print "Check the size of the resulting fpt\n";
+my $size = -s "$dir/write1.FPT";
+if ($size != 896) {
+	print "Expected size 896, got $size\nnot "
+	}
+print "ok 11\n";
 
 1;

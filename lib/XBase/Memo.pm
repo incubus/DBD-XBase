@@ -12,7 +12,7 @@ use XBase::Base;
 
 use vars qw( $VERSION @ISA );
 @ISA = qw( XBase::Base );
-$VERSION = '0.120';
+$VERSION = '0.121';
 
 # Read header is called from open to fill the object structures
 sub read_header
@@ -52,7 +52,7 @@ sub read_header
 
 	$block_size = 512 if int($block_size) == 0;
 
-	$next_for_append = (((-s $self->{'filename'}) - 1) / $block_size) + 1;
+	$next_for_append = int ((((-s $self->{'filename'}) - 1) / $block_size) + 1);
 
 	@{$self}{ qw( next_for_append header_len record_len version ) }
 		= ( $next_for_append, $block_size, $block_size, $version );
@@ -271,7 +271,7 @@ specify their specific B<read_record> and B<write_record> methods.
 
 =head1 VERSION
 
-0.120
+0.121
 
 =head1 AUTHOR
 
