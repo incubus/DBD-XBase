@@ -3,6 +3,8 @@ This is the to-do list for the XBase and DBD::XBase packages:
 
 Short term (I will do them as my time allows):
 
+	Need to fix handling attributes in DBD ...
+
 	When creating table, have option to specify version.
 
 	Support named placeholders.

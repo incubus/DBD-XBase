@@ -3,7 +3,7 @@ eval 'use DBI';
 if ($@ ne '') {
 	print <<EOF;
 	You do not seem to have DBI installed, so you will not be able
-	to use DBD::XBase (but XBase should still be running fine).
+	to use DBD::XBase (but XBase.pm should still be running fine).
 EOF
 	}
 elsif ( eval ' $DBI::VERSION < 1.0 ' ) {

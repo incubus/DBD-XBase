@@ -20,7 +20,7 @@ use XBase::Base;		# will give us general methods
 use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
-$VERSION = '0.127';
+$VERSION = '0.129';
 $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 
 *errstr = \$XBase::Base::errstr;
@@ -135,8 +135,8 @@ sub read_header
 			if (defined $memo and $length == 10)
 				{
 				if (ref $memo eq 'XBase::Memo::Apollo') {
-					$rproc = sub { $memo->read_record(shift); }
-					## $wproc = sub { $memo->write_record(shift); }
+					$rproc = sub { $memo->read_record(shift); };
+					$wproc = sub { $memo->write_record(shift); };
 					}
 				else {
 					$rproc = sub {
@@ -170,9 +170,11 @@ sub read_header
 			$rproc = sub {
 				my ($day, $time) = unpack 'VV', $_[0];
 
-				my $localday = $day - 2451232 + 10644;
+
+				my $localday = $day - 2440588;
 				my $localtime = $localday * 24 * 3600;
-				$localtime += $time / 1000 - 3600;
+				$localtime += $time / 1000;
+print STDERR "day,time: ($day,$time -> $localtime)\n";
 				return $localtime;
 
 				my $localdata = "[$localday] $localtime: @{[localtime($localtime)]}";
@@ -183,6 +185,15 @@ sub read_header
 				my $sec = int(($time % 60000) / 1000);
 				return "$day($localdata)-$hour:$min:$sec.$usec";
 				};
+			$wproc = sub {
+				my $localtime = shift;
+				my $day = int($localtime / (24 * 3600)) + 2440588;
+				my $time = int(($localtime % (3600 * 24)) * 1000);
+
+print STDERR "day,time: ($localtime -> $day,$time)\n";
+
+				return pack 'VV', $day, $time;	
+				}
 			}
 		$name =~ s/[\000 ].*$//s;
 		$name = uc $name;		# no locale yet
@@ -221,7 +232,7 @@ sub init_memo_field
 	if (defined $self->{'openoptions'}{'memofile'})
 		{ return XBase::Memo->new($self->{'openoptions'}{'memofile'}, %options); }
 	
-	for (qw( dbt DBT fpt FPT smt SMT ))
+	for (qw( dbt DBT fpt FPT smt SMT dbt ))
 		{
 		my $memo;
 		my $memoname = $self->{'filename'};
@@ -617,7 +628,7 @@ sub create
 		if (not defined $length)		# defaults
 			{
 			if ($type eq "C")	{ $length = 64; }
-			elsif ($type eq "D")	{ $length = 8; }
+			elsif ($type =~ /^[TD]$/)	{ $length = 8; }
 			elsif ($type =~ /^[NF]$/)	{ $length = 8; }
 			}
 						# force correct lengths
@@ -1184,7 +1195,7 @@ Thanks a lot.
 
 =head1 VERSION
 
-0.127
+0.129
 
 =head1 AUTHOR
 

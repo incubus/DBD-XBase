@@ -8,14 +8,15 @@ package XBase::SQL;
 use strict;
 use vars qw( $VERSION %COMMANDS );
 
-$VERSION = '0.110';
+$VERSION = '0.129';
 
 # #################################
 # Type conversions for create table
 my %TYPES = ( 'char' => 'C', 'varchar' => 'C',
 		'num' => 'N', 'numeric' => 'N', 'int' => 'N',
 		'integer' => 'N', 'float' => 'F', 'boolean' => 'L',
-		'blob' => 'M', 'memo' => 'M', 'date' => 'D' );
+		'blob' => 'M', 'memo' => 'M', 'date' => 'D',
+		'time' => 'T', 'datetime' => 'T' );
 
 # ##################
 # Regexp definitions
@@ -100,7 +101,7 @@ my %TYPES = ( 'char' => 'C', 'varchar' => 'C',
 	'TYPELENGTH' =>	'\d+',
 	'TYPEBOOLEAN' =>	'boolean | logical',
 	'TYPEMEMO' =>	'memo | blob',
-	'TYPEDATE' =>	'date',
+	'TYPEDATE' =>	'date | time | datetime',
 	);
 
 # #####################################

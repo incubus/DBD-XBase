@@ -12,7 +12,7 @@ use XBase::Base;
 
 use vars qw( $VERSION @ISA );
 @ISA = qw( XBase::Base );
-$VERSION = '0.1215';
+$VERSION = '0.129';
 
 # Read header is called from open to fill the object structures
 sub read_header
@@ -305,17 +305,20 @@ Used indirectly, via XBase. Users should check its man page.
 =head1 DESCRIPTION
 
 Objects of this class are created to deal with memo files, currently
-.dbt and .fpt. Defines method B<read_header> to parse that header of
-the file and set object's structures, B<write_record> and
-B<last_record> to work properly on these types of file.
+.dbt, .fpt and .smt (code for this provided by Dirk Tostmann).
+Package XBase::Memo defines methods B<read_header> to parse that header
+of the file and set object's structures, B<write_record> and
+B<last_record> to write the records properly formated and find the end
+of file.
 
-There are three separate subpackages in XBase::Memo, dBaseIII, dBaseIV
-and Fox. Memo objects are effectively of one of these types and they
-specify their specific B<read_record> and B<write_record> methods.
+There are four separate subpackages in XBase::Memo, dBaseIII, dBaseIV,
+Fox and Apollo. Memo objects are effectively of one of these types and
+they override their specific record handling routines where
+appropriate.
 
 =head1 VERSION
 
-0.1215
+0.129
 
 =head1 AUTHOR
 

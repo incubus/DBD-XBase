@@ -15,6 +15,7 @@ dbit/40nulls.t
 dbit/40numrows.t
 dbit/50chopblanks.t
 dbit/50commit.t
+driver_characteristics
 eg/copy_table
 eg/create_table
 eg/use_index

@@ -112,7 +112,7 @@ Problems and bug reports:
 
 	If there are errors when actually using the module on your
 	data, please check first that it's really a XBase/DBD::XBase
-	problem.  If so, please send me example of your script, the
+	problem. If so, please send me example of your script, the
 	errstr messages you get and (if possible) your data files that
 	cause the problems, so that I can trace down the problem. Add
 	info about your OS, version of Perl and other modules that
@@ -121,7 +121,7 @@ Problems and bug reports:
 
 	Mention the word "XBase" in the Subject line, otherwise your
 	post will probably just slip through my 1 MB daily email load
-	without evan being read. Please note that I'm _very_ busy, so
+	without even being read. Please note that I'm _very_ busy, so
 	try to help me to help you by using the latest version of the
 	module, minimalizing the script code that causes you problems,
 	providing me with tiny sample of datafile, anything that might

@@ -1,9 +1,22 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
+0.129 Sat Feb 27 17:59:46 MET 1999
 	
+	XBase.pm: Added support for datetime fields T, testing data
+	provided by William McKee. Fix for ignorememo.
 
-	Fix for ignorememo. Need to fix handling attributes in DBD ...
+	XBase::SQL: added time and datetime names to the SQL parser.
+
+	XBase::Memo and XBase.pm: added support for Apollo SMT memo
+	files, code based on that provided by Dirk Tostmann.
+
+	Added driver_characteristics.pod to list characteristics of
+	DBD::XBase according to the draft by Tim Bunce.
+
+	O_BINARY is only loaded on evil systems now.
+	
+0.127 Mon Feb 22 10:56:23 MET 1999
 
 	XBase::Base: opening readonly files fixed, patch by Petr
 	Machacek.
@@ -12,7 +25,7 @@ Revision history for Perl extension XBase and DBD::Xbase.
 	return true/false based on result.
 
 	DBD::XBase::disconnect now closes the tables, patch by Martin
-	Treusch von Buttlar.
+	Treusch von Buttlar. Fixed typo in delete code.
 
 	t/2_write.t: added $table->close before size check, patch by
 	Ilya Chelpanov.

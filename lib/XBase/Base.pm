@@ -17,7 +17,7 @@ BEGIN { local $^W = 0;
 	else { eval ' sub O_BINARY { 0 } ' }
 	}
 
-$XBase::Base::VERSION = '0.120';
+$XBase::Base::VERSION = '0.129';
 
 # Sets the debug level
 $XBase::Base::DEBUG = 0;
@@ -364,7 +364,7 @@ No more description -- check the source code if you need to know more.
 
 =head1 VERSION
 
-0.120
+0.129
 
 =head1 AUTHOR
 
