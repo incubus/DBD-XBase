@@ -6,7 +6,7 @@ XBase - Perl module for reading and writing the dbf files
 =head1 SYNOPSIS
 
 	use XBase;
-	my $table = new XBase("dbase.dbf");
+	my $table = new XBase("dbase.dbf") or die XBase->errstr();
 	for (0 .. $table->last_record())
 		{
 		my ($deleted, $id, $msg)
@@ -126,9 +126,9 @@ Deletes/undeletes the record.
 =head2 Errors and debugging
 
 If the method fails (returns undef of null list), the error message
-can be retrieved via B<errstr> method. If the B<new> method fails, you
-have no object and so B<new> (and only B<new>) puts the error message
-into the $XBase::errstr variable.
+can be retrieved via B<errstr> method. If the B<new> or B<create>
+method fails, you have no object so you get the error message using
+class syntax XBase->errstr().
 
 The methods B<get_header_info> and B<dump_records> can be used to
 quickly view the content of the file, at least for now. Please speak
@@ -160,8 +160,7 @@ character fields on read.
 This is a code to update field MSG in record where ID is 123.
 
 	use XBase;
-	my $table = new XBase("test.dbf");
-	die $XBase::errstr unless defined $table;
+	my $table = new XBase("test.dbf") or die XBase->errstr();
 	for (0 .. $table->last_record())
 		{
 		my ($deleted, $id)
@@ -261,7 +260,7 @@ use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 $VERSION = "0.0341";
 
-$errstr = '';	# only after new, otherwise use method $table->errstr;
+$errstr = "Use of \$XBase::errstr is depreciated, please use XBase->errstr() instead\n";
 
 # If set, will cut off the spaces and nulls from ends of character fields
 $CLEARNULLS = 1;
@@ -275,7 +274,10 @@ sub new
 	{
 	my $class = shift;
 	my $result = $class->SUPER::new(@_);
-	$errstr = $XBase::Base::errstr unless $result;
+	###
+	### depreciated
+	### $errstr = $XBase::Base::errstr unless $result;
+	###
 	$result;
 	}
 sub open

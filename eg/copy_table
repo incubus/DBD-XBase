@@ -4,7 +4,7 @@ use strict;
 use XBase;
 
 my $dir = ( -d 't/' ? 't/' : '' );
-my $table = new XBase("${dir}test") or die $XBase::errstr;
+my $table = new XBase("${dir}test") or die XBase->errstr();
 
 my $jezek;
 $jezek = new XBase("jezek");
