@@ -6,27 +6,28 @@
 This is the README file for the XBase and DBD::XBase packages.
 
 Module XBase provides access to XBase (dBase, Fox*) database files,
-namely dbf, dbt, fpt. It provides native Perl interface to read and
-write the tables. The goal wasn't to write database engine but simply
-a parser, simple tool to read and write the data. If you are looking
-for something more powerfull, check (for example) MySQL or Postgres.
+namely dbf, dbt, fpt, ndx. It provides native Perl interface
+($table->get_record) to read and write the tables.
 
-The XBase module has a small read only support for ndx index files. It
-currently allows to to search directly to the record you want. But you
-cannot create the index, nor is the index updated when you change the
-dbf.
+Module DBD::XBase is DBI driver that uses XBase to actually access the
+data, giving you SQL interface ($dbh->prepare("SELECT * FROM TABLE").
+To use DBD::XBase, you need the DBI module -- please check the DBI(3)
+man page for how to use it. As an argument to connect, give
+"dbi:XBase:$dir", where $dir is directory with the data files.
 
-DBD::XBase is a database driver for Perl DBI interface. It talks to
-the XBase module that actually accesses the data. You need DBI module
-to use this database driver -- please check the DBI(3) man page on how
-to use it. As an argument to connect, give "dbi:XBase:$dir", where $dir
-is directory with the data files.
+No other servers/software are needed, these modules directly read and
+write the files. The main goal was to create a parser, mainly to work
+with data from your current applications. If you are looking for
+something more powerfull, check (for example) MySQL or PostgreSQL.
 
 The distribution also includes a dbfdump script that prints out the
 content of the table in readable form.
 
-Once more, this is a module to parse and update XBase files, not a db
-engine. It is provided in a hope you might find it usefull. My intent
+The support for ndx index files is rather minimal. It currently allows
+you to search directly to the record you want. But you cannot create
+the index, nor is the index updated when you change the dbf.
+
+This module is provided in a hope you might find it usefull. My intent
 is to support as many variations of formats as possible, but I do not
 have dBase/Fox* and do not plan to have, so send me examples of your
 data files if you feel your native XBase engines produce data
@@ -44,18 +45,40 @@ Installation:
 		make test
 		make install
 
-	or you can use CPAN module and just type "install XBase". You
-	have to have Perl version 5.004. You need a DBI module to use
-	the DBD driver.
+	or you can use CPAN module and do
+	
+		perl -MCPAN -e shell
+		cpan> install XBase
+		
+	You have to have Perl version 5.004. You need a DBI module to
+	use the DBD driver.
+
+	Some people asked whether it is possible to use the module
+	even if they do not have root access. Even if this is in
+	sufficiant detail coverend in the docs that come with Perl,
+	here's the process:
+
+	You install the module
+
+		perl Makefile.PL LIB=/your/directory \
+			INSTALLMAN1DIR=/path/for/man1 \
+			INSTALLMAN3DIR=/path/for/man3
+
+	instead of just perl Makefile.PL, and in your scripts do
+				   
+		use lib '/your/directory';
+		use XBase;
 
 Problems and bug reports:
 	If anything goes wrong when installing, please send me output
 	of your installation messages and of make test TEST_VERBOSE=1.
 	If there are errors when actually using the module on your
-	data, please send me the errstr messages and (if possible)
-	your data files that cause the problems, so that I can trace
-	down the problem. You can of course also send patches to
-	actual bugs.
+	data, please send me example of your script, the errstr
+	messages you get and (if possible) your data files that cause
+	the problems, so that I can trace down the problem. Add info
+	about your OS, version of Perl and other modules that might be
+	relevant.  You can of course also send patches to actual bugs.
+	Please mention word XBase in the Subject line.
 
 	Sending bug reports and patches to c.l.p.m is fine but send
 	a copy to me as well, since I might miss your post.

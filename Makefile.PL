@@ -27,6 +27,10 @@ WriteMakefile(
 	'NAME'		=> 'XBase',
 	'DISTNAME'	=> 'DBD-XBase',
 	'VERSION_FROM'	=> 'lib/XBase.pm',
+    ($] >= 5.005 ? (
+	'AUTHOR'	=> 'Jan Pazdziora (adelton@fi.muni.cz)',
+	'ABSTRACT'	=> 'Works with XBase (dbf) files, includes DBI support',
+		) : ()),
 	'PL_FILES'	=> { 'bin/dbfdump.PL' => 'bin/dbfdump' },
 	'EXE_FILES'	=> [ 'bin/dbfdump' ],
         'dist'		=> { COMPRESS => 'gzip -9f', SUFFIX => 'gz',

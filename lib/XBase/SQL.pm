@@ -8,12 +8,13 @@ package XBase::SQL;
 use strict;
 use vars qw( $VERSION $DEBUG %COMMANDS );
 
-$VERSION = '0.065';
+$VERSION = '0.068';
 $DEBUG = 0;
 
 # #################################
 # Type conversions for create table
-my %TYPES = ( 'char' => 'C', 'num' => 'N', 'numeric' => 'N', 'int' => 'N',
+my %TYPES = ( 'char' => 'C', 'varchar' => 'C',
+		'num' => 'N', 'numeric' => 'N', 'int' => 'N',
 		'integer' => 'N', 'float' => 'F', 'boolean' => 'L',
 		'blob' => 'M', 'memo' => 'M', 'date' => 'D' );
 
@@ -40,8 +41,8 @@ my %TYPES = ( 'char' => 'C', 'num' => 'N', 'numeric' => 'N', 'int' => 'N',
 	'FIELDNAME' =>	'[a-z_][a-z0-9_]*',
 	'NUMBER' => q'-?\d*\.?\d+',
 	'STRING' => [ qw{ STRINGDBL | STRINGSGL } ] ,
-	'STRINGDBL' => q' \\" (\\\\\\\\|\\\\"|[^\\"])* \\" ',
-	'STRINGSGL' => q! \\' (\\\\\\\\|\\\\'|[^\\'])* \\' !,
+	'STRINGDBL' => q' \\" (?:\\\\\\\\|\\\\"|[^\\"])* \\" ',
+	'STRINGSGL' => q! \\' (?:\\\\\\\\|\\\\'|[^\\'])* \\' !,
 
 # select fields
 
@@ -65,7 +66,8 @@ my %TYPES = ( 'char' => 'C', 'num' => 'N', 'numeric' => 'N', 'int' => 'N',
 	'BINDPARAM' => q'\?',
 	'NULL' => 'null',
 
-	'ORDERBY' => 'order by FIELDNAME',	# does nothing
+	'ORDERBY' => 'order by ORDERFIELDNAME',
+	'ORDERFIELDNAME' => 'FIELDNAME',
 
 # insert definitions
 
@@ -84,7 +86,7 @@ my %TYPES = ( 'char' => 'C', 'num' => 'N', 'numeric' => 'N', 'int' => 'N',
 	'COLUMNNAMETYPE' =>	'FIELDNAME FIELDTYPE',
 	'FIELDTYPE' =>	'TYPECHAR | TYPENUM | TYPEBOOLEAN | TYPEMEMO | TYPEDATE',
 	
-	'TYPECHAR' =>	'char ( \( TYPELENGTH \) ) ?',
+	'TYPECHAR' =>	' ( varchar | char ) ( \( TYPELENGTH \) ) ?',
 	'TYPENUM' =>	'( num | numeric | float | int | integer ) ( \( TYPELENGTH ( , TYPEDEC ) ? \) ) ?',
 	'TYPEDEC' =>	'\d+',
 
@@ -198,6 +200,8 @@ my %STORE = (
 	'BINDPARAM' => sub { my $self = shift; $self->{'numofbinds'}++ },
 	'where' => sub { my $self = shift;
 		$self->{'bindsbeforewhere'} = $self->{'numofbinds'}; },
+	
+	'ORDERFIELDNAME' => 'orderfield',
 	);
 
 sub parse

@@ -161,7 +161,7 @@ while (Testing()) {
     }
  
     Test($state or (($ref = $cursor->fetch)  &&  $id == 5  &&
- 		    !defined($name)))
+ 		    (!defined($name) or $name eq '')))
 	   or DbiError($dbh->err, $dbh->errstr);
     if (!$state && $verbose) {
 	print "Query returned id = $id, name = $name, ref = $ref, @$ref\n";

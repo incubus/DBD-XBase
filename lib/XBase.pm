@@ -1,5 +1,4 @@
 
-
 =head1 NAME
 
 XBase - Perl module for reading and writing the dbf files
@@ -19,7 +18,7 @@ use XBase::Base;		# will give us general methods
 use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
-$VERSION = '0.065';
+$VERSION = '0.068';
 $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 
 *errstr = \$XBase::Base::errstr;
@@ -168,17 +167,20 @@ sub init_memo_field
 	my $self = shift;
 	return $self->{'memo'} if defined $self->{'memo'};
 	require XBase::Memo;
+	my %options = ( 'dbf_version' => $self->{'version'},
+		'memosep' => $self->{'openoptions'}{'memosep'} );
+	
 	if (defined $self->{'openoptions'}{'memofile'})
-		{ return XBase::Memo->new($self->{'openoptions'}{'memofile'}); }
+		{ return XBase::Memo->new($self->{'openoptions'}{'memofile'}, %options); }
 	
 	my $memo;
 	my $memoname = $self->{'filename'};
 	$memoname =~ s/\.DBF$/.FPT/ or $memoname =~ s/(\.dbf)?$/.fpt/;
-	$memo = XBase::Memo->new($memoname, $self->{'version'}) and return $memo;
+	$memo = XBase::Memo->new($memoname, %options) and return $memo;
 	
 	$memoname = $self->{'filename'};
 	$memoname =~ s/\.DBF$/.DBT/ or $memoname =~ s/(\.dbf)?$/.dbt/;
-	$memo = XBase::Memo->new($memoname, $self->{'version'}) and return $memo;
+	$memo = XBase::Memo->new($memoname, %options) and return $memo;
 	return;
 	}
 # Close the file (and memo)
@@ -485,9 +487,6 @@ sub create
 	my $version = $options{'version'};
 	$version = 3 unless defined $version;
 
-	my $header = pack 'CCCCVvvvCCa12CCv', $version, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, '', 0, 0, 0;
-
 	my $key;
 	for $key ( qw( field_names field_types field_lengths field_decimals ) )
 		{
@@ -498,6 +497,7 @@ sub create
 			}
 		}
 
+	my $fieldspack = '';
 	my $record_len = 1;
 	my $i;
 	for $i (0 .. $#{$options{'field_names'}})
@@ -531,29 +531,40 @@ sub create
 			$decimal = int($length / 256);
 			$length %= 256;
 			}
-		$header .= pack 'a11a1VCCvCvCa7C', $name, $type, $offset,
+		$fieldspack .= pack 'a11a1VCCvCvCa7C', $name, $type, $offset,
 				$length, $decimal, 0, 0, 0, 0, '', 0;
+		if ($type eq 'M') { $version |= 0x80; }
 		}
-	$header .= "\x0d";
+	$fieldspack .= "\x0d";
 
-	substr($header, 8, 4) = pack "vv", (length $header), $record_len;
+	my $header = pack 'CCCCVvvvCCa12CCv', $version, 0, 0, 0, 0,
+		(32 + length $fieldspack), $record_len, 0, 0, 0, '', 0, 0, 0;
+	$header .= $fieldspack;
 
 	my $tmp = $class->new();
+	my $basename = $options{'name'};
+	$basename =~ s/\.dbf$//i;
 	my $newname = $options{'name'};
-	if (defined $newname and $newname !~ /\.dbf$/) { $newname .= ".dbf"; }
+	if (defined $newname and not $newname =~ /\.dbf$/)
+						{ $newname .= '.dbf'; }
 	$tmp->create_file($newname, 0700) or return;
 	$tmp->write_to(0, $header) or return;
 	$tmp->update_last_change();
 	$tmp->close();
 
-	if (grep { /^[MBGP]$/ } @{$options{'field_types'}})
+	if ($version & 0x80)
 		{
 		require XBase::Memo;
-		my $dbtname = $options{'name'};
-		$dbtname =~ s/\.DBF$/.DBT/ or $dbtname =~ s/(\.dbf)?$/.dbt/;
+		my $dbtname = $options{'memofile'};
+		if (not defined $dbtname)
+			{
+			$dbtname = $options{'name'};
+			$dbtname =~ s/\.DBF$/.DBT/ or $dbtname =~ s/(\.dbf)?$/.dbt/;
+			}
 		my $dbttmp = XBase::Memo->new();
 		$dbttmp->create('name' => $dbtname,
-			'version' => $options{'version'}) or return;
+			'version' => ($version & 15),
+			'dbf_filename' => $basename) or return;
 		}
 
 	return $class->new($options{'name'});
@@ -714,10 +725,16 @@ This method creates and initializes new object, will also check for
 memo file, if needed.
 
 The parameters can also be specified in the form of hash: values for
-B<name> is then the name of the table, other flags supported are
-B<memofile> to specify non standard name for the associated memo file
-and B<ignorememo> to ignore memo file at all. The second is usefull if
-you've lost the dbt file and you do not need it.
+B<name> is then the name of the table, other flags supported are:
+
+B<memofile> specifies non standard name for the associated memo file.
+By default it's the name of the dbf file, with extension dbt or fpt.
+
+B<ignorememo> ignore memo file at all. This is usefull if you've lost
+the dbt file and you do not need it. Default is false.
+
+B<memosep> separator of memo records in the dBaseIII dbt files,
+default C<"\x1a\x1a">.
 
     my $table = new XBase "table.dbf" or die XBase->errstr;
 	
@@ -992,7 +1009,7 @@ information about the file and about the fields.
 Module XBase::Base(3) defines some basic functions that are inherited
 by both XBase and XBase::Memo(3) module.
 
-=head1 MEMO FIELDS and INDEX FILES
+=head1 MEMO, INDEX, LOCKS
 
 If there is a memo field in the dbf file, the module tries to open
 file with the same name but extension dbt or fpt. It uses module
@@ -1004,18 +1021,22 @@ files. Please see the eg/use_index file in the distribution for
 examples and ideas. Send me examples of your data files and
 suggestions for interface if you need indexes.
 
+General locking methods are B<locksh>, B<lockex> and B<unlock> for
+shared lock, exclusive lock and unlock. They call flock but you can
+redefine then in XBase::Base package.
+
 =head1 INFORMATION SOURCE
 
 This module is built using information from and article XBase File
 Format Description by Erik Bachmann, URL
 
-    http://www.geocities.com/SiliconValley/Pines/2563/xbase.htm
+	http://www.e-bachmann.dk/docs/xbase.htm
 
 Thanks a lot.
 
 =head1 VERSION
 
-0.065
+0.068
 
 =head1 AUTHOR
 

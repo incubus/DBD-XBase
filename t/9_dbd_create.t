@@ -109,7 +109,7 @@ $dbh->disconnect();
 
 __DATA__
 Filename:	newtable.dbf
-Version:	0x03 (ver. 3)
+Version:	0x83 (ver. 3 with DBT file)
 Num of records:	0
 Header length:	193
 Record length:	41

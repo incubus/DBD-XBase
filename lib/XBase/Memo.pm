@@ -12,12 +12,13 @@ use XBase::Base;
 
 use vars qw( $VERSION @ISA );
 @ISA = qw( XBase::Base );
-$VERSION = '0.0632';
+$VERSION = '0.068';
 
 # Read header is called from open to fill the object structures
 sub read_header
 	{
-	my ($self, $dbf_version) = @_;
+	my $self = shift;
+	my %options = @_;
 
 	my $header;
 	$self->{'fh'}->read($header, 512) == 512 or do
@@ -34,6 +35,8 @@ sub read_header
 		{
 		($next_for_append, $version, $block_size)
 					= unpack 'V @16C @20v', $header;
+		my $dbf_version = $options{'dbf_version'};
+		$dbf_version = 15 unless defined $dbf_version;
 		if ((($dbf_version & 15) == 3) or $version == 3)
 			{
 			$block_size = 512;
@@ -51,6 +54,8 @@ sub read_header
 
 	@{$self}{ qw( next_for_append header_len record_len version ) }
 		= ( $next_for_append, 512, $block_size, $version );
+
+	$self->{'memosep'} = ( $options{'memosep'} or "\x1a\x1a" );
 
 	1;
 	}
@@ -80,8 +85,9 @@ sub create
 	my $version = $options{'version'};
 	$version = 3 unless defined $version;
 	$version = 0 if $version == 4;
-	my $header = 
-	$self->write_to(0, pack 'VVa8Ca495', 1, 0, '', $version) or return;
+	my $header = $self->write_to(0, pack 'VVa8Ca3va490', 1, 0,
+			$options{'dbf_filename'}, $version, '', 512, '')
+						or return;
 	$self->close();
 	return $self;
 	}
@@ -104,7 +110,7 @@ sub read_record
 	while ($num <= $last)
 		{
 		my $buffer = $self->SUPER::read_record($num, -1) or return;
-		my $index = index($buffer, "\x1a");
+		my $index = index($buffer, $self->{'memosep'});
 		if ($index >= 0)
 			{ return $result . substr($buffer, 0, $index); }
 		$result .= $buffer;
@@ -181,7 +187,7 @@ sub write_record
 	my $data = join "", @_;
 	my $length = length $data;
 
-	my $startfield = pack "CCCCV", "\xff", "\xff", "\x08", 0, $length;
+	my $startfield = "\xff\xff\x08\x00" . pack('V', $length);
 	if (ref $self eq 'XBase::Memo::Fox')
 		{
 		if ($type eq 'P')	{ $startfield = pack 'N', 0; }
@@ -191,7 +197,7 @@ sub write_record
 		}
 	$data = $startfield . $data . "\x1a\x1a";
 
-	if ($num <= $self->last_record() and $num != -1)
+	if ($num >= 0 and $num <= $self->last_record())
 		{
 		my $buffer = $self->read_record($num);
 		if (defined $buffer)
@@ -206,9 +212,7 @@ sub write_record
 				{ $num = $self->last_record() + 1; }
 			}
 		else
-			{
-			$num = $self->last_record() + 1;
-			}
+			{ $num = $self->last_record() + 1; }
 		}
 	$self->SUPER::write_record($num, $data);
 	$num;
@@ -245,7 +249,7 @@ specify their specific B<read_record> and B<write_record> methods.
 
 =head1 VERSION
 
-0.0632
+0.068
 
 =head1 AUTHOR
 

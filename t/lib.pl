@@ -232,6 +232,7 @@ sub DbiError ($$) {
     }
 }
 
+$verbose = 1;
 
 sub ErrMsg (@_) { if ($verbose) { print (@_); } }
 sub ErrMsgF (@_) { if ($verbose) { printf (@_); } }

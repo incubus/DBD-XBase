@@ -1,6 +1,38 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
+0.068 Thu Aug 20 18:43:17 MET DST 1998
+
+	DBD::XBase: added support for ORDER BY, defined using substh.
+
+	Fixed error by 1 in deleting all records.
+
+	Added support for NULLABLE, NUM_OF_PARAMS and TYPE in FETCH.
+
+	Defined data_sources to dbi:XBase:.; disconnect_all returns 1;
+	defined tables, disconnect and DESTROY; quote adds support for
+	NULL.
+
+	XBase: create now marks presence of a dbt file in dbf.
+
+	Added attribute nolongchars to disable character fields longer
+	than 255.
+
+	Erik Bachmann's homepage moved.
+
+	XBase::Memo: added suport for memosep attribute, default
+	\x1a\x1a. Correct header is now written for dBaseIV memo
+	files.
+
+	Fix of handling dBaseIV memo records, patch by Barry Fishman.
+
+	XBase::SQL: added ORDER BY support, recognizes VARCHAR.
+
+	In dbit/40blobs.t we only try blob size 64 -- fix for bug in
+	Perl regexp engine. Change in dbit/40bindparam.t, quick fix
+	for missing NULL chars. In dbit/50chopblanks.t swapped
+	$$ref[1] and $name.
+
 0.065 Sun Jun  7 15:18:57 MET DST 1998
 
 	Added table specific ChopBlanks. Added fetch_hashref to
