@@ -10,17 +10,16 @@ package XBase::SQL;
 use strict;
 use vars qw( $VERSION $DEBUG %COMMANDS );
 
-$VERSION = '0.051';
+$VERSION = '0.059';
 $DEBUG = 0;
 
 # ##################
 # Regexp definitions
 
 
-my %TYPES = ( 'char' => 'C', 'num' => 'N', 'boolean' => 'L', 'blob' => 'M',
-		'memo' => 'M', 'float' => 'N', 'date' => 'D' );
-my $FIELDTYPE = join('|', '(', keys %TYPES, ')') .
-				q!\s*(\(\s*(\d+)(\.(\d+))?\s*\))?\s*!;
+my %TYPES = ( 'char' => 'C', 'num' => 'N', 'numeric' => 'N',
+		'boolean' => 'L', 'blob' => 'M', 'memo' => 'M',
+		'float' => 'F', 'date' => 'D' );
 
 %COMMANDS = (
 	'COMMANDS' => 	' SELECT | INSERT | DELETE | UPDATE | CREATE ',
@@ -29,7 +28,7 @@ my $FIELDTYPE = join('|', '(', keys %TYPES, ')') .
 						\( INSERTCONSTANTS \) ',
 	'DELETE' =>	' delete from TABLE WHERE ? ',
 	'UPDATE' =>	' update TABLE set SETCOLUMNS WHERE ? ',
-	'CREATE' =>	q' create table TABLE \( COLUMNDEF \) ',
+	'CREATE' =>	q' create table TABLE \( COLUMNDEF ( , COLUMNDEF ) * \) ',
 
 	'TABLE' =>	q'\w+',
 	'FIELDNAME' =>	q'[a-z]+',
@@ -55,6 +54,16 @@ my $FIELDTYPE = join('|', '(', keys %TYPES, ')') .
 	
 	'SETCOLUMNS' => 'SETCOLUMN ( , SETCOLUMN ) *',
 	'SETCOLUMN' => 'FIELDNAME = ARITHMETIC',
+	
+	'TYPELENGTH' => q'\d+',
+	'TYPEDEC' => q'\d+',
+	'COLUMNDEF' => 'FIELDNAME FIELDTYPE',
+	'FIELDTYPE' => 'TYPECHAR | TYPENUM | TYPEBOOLEAN | TYPEMEMO | TYPEDATE',
+	'TYPECHAR' => q'char ( \( TYPELENGTH \) ) ?',
+	'TYPENUM' => q'( num | numeric | float ) ( \( TYPELENGTH ( , TYPEDEC ) ? \) ) ?',
+	'TYPEBOOLEAN' => q'boolean | logical',
+	'TYPEMEMO' => q'memo | blob',
+	'TYPEDATE' => q'date',
 	);
 
 my %STORE = (
@@ -80,11 +89,20 @@ my %STORE = (
 	'UPDATE SETCOLUMN FIELDNAME' => 'updatefields',
 	'UPDATE SETCOLUMN ARITHMETIC' => sub { my ($self, @expr) = @_;
 		my $line = "sub { my (\$TABLE, \$HASH) = \@_; my \$e = XBase::SQL::Expr->other( @expr ); \$e->value(); }";
-		print "Evaling $line\n";
+		### print "Evaling $line\n";
 		my $fn = eval $line;
 		if ($@) { push @{$self->{'updaterror'}}, $@; }
 		else { push @{$self->{'updaterror'}}, undef;
 			push @{$self->{'updatevalues'}}, $fn; }},
+
+	'CREATE' => sub { shift->{'command'} = 'create'; },
+	'CREATE TABLE' => 'table',
+	'CREATE COLUMNDEF FIELDNAME' => 'createfields',
+	'CREATE COLUMNDEF FIELDTYPE' => sub { my $self = shift;
+		my ($type, $len, $dec) = @_[0, 2, 4];
+		push @{$self->{'createtypes'}}, $TYPES{lc $type};
+		push @{$self->{'createlengths'}}, $len;
+		push @{$self->{'createdecimals'}}, $dec; },
 
 	'WHEREEXPR' => sub { my ($self, $expr) = @_;
 		### print "Evaling $expr\n";
@@ -101,7 +119,7 @@ my %SIMPLIFY = (
 	'NUMBER' => sub { my $e = (get_strings(@_))[0];
 					"XBase::SQL::Expr->number('\Q$e\E')"; },
 	'EXPFIELDNAME' => sub { my $e = (get_strings(@_))[0];
-					"XBase::SQL::Expr->field('\Q$e\E', \$TABLE, \$HASH)"; },
+					"XBase::SQL::Expr->field('$e', \$TABLE, \$HASH)"; },
 	'FIELDNAME' => sub { uc ((get_strings(@_))[0]); },
 	'WHEREEXPR' => sub { join ' ', get_strings(@_); },
 	'RELOP' => sub { my $e = (get_strings(@_))[0];
@@ -137,6 +155,8 @@ sub parse
 		{ $error = 1; $errstr = 'Extra characters in SQL command'; }
 	if ($error)
 		{
+		if (not defined $errstr)
+			{ $errstr = 'Error in SQL command'; }
 		substr($srest, 40) = '...' if length $srest > 44;
 		$self->{'errstr'} = "$errstr near `$srest'";
 		### print "$self->{'errstr'}\n";
@@ -237,6 +257,8 @@ sub match
 	if (@regexps and $regexps[0] eq '?' or $regexps[0] eq '*')
 		{ $modif = shift @regexps; }
 
+### { local $^W = 0; print "Match: $title: $modif; `@regexps' on string `$string'\n"; }
+
 	my @result;
 	my $i = 0;
 	while ($i < @regexps)
@@ -289,7 +311,7 @@ sub match
 		if (defined $modif and $modif eq '*' and $i >= @regexps)
 			{ $origstring = $string; $i = 0; }
 		}
-	
+
 	if (defined $title and defined $SIMPLIFY{$title})
 		{
 		my $m = $SIMPLIFY{$title};

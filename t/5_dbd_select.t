@@ -37,7 +37,7 @@ my $dbh = DBI->connect("dbi:XBase:$dir") or do
 print "ok 2\n";
 
 my $command = "select ID, MSG from test";
-print "Prepare command '$command'\n";
+print "Prepare command `$command'\n";
 my $sth = $dbh->prepare($command) or do
 	{
 	print $dbh->errstr();
@@ -79,9 +79,8 @@ print "ok 7\n";
 $sth->finish();
 
 
-$command = "select facility,roomname from rooms where
-				facility = 'Audio' or roomname > 'B'";
-print "Prepare command '$command'\n";
+$command = "select * from rooms where facility = 'Audio' or roomname > 'B'";
+print "Prepare command `$command'\n";
 $sth = $dbh->prepare($command) or do
 	{
 	print $dbh->errstr();
@@ -122,42 +121,42 @@ $dbh->disconnect();
 1;
 
 __DATA__
-Main Bay  1
-Main Bay 14
-Main Bay  2
-Main Bay  5
-Main Bay 11
-Main Bay  6
-Main Bay  3
-Main Bay  4
-Main Bay 10
-Main Bay  8
-Main Gigapix
-Main Bay 12
-Main Bay 15
-Main Bay 16
-Main Bay 17
-Main Bay 18
-Audio Mix A
-Audio Mix B
-Audio Mix C
-Audio Mix D
-Audio Mix E
-Audio ADR-Foley
-Audio Mach Rm
-Audio Transfer
-Main Bay 19
-Main Dub
-Audio Flambe
-Film FILM 1
-Film FILM 2
-Film FILM 3
-Film SCANNING
-Audio Mix F
-Audio Mix G
-Audio Mix H
-Film BullPen
-Film Celco
-Main MacGrfx
-Audio Mix J
-Main BAY 7
+Bay  1 Main
+Bay 14 Main
+Bay  2 Main
+Bay  5 Main
+Bay 11 Main
+Bay  6 Main
+Bay  3 Main
+Bay  4 Main
+Bay 10 Main
+Bay  8 Main
+Gigapix Main
+Bay 12 Main
+Bay 15 Main
+Bay 16 Main
+Bay 17 Main
+Bay 18 Main
+Mix A Audio
+Mix B Audio
+Mix C Audio
+Mix D Audio
+Mix E Audio
+ADR-Foley Audio
+Mach Rm Audio
+Transfer Audio
+Bay 19 Main
+Dub Main
+Flambe Audio
+FILM 1 Film
+FILM 2 Film
+FILM 3 Film
+SCANNING Film
+Mix F Audio
+Mix G Audio
+Mix H Audio
+BullPen Film
+Celco Film
+MacGrfx Main
+Mix J Audio
+BAY 7 Main

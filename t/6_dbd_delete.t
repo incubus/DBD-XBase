@@ -62,7 +62,7 @@ my $dbh = DBI->connect("dbi:XBase:$dir") or do
 print "ok 3\n";
 
 my $command = 'delete from write where facility != "Audio"';
-print "Prepare command '$command'\n";
+print "Prepare command `$command'\n";
 my $sth = $dbh->prepare($command) or do
 	{
 	print $dbh->errstr();

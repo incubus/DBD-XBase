@@ -44,7 +44,7 @@ The where condition si the same as for select.
 
 =head1 VERSION
 
-0.0394
+0.059
 
 =head1 AUTHOR
 
@@ -71,7 +71,7 @@ use vars qw($VERSION @ISA @EXPORT $err $errstr $drh);
 
 require Exporter;
 
-$VERSION = '0.0394';
+$VERSION = '0.059';
 
 $err = 0;
 $errstr = '';
@@ -226,23 +226,6 @@ sub execute
 			}
 		return 1;
 		}
-	elsif ($command eq 'create')
-		{
-		my $dbh = $sth->{'dbh'};
-		my $table = $parsed_sql->{'table'};
-		my $filename = $dbh->{'dsn'} . '/' . $table;
-		my $xbase = XBase->create('name' => $filename,
-			map { ($_, $parsed_sql->{$_}) }
-				grep { /^field_/ } keys %$parsed_sql);
-		
-		if (not defined $xbase)
-			{
-			### ${$sth->{'Err'}} = 10;
-			${$sth->{'Errstr'}} = XBase->errstr();
-			return;
-			}
-		$dbh->{'xbase_tables'}->{$table} = $xbase;	
-		}
 	elsif ($command eq 'update')
 		{
 		my $recno = 0;
@@ -280,6 +263,25 @@ sub execute
 			{
 			$xbase->set_record($last + 1, map { eval $_; } @values);
 			}
+		return 1;
+		}
+	elsif ($command eq 'create')
+		{
+		my $dbh = $sth->{'dbh'};
+		my $table = ${$parsed_sql->{'table'}}[0];
+		my $filename = $dbh->{'dsn'} . '/' . $table;
+		my $xbase = XBase->create('name' => $filename,
+			'field_names' => $parsed_sql->{'createfields'},
+			'field_types' => $parsed_sql->{'createtypes'},
+			'field_lengths' => $parsed_sql->{'createlengths'},
+			'field_decimals' => $parsed_sql->{'createdecimals'});
+		if (not defined $xbase)
+			{
+			### ${$sth->{'Err'}} = 10;
+			${$sth->{'Errstr'}} = XBase->errstr();
+			return;
+			}
+		$dbh->{'xbase_tables'}->{$table} = $xbase;	
 		return 1;
 		}
 	1;
