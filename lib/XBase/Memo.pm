@@ -20,10 +20,11 @@ sub read_header {
 	my %options = @_;
 
 	my $header;
-	$self->read($header, 512) == 512 or do {
+	my $read_h_len = $self->read($header, 512);
+	unless ($read_h_len == 512 or $read_h_len == 24) {
 		$self->Error("Error reading header of $self->{'filename'}: $!\n");
 		return;
-		};
+	};
 
 	my ($next_for_append, $block_size, $version);
 	my $filename = $self->{'filename'};
