@@ -38,7 +38,7 @@ sub open
 	$self->{'openoptions'} = { %options, @_ };
 
 	my %locoptions;
-	@locoptions{ qw( name readonly ignorememo ) } = @{$self->{'openoptions'}}{ qw( name readonly ignorememo ) };
+	@locoptions{ qw( name readonly ignorememo fh ) } = @{$self->{'openoptions'}}{ qw( name readonly ignorememo fh ) };
 	my $filename = $locoptions{'name'};
 	if ($filename eq '-')
 		{ return $self->SUPER::open(%locoptions); }

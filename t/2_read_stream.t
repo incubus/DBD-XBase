@@ -2,13 +2,14 @@
 
 use strict;
 
-BEGIN	{ $| = 1; print "1..3\n"; }
+BEGIN	{ $| = 1; print "1..5\n"; }
 END	{ print "not ok 1\n" unless $::XBaseloaded; }
 
 $^W = 1;
 
 print "Load the module: use XBase\n";
 use XBase;
+use IO::File;
 $::XBaseloaded = 1;
 print "ok 1\n";
 
@@ -38,6 +39,20 @@ my $records = join "\n", map {
 if ($records_expected ne $records)
 	{ print "Expected:\n$records_expected\nGot:\n$records\nnot "; }
 print "ok 3\n";
+
+print "And now will read a dbf from filehandle.\n";
+XBase::Base::SEEK_VIA_READ(0);
+my $fh = new IO::File "$dir/test.dbf";
+my $fhtable = new XBase("-", 'fh' => $fh, 'ignorememo' => 1);
+print XBase->errstr(), 'not ' unless defined $fhtable;
+print "ok 4\n";
+
+my $fhrecords = join "\n", map {
+	join ":", map { defined $_ ? $_ : "" } $table->get_record($_) }
+								( 0 .. 2 );
+if ($records_expected ne $fhrecords)
+	{ print "Expected:\n$records_expected\nGot:\n$fhrecords\nnot "; }
+print "ok 5\n";
 
 1;
 

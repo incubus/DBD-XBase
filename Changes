@@ -1,6 +1,9 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
+	XBase::Base::open: now allows option 'fh' to point to
+	IO::Scalar or generally any filehandle to be passed in.
+
 0.176 Thu Feb  8 13:19:16 MET 2001
 	DBD::XBase: select * with order by was failing, reported by
 	Filipe Luis Geschaeft

@@ -61,14 +61,23 @@ sub open
 	%options = (%options, @_);
 	if (defined $self->{'fh'}) { $self->close(); }
 
+	my $external_fh = 0;
 	my $fh = new IO::File;
 	my $rw;
 	
 	if ($options{'name'} eq '-')
 		{
-		$fh->fdopen(fileno(STDIN), 'r');
-		$self->{'stream'} = 1;
-		SEEK_VIA_READ(1);
+		if (defined $options{'fh'})
+			{
+			$fh = $options{'fh'};
+			$external_fh = 1;
+			}
+		else
+			{
+			$fh->fdopen(fileno(STDIN), 'r');
+			$self->{'stream'} = 1;
+			SEEK_VIA_READ(1);
+			}
 		$rw = 0;
 		}
 	else
@@ -91,7 +100,7 @@ sub open
 	$self->{'tell'} = 0 if $SEEK_VIA_READ;
 	$fh->autoflush();
 
-	binmode($fh);
+	binmode($fh) unless $external_fh;
 	@{$self}{ qw( fh filename rw ) } = ($fh, $options{'name'}, $rw);
 	## $self->locksh();
 
