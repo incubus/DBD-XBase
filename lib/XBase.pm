@@ -100,14 +100,14 @@ deleted flag has name _DELETED.
 
 =over 4
 
-=item write_record
+=item set_record
 
 As arguments, takes the number of the record and the list of values
 of the fields. It writes the record to the file. Unspecified fields
 (if you pass less than you should) are set to undef/empty. The record
 is undeleted.
 
-=item write_record_hash
+=item set_record_hash
 
 Takes number of the record and hash, sets the fields, unspecified are
 undeffed/emptied. The record is undeleted.
