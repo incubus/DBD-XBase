@@ -76,7 +76,7 @@ in the file.
 
 =head1 VERSION
 
-0.0293
+0.03
 
 =head1 AUTHOR
 
@@ -105,7 +105,7 @@ use Exporter;
 # ##############
 # General things
 
-$VERSION = "0.0293";
+$VERSION = "0.03";
 
 # Sets the debug level
 $DEBUG = 0;

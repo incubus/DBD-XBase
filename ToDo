@@ -9,6 +9,8 @@ Short term (I will do them):
 
 	Tests for create.
 
+	Create should not allow overwriting existing file, so we
+	probably need drop.
 
 Mid term (would appreciate help or comments):
 

@@ -215,9 +215,10 @@ package, but the interface seemed rather complicated to me and I also
 disliked the licence Pratap had about the module.
 
 So with the help of article XBase File Format Description by Erik
-Bachmann, URL ( http:// ... ), I have written a new module. It doesn't
-use any code from Xbase-1.07 and you are free to use and distribute it
-under the same terms as Perl itself.
+Bachmann, URL http://www.geocities.com/SiliconValley/Pines/2563/xbase.htm,
+I have written a new module. It doesn't use any code from Xbase-1.07
+and you are free to use and distribute it under the same terms as Perl
+itself.
 
 Please send all bug reports CC'ed to my e-mail, since I might miss
 your post in c.l.p.misc or dbi-users (or other groups). Any comments
@@ -226,7 +227,7 @@ dBase nor Fox*, so there are probably pieces missing.
 
 =head1 VERSION
 
-0.0293
+0.03
 
 =head1 AUTHOR
 
@@ -261,7 +262,7 @@ use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
 
-$VERSION = "0.0293";
+$VERSION = "0.03";
 
 $errstr = '';	# only after new, otherwise use method $table->errstr;
 

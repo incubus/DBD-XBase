@@ -16,7 +16,8 @@ Revision history for Perl extension XBase and DBD::Xbase.
 
 0.03 Mon Oct 27 23:23:17 MET 1997
 
-	Minor bug fixes. Tests extended. Module released on CPAN.
+	Minor bug fixes. XBase::create added. Tests extended. Module
+	released on CPAN.
 	
 	I have worked on DBD::XBase module a little but it's still now
 	usable.

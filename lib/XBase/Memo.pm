@@ -20,7 +20,7 @@ types and they specify B<read_record> and B<write_record> methods.
 
 =head1 VERSION
 
-0.0293
+0.03
 
 =head1 AUTHOR
 
@@ -46,7 +46,7 @@ use vars qw( $VERSION @ISA );
 @ISA = qw( XBase::Base );
 
 
-$VERSION = "0.0293";
+$VERSION = "0.03";
 
 sub read_header
 	{
