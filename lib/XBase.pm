@@ -538,6 +538,7 @@ sub process_list_on_read
 			}
 		elsif ($type eq 'N' or $type eq 'F')
 			{
+			next unless $value =~ /\d/;
 			my $len = $self->{'field_lengths'}[$num - 1];
 			my $dec = $self->{'field_decimals'}[$num - 1];
 			if ($dec)
