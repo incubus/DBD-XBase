@@ -80,12 +80,12 @@ Record length:	279
 Last change:	1996/8/17
 Num fields:	5
 Field info:
-	Name		Type	Len	Decimal
-	ID              N       5       0       
-	MSG             C       254     0       
-	NOTE            M       10      0       
-	BOOLEAN         L       1       0       
-	DATES           D       8       0       
+Num	Name		Type	Len	Decimal
+1.	ID              N       5       0       
+2.	MSG             C       254     0       
+3.	NOTE            M       10      0       
+4.	BOOLEAN         L       1       0       
+5.	DATES           D       8       0       
 EOF
 
 print "Got\n", $verinfo;

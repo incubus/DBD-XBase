@@ -401,7 +401,7 @@ Record length:	$self->{'record_len'}
 Last change:	$printdate
 Num fields:	$numfields
 Field info:
-	Name		Type	Len	Decimal
+Num	Name		Type	Len	Decimal
 EOF
 	return join "", $result, map { $self->get_field_info($_) }
 					(0 .. $self->last_field());
@@ -411,8 +411,9 @@ EOF
 sub get_field_info
 	{
 	my ($self, $num) = @_;
-	sprintf "\t%-16.16s%-8.8s%-8.8s%-8.8s\n", map { $self->{$_}[$num] }
-		qw( field_names field_types field_lengths field_decimals );
+	sprintf "%d.\t%-16.16s%-8.8s%-8.8s%-8.8s\n", $num + 1,
+		map { $self->{$_}[$num] }
+			qw( field_names field_types field_lengths field_decimals );
 	}
 
 # Returns last_change item in printable string

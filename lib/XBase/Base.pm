@@ -306,7 +306,9 @@ sub read_record
 	if (defined $self->{'unpack_template'})
 		{
 		my @data = unpack $self->{'unpack_template'}, $buffer;
+
 		$self->{'cached_data'} = [ @data ];
+
 		return @data;
 		}
 	else
