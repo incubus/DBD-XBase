@@ -202,7 +202,7 @@ sub write_record
 		my $buffer = $self->read_record($num);
 		if (defined $buffer)
 			{
-			my $length = length $buffer;
+			my $length = (length $buffer) - 8;
 			my $record_len = $self->{'record_len'};
 			my $space_in_blocks =
 				int (($length + $record_len - 11) / $record_len);

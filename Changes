@@ -1,6 +1,14 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
+0.0694 Tue Aug 25 23:24:35 MET DST 1998
+
+	XBase::Memo: Fixed error by 8 in dBaseIV readingwriting code,
+	bug reported by Kendal Van Dyke.
+
+	t/5_dbd_select.t changed to be non-unique-key in sort
+	independent, reported by Larry W. Virden.
+
 0.0693 Tue Aug 25 10:25:20 MET DST 1998
 
 	DBD::XBase: Fixed handling ORDER BY with WHERE clauses,
