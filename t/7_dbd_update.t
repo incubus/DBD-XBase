@@ -13,7 +13,7 @@ BEGIN	{
 		print "ok 1\n";
 		exit;
 		}
-	print "1..7\n";
+	print "1..10\n";
 	print "DBI loaded\n";
 	}
 
@@ -36,15 +36,15 @@ if (-f "$dir/write.dbf")
 print "We will make a copy of database files rooms.dbf\n";
 
 eval "use File::Copy;";
-if ($@)
-	{
-	print "Look's like you do not have File::Copy, we will do cp\n";
-	system("cp", "$dir/rooms.dbf", "$dir/write.dbf");
-	}
-else
+unless ($@) 
 	{
 	print "Will use File::Copy\n";
 	copy("$dir/rooms.dbf", "$dir/write.dbf");
+	}
+else
+	{
+	print "Look's like you do not have File::Copy, we will do cp\n";
+	system("cp", "$dir/rooms.dbf", "$dir/write.dbf");
 	}
 
 unless (-f "$dir/write.dbf")
@@ -78,6 +78,7 @@ $sth->execute() or do
 	print "not ok 5\n";
 	exit;
 	};
+$sth->finish();
 print "ok 5\n";
 
 print "And now we should check if it worked\n";
@@ -105,7 +106,10 @@ while (@data = $select->fetchrow_array())
 	{ $result .= "@data\n"; }
 
 
-my $expected_result = join '', <DATA>;
+my $expected_result = '';
+my $line;
+while (defined($line = <DATA>))
+	{ last if $line eq "__END_DATA__\n"; $expected_result .= $line; }
 
 if ($result ne $expected_result)
 	{
@@ -115,7 +119,34 @@ if ($result ne $expected_result)
 	}
 print "ok 7\n";
 
-$sth->finish();
+
+my $bindupdate = 'update write set roomname = ?, facility = ? where facility = ? and roomname = ?';
+print "Now prepare update with bind parameters\nCommand: $bindupdate\n";
+my $sth2 = $dbh->prepare($bindupdate) or print $dbh->errstr(), 'not ';
+print "ok 8\n";
+
+print "Execute it with 'Jezek', 'Krtek', 'Film', 'ABC'\n";
+$sth2->execute('Jezek', 'Krtek', 'Film', 'ABC') or print $sth2->errstr(), 'not ';
+print "ok 9\n";
+
+
+print "Now check the result back\n";
+my $select2 = $dbh->prepare('select * from write');
+$select2->execute();
+my $result2 = join '', map { "@$_\n" } @{ $select2->fetchall_arrayref };
+
+$expected_result = '';
+while (defined($line = <DATA>))
+	{ last if $line eq "__END_DATA__\n"; $expected_result .= $line; }
+
+if ($result2 ne $expected_result)
+	{
+	print "Expected:\n$expected_result";
+	print "Got:\n$result2";
+	print "not ";
+	}
+print "ok 10\n";
+
 $dbh->disconnect();
 
 1;
@@ -158,6 +189,49 @@ Mix G Audio
 Mix H Audio
 ABC Film
 ABC Film
+ABC Main
+Mix J Audio
+ABC Main
+ABC Main
+ABC 
+__END_DATA__
+ABC 
+ABC Main
+ABC Main
+ABC Main
+ABC Main
+ABC Main
+ABC Main
+ABC Main
+ABC Main
+ABC Main
+ABC Main
+ABC Main
+ABC Main
+ABC Main
+ABC Main
+ABC Main
+ABC Main
+Mix A Audio
+Mix B Audio
+Mix C Audio
+Mix D Audio
+Mix E Audio
+ADR-Foley Audio
+Mach Rm Audio
+Transfer Audio
+ABC Main
+ABC Main
+Flambe Audio
+Jezek Krtek
+Jezek Krtek
+Jezek Krtek
+Jezek Krtek
+Mix F Audio
+Mix G Audio
+Mix H Audio
+Jezek Krtek
+Jezek Krtek
 ABC Main
 Mix J Audio
 ABC Main

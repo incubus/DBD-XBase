@@ -19,8 +19,6 @@ $test_password = '';
 #   Include lib.pl
 #
 require DBI;
-### DBI->trace(2);
-### $verbose = 1;
 use vars qw($COL_NULLABLE);
 $mdriver = "";
 foreach $file ("lib.pl", "t/lib.pl") {

@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/local/bin/perl
 #
 #   $Id: 20createdrop.t 1.1 Tue, 30 Sep 1997 01:28:08 +0200 joe $
 #
@@ -10,7 +10,6 @@ use strict;
 use vars qw($test_dsn $test_user $test_password $mdriver $dbdriver);
 $DBI::errstr = '';  # Make -w happy
 require DBI;
-### DBI->trace(2);
 
 
 #

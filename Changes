@@ -1,6 +1,13 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
+0.065 Sun Jun  7 15:18:57 MET DST 1998
+
+	Added table specific ChopBlanks. Added fetch_hashref to
+	XBase::Dursor.
+
+	Docs updated.
+
 0.064 Sun May 31 18:56:26 MET DST 1998		(*****)
 
 	Major rewrite of the DBD and SQL part. New features:
@@ -192,4 +199,23 @@ Revision history for Perl extension XBase and DBD::Xbase.
 
 Note: Versions with (*****) tag were major updates and included code
 and/or internal methods rewrite.
+
+---
+
+I have been using the Xbase(3) module by Pratap Pereira for quite
+a time to read the dbf files, but it had no writing capabilities, it
+was not use strict clean and the author did not support the module
+behind the version 1.07. So I started to make my own patches and
+thought it would be nice if other people could make use of them.
+I thought about taking over the development of the original Xbase
+package, but the interface seemed rather complicated to me.
+
+So with the help of article XBase File Format Description by Erik
+Bachmann on URL
+
+    http://www.geocities.com/SiliconValley/Pines/2563/xbase.htm
+
+I have written a new module. It doesn't use any code from Xbase-1.07
+and you are free to use and distribute it under the same terms as Perl
+itself.
 

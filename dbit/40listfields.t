@@ -14,7 +14,6 @@ $test_user = '';
 $test_password = '';
 $COL_KEY = '';
 
-$verbose = 1;
 
 #
 #   Include lib.pl
@@ -71,6 +70,7 @@ while (Testing()) {
 		    $dbh->do($def)))
 	   or DbiError($dbh->err, $dbh->errstr);
 
+
     Test($state or $cursor = $dbh->prepare("SELECT * FROM $table"))
 	   or DbiError($dbh->err, $dbh->errstr);
 
@@ -99,8 +99,6 @@ while (Testing()) {
 		    &&  !($$ref[0] xor ($table_def[0][3] & $COL_NULLABLE))
 		    &&  !($$ref[1] xor ($table_def[1][3] & $COL_NULLABLE)))
 	   or DbiError($cursor->err, $cursor->errstr);
-  
-
     if (!$state && $verbose) {
 	print "Nullable:\n";
 	for ($i = 0;  $i < @$ref;  $i++) {

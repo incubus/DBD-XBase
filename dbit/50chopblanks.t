@@ -80,7 +80,6 @@ while (Testing()) {
     #
     #   and here's the right place for inserting new tests:
     #
-    DBI->trace(0);
     my @rows = ([1, ''],
 		[2, ' '],
 		[3, ' a b c ']);
@@ -116,7 +115,7 @@ while (Testing()) {
 	Test($state or $sth->finish());
 
 	# Now try to retreive with chopping blanks.
-	### $sth->{'ChopBlanks'} = 1;
+	$sth->{'ChopBlanks'} = 1;
 	Test($state or $sth->execute)
 	    or ErrMsg("execute failed: query $query, error %s.\n",
 		      $sth->errstr);

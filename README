@@ -11,10 +11,10 @@ write the tables. The goal wasn't to write database engine but simply
 a parser, simple tool to read and write the data. If you are looking
 for something more powerfull, check (for example) MySQL or Postgres.
 
-The XBase module doesn't currently make use of index files and
-doesn't write them. So if you change your data files that have
-attached index files, you need to regenerate them using other software,
-probably one that supports them.
+The XBase module has a small read only support for ndx index files. It
+currently allows to to search directly to the record you want. But you
+cannot create the index, nor is the index updated when you change the
+dbf.
 
 DBD::XBase is a database driver for Perl DBI interface. It talks to
 the XBase module that actually accesses the data. You need DBI module
@@ -45,8 +45,8 @@ Installation:
 		make install
 
 	or you can use CPAN module and just type "install XBase". You
-	really should have 5.004 to run cool. You need a DBI module to
-	use the DBD driver.
+	have to have Perl version 5.004. You need a DBI module to use
+	the DBD driver.
 
 Problems and bug reports:
 	If anything goes wrong when installing, please send me output

@@ -8,14 +8,14 @@ package XBase::SQL;
 use strict;
 use vars qw( $VERSION $DEBUG %COMMANDS );
 
-$VERSION = '0.064';
+$VERSION = '0.065';
 $DEBUG = 0;
 
 # #################################
 # Type conversions for create table
 my %TYPES = ( 'char' => 'C', 'num' => 'N', 'numeric' => 'N', 'int' => 'N',
-		'integer' => 'N', 'float' => 'N', 'boolean' => 'L',
-		'blob' => 'M', 'memo' => 'M', 'float' => 'F', 'date' => 'D' );
+		'integer' => 'N', 'float' => 'F', 'boolean' => 'L',
+		'blob' => 'M', 'memo' => 'M', 'date' => 'D' );
 
 # ##################
 # Regexp definitions
@@ -122,7 +122,7 @@ my %SIMPLIFY = (
 	'NUMBER' => sub { my $e = (get_strings(@_))[0];
 				"XBase::SQL::Expr->number($e)"; },
 	'EXPFIELDNAME' => sub { my $e = (get_strings(@_))[0];
-				"XBase::SQL::Expr->field('$e', \$TABLE, \$HASH)"; },
+				"XBase::SQL::Expr->field('$e', \$TABLE, \$VALUES)"; },
 	'BINDPARAM' => 'XBase::SQL::Expr->string($BIND->[$startbind++])',
 	'FIELDNAME' => sub { uc ((get_strings(@_))[0]); },
 	'WHEREEXPR' => sub { join ' ', get_strings(@_); },
@@ -170,7 +170,7 @@ my %STORE = (
 			$list .= shift(@_) . ', ';
 			shift @_;
 			}
-		my $fntext = 'sub { my ($TABLE, $BIND, $startbind) = @_; map { $_->value() } ' . $list . ' }';
+		my $fntext = 'sub { my ($TABLE, $VALUES, $BIND, $startbind) = @_; map { $_->value() } ' . $list . ' }';
 		my $fn = eval $fntext;
 		if ($@) { $self->{'updateerror'} = $@; }
 		else { $self->{'updatefn'} = $fn; }
@@ -189,10 +189,15 @@ my %STORE = (
 	'TABLE' => 'table',
 
 	'WHEREEXPR' => sub { my ($self, $expr) = @_;
-		my $fn = eval 'sub { my ($TABLE, $HASH, $BIND, $startbind) = @_; ' . $expr . '; }';
+		my $fn = eval 'sub { my ($TABLE, $VALUES, $BIND, $startbind) = @_; ' . $expr . '; }';
 		if ($@) { $self->{'whereerror'} = $@; }
 		else { $self->{'wherefn'} = $fn; }
 		},
+	
+	'FIELDNAME' => 'usedfields',
+	'BINDPARAM' => sub { my $self = shift; $self->{'numofbinds'}++ },
+	'where' => sub { my $self = shift;
+		$self->{'bindsbeforewhere'} = $self->{'numofbinds'}; },
 	);
 
 sub parse
@@ -221,66 +226,6 @@ sub parse
 		### print STDERR Dumper $self;
 		}
 	$self;
-	}
-sub store_results
-	{
-	my ($self, $result, $store) = @_;
-
-	my $i = 0;
-	while ($i < @$result)
-		{
-		my ($key, $match) = @{$result}[$i, $i + 1];
-		my $stval = $store->{$key};
-		if (defined $stval)
-			{
-			my @result;
-			if (ref $match) { @result = get_strings($match); }
-			else { @result = $match; }
-			if (ref $stval eq 'CODE')
-				{ &{$stval}($self, @result); }
-			else
-				{ push @{$self->{$stval}}, @result; }
-			}
-		if (ref $match)
-			{
-			$self->store_results($match, $store);
-			}
-		$i += 2;
-		}
-	}
-#
-#
-sub get_strings
-	{
-	my @strings = @_;
-	if (@strings == 1 and ref $strings[0])
-		{ @strings = @{$strings[0]}; }
-	my @result;	my $i = 1;
-	while ($i < @strings)
-		{
-		if (ref $strings[$i])
-			{ push @result, get_strings($strings[$i]); }
-		else
-			{ push @result, $strings[$i]; }
-		$i += 2;
-		}
-	@result;
-	}
-sub print_result
-	{
-	my $result = shift;
-	my @result = @$result;
-	my @before = @_;
-	my $i = 0;
-	while ($i < @result)
-		{
-		my ($regexp, $string) = @result[$i, $i + 1];
-		if (ref $string)
-			{ print_result($string, @before, $regexp); }
-		else
-			{ print "$string:\t @before $regexp\n"; }
-		$i += 2;
-		}
 	}
 sub match
 	{
@@ -356,11 +301,6 @@ sub match
 			{ $origstring = $string; $i = 0; }
 		}
 
-	if (defined $title and defined $SIMPLIFY{$title})
-		{
-		my $m = $SIMPLIFY{$title};
-		@result = (( ref $m eq 'CODE' ) ? &{$m}(\@result) : $m);
-		}
 	return ($string, undef, undef, @result);
 	}
 
@@ -396,6 +336,76 @@ sub expand
 		$i++;
 		}
 	@result;
+	}
+sub store_results
+	{
+	my ($self, $result) = @_;
+
+	my $i = 0;
+	while ($i < @$result)
+		{
+		my ($key, $match) = @{$result}[$i, $i + 1];
+		my $stval = $STORE{$key};
+		my $m = $SIMPLIFY{$key};
+
+		if (ref $match)
+			{ $self->store_results($match); }
+		if (defined $m)
+			{
+			my @result = (( ref $m eq 'CODE' ) ? &{$m}( ref $match ? @$match : $match) : $m);
+			if (@result == 1)
+				{ $match = $result[0]; }
+			else
+				{ $match = [ @result ]; }
+			$result->[$i + 1] = $match;	
+			}
+
+		if (defined $stval)
+			{
+			my @result;
+			if (ref $match) { @result = get_strings($match); }
+			else { @result = $match; }
+			if (ref $stval eq 'CODE')
+				{ &{$stval}($self, @result); }
+			else
+				{ push @{$self->{$stval}}, @result; }
+			}
+		$i += 2;
+		}
+	}
+#
+#
+sub get_strings
+	{
+	my @strings = @_;
+	if (@strings == 1 and ref $strings[0])
+		{ @strings = @{$strings[0]}; }
+	my @result;	my $i = 1;
+	while ($i < @strings)
+		{
+		if (ref $strings[$i])
+			{ push @result, get_strings($strings[$i]); }
+		else
+			{ push @result, $strings[$i]; }
+		$i += 2;
+		}
+	@result;
+	}
+sub print_result
+	{
+	my $result = shift;
+	my @result = @$result;
+	my @before = @_;
+	my $i = 0;
+	while ($i < @result)
+		{
+		my ($regexp, $string) = @result[$i, $i + 1];
+		if (ref $string)
+			{ print_result($string, @before, $regexp); }
+		else
+			{ print "$string:\t @before $regexp\n"; }
+		$i += 2;
+		}
 	}
 
 
@@ -497,6 +507,7 @@ sub lesseq
 sub notequal
 	{
 	my ($self, $other) = @_;
+	local $^W = 0;
 	if (defined $self->{'string'} or defined $other->{'string'})
 		{ ($self->value ne $other->value); }
 	else

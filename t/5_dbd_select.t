@@ -102,7 +102,7 @@ print "And now get the result\n";
 
 $result = '';
 while (@line = $sth->fetchrow_array())
-	{ $result .= "@line\n"; }
+	{ print "@line\n"; $result .= "@line\n"; }
 
 
 my $expected_result = join '', <DATA>;

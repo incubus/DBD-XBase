@@ -159,6 +159,7 @@ sub new
 	}
 sub get_key_val
 	{
+	local $^W = 0;
 	my ($self, $num) = @_;
 	my $printkey = $self->{'keys'}[$num];
 	$printkey =~ s/\s+$//;

@@ -3,21 +3,18 @@ This is the to-do list for the XBase and DBD::XBase packages:
 
 Short term (I will do them as my time allows):
 
-	Solve the memo position caching.
-
-	Bind params in DBD::XBase/XBase::SQL to support as much of the
-	generic DBI test suite as possible.
+	When creating table, have option to specify version.
 
 Mid term (would appreciate help or comments):
 
-	Work on ndx index type.
+	Solve the memo position caching.
 
-	Check DBD::XBase, make it DBI 0.93 compliant.
+	Add support for other index types.
 
 Long term (it really depends on many things, mainly whether other
 people will demand the feature):
 
-	Indexing.
+	Add index support to DBD::XBase (once we have mdx, probably).
 
 --
 

@@ -75,7 +75,7 @@ while (Testing()) {
     Test($state or $table = FindNewTable($dbh))
 	   or DbiError($dbh->error, $dbh->errstr);
 
-    foreach $size (127) {
+    foreach $size (128) {
 	#
 	#   Create a new table
 	#
@@ -139,7 +139,7 @@ while (Testing()) {
 	#
 	#   Finally drop the test table.
 	#
-	Test($state or $dbh->do("SELECT * from $table"))
+	Test($state or $dbh->do("DROP TABLE $table"))
 	       or DbiError($dbh->err, $dbh->errstr);
     }
 }

@@ -1,4 +1,4 @@
-# #######################################################
+
 
 =head1 NAME
 
@@ -9,9 +9,9 @@ XBase - Perl module for reading and writing the dbf files
 # ############
 package XBase;
 
-use 5.004;		# Yes, 5.004 and everything should be fine
+use 5.004;
 use strict;
-use XBase::Base;	# will give us general methods
+use XBase::Base;		# will give us general methods
 
 # ##############
 # General things
@@ -19,7 +19,7 @@ use XBase::Base;	# will give us general methods
 use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
-$VERSION = '0.0641';
+$VERSION = '0.065';
 $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 
 *errstr = \$XBase::Base::errstr;
@@ -44,7 +44,7 @@ sub open
 			return $self->SUPER::open($filename.$ext);
 			}
 		}
-	return $self->SUPER::open($filename);
+	return $self->SUPER::open($filename);	# for nice error message
 	}
 # We have to provide way to fill up the object upon open
 sub read_header
@@ -83,7 +83,8 @@ sub read_header
 			# fixup for char length > 256
 			$length += 256 * $decimal; $decimal = 0;
 			$rproc = sub { my $value = shift;
-				$value =~ s/\s+$// if $CLEARNULLS;
+				if ($self->{'ChopBlanks'})
+					{ $value =~ s/\s+$//; } ### $value =~ s/^\s+//; }
 				return $value;
 				( $value eq '' ? undef : $value ); };
 			$wproc = sub { my $value = shift;
@@ -98,7 +99,7 @@ sub read_header
 				undef; };
 			$wproc = sub { my $value = shift;
 				sprintf '%-*.*s', $length, $length,
-					(defined $value ? ( $value ? 'Y' : 'N') : '? '); };
+					(defined $value ? ( $value ? 'T' : 'F') : '?'); };
 			}
 		elsif ($type =~ /^[NFD]$/)	# numbers, dates
 			{
@@ -108,7 +109,7 @@ sub read_header
 				if (defined $value) { sprintf '%*.*f', $length, $decimal, ($value + 0); }
                                 else { ' ' x $length; } };
 			}
-		elsif ($type eq 'I')		# For integer?
+		elsif ($type eq 'I')		# Fox integer
 			{
 			$rproc = sub { unpack 'V', shift; };
 			$wproc = sub { pack 'V', shift; };
@@ -154,10 +155,10 @@ sub read_header
 			# now it's the time to store the values to the object
 	@{$self}{ qw( field_names field_types field_lengths field_decimals
 		hash_names last_field field_unpacks
-		field_rproc field_wproc ) } =
+		field_rproc field_wproc ChopBlanks) } =
 			( $names, $types, $lengths, $decimals,
 			$hashnames, $#$names, $unpacks,
-			$readproc, $writeproc );
+			$readproc, $writeproc, $CLEARNULLS );
 
 	1;	# return true since everything went fine
 	}
@@ -591,25 +592,32 @@ sub unlock
 	}
 
 #
-# Attempt for cursory select
+# Cursory select
 #
 
 sub prepare_select
 	{
 	my $self = shift;
-	my $fieldnums = [ map { $self->field_name_to_num($_); } @_ ];
-	return bless [ $self, undef, $fieldnums ], 'XBase::Cursor';
+	my $fieldnames = [ @_ ];
+	if (not @_) { $fieldnames = [ $self->field_names ] };
+	my $fieldnums = [ map { $self->field_name_to_num($_); } @$fieldnames ];
+	return bless [ $self, undef, $fieldnums, $fieldnames ], 'XBase::Cursor';
+		# object, recno, field numbers, field names
 	}
 
 sub prepare_select_with_index
 	{
 	my ($self, $file) = ( shift, shift );
-	my $fieldnums = [ map { $self->field_name_to_num($_); } @_ ];
+	my $fieldnames = [ @_ ];
+	if (not @_) { $fieldnames = [ $self->field_names ] };
+	my $fieldnums = [ map { $self->field_name_to_num($_); } @$fieldnames ];
 	require XBase::Index;
 	my $index = new XBase::Index $file or
 		do { $self->Error(XBase->errstr); return; };
 	$index->prepare_select;
-	return bless [ $self, $index, $fieldnums ], 'XBase::IndexCursor';
+	return bless [ $self, undef, $fieldnums, $fieldnames, $index ],
+							'XBase::IndexCursor';
+		# object, recno, field numbers, field names, index file
 	}
 
 package XBase::Cursor;
@@ -617,49 +625,54 @@ package XBase::Cursor;
 sub fetch
 	{
 	my $self = shift;
-	my ($xbase, $recno, $fieldnums) = @{$self}[0 .. 2];
+	my ($xbase, $recno, $fieldnums, $fieldnames) = @$self;
 	if (defined $recno) { $recno++; }
 	else { $recno = 0; }
 	my $lastrec = $xbase->last_record;
 	while ($recno <= $lastrec)
 		{
 		my ($del, @result) = $xbase->get_record_nf($recno, @$fieldnums);
-		if (not $del)
-			{
-			$self->[1] = $recno;
-			return @result;
-			}
+		if (@result and not $del)
+			{ $self->[1] = $recno; return @result; }
 		$recno++;
 		}
 	return;
 	}
+sub fetch_hashref
+	{
+	my $self = shift;
+	my @data = $self->fetch;
+	my $hashref = {};
+	if (@data)
+		{ @{$hashref}{ @{$self->[3]} } = @data; return $hashref; }
+	return;
+	}
 sub last_fetched
 	{ shift->[1]; }
+sub table
+	{ shift->[0]; }
 
 package XBase::IndexCursor;
+use vars qw( @ISA );
+@ISA = qw( XBase::Cursor );
 
 sub find_eq
 	{
 	my $self = shift;
-	$self->[1]->prepare_select_eq(shift);
+	$self->[4]->prepare_select_eq(shift);
 	}
-
 sub fetch
 	{
 	my $self = shift;
-	my ($xbase, $index, $fieldnums) = @{$self}[0 .. 2];
-	my ($key, $val) = $index->fetch;
-	return unless defined $val;
-	my $del = 1;
-	my @result;
-	while ($del)
+	my ($xbase, $recno, $fieldnums, $fieldnames, $index) = @$self;
+	my ($key, $val);
+	while (($key, $val) = $index->fetch)
 		{
-		($del, @result) = $xbase->get_record_nf($val - 1, @$fieldnums);
-		last unless @result;
+		my ($del, @result) = $xbase->get_record_nf($val - 1, @$fieldnums);
+		unless ($del) { $self->[1] = $val; return @result; }
 		}
-	@result;
+	return;
 	}
-
 
 1;
 
@@ -669,8 +682,7 @@ __END__
 
   use XBase;
   my $table = new XBase "dbase.dbf" or die XBase->errstr;
-  for (0 .. $table->last_record)
-	{
+  for (0 .. $table->last_record) {
 	my ($deleted, $id, $msg)
 		= $table->get_record($_, "ID", "MSG");
 	print "$id:\t$msg\n" unless $deleted;
@@ -681,14 +693,11 @@ __END__
 This module can read and write XBase database files, known as dbf in
 dBase and FoxPro world. It also reads memo fields from the dbt and fpt
 files, if needed. Module XBase provides simple native interface to
-XBase files. For DBI compliant database access, check the DBD::XBase
+XBase files. For DBI compliant database access, see the DBD::XBase
 and DBI modules.
 
-B<Warning> for now: XBase doesn't support any index files at present!
-That means if you change your dbf, your ndx/mdx (if you have any) will
-not match. You will need to regenerate them using other tools --
-probably those that later make use of them. If you do not have any
-indexes, do not worry about them.
+B<New:> Currently, there is an alpha support for ndx index files
+available.
 
 The following methods are supported by XBase module:
 
@@ -698,20 +707,26 @@ The following methods are supported by XBase module:
 
 =item new
 
-Creates the XBase object, loads the info form the dbf file. The first
-parameter should be the name of existing dbf file (table, in fact) to
-read. A suffix .dbf will be appended if needed. This method creates and
-initializes new object, will also check for memo file, if needed.
+Creates the XBase object, loads the info about the table form the dbf
+file. The first parameter should be the name of existing dbf file
+(table, in fact) to read. A suffix .dbf will be appended if needed.
+This method creates and initializes new object, will also check for
+memo file, if needed.
 
 The parameters can also be specified in the form of hash: values for
 B<name> is then the name of the table, other flags supported are
 B<memofile> to specify non standard name for the associated memo file
 and B<ignorememo> to ignore memo file at all. The second is usefull if
-you've lost the dbt file somewhere and you do not need it.
+you've lost the dbt file and you do not need it.
+
+    my $table = new XBase "table.dbf" or die XBase->errstr;
+	
+    my $table = new XBase "name" => "table.dbf",
+					"ignorememo" => 1;
 
 =item close
 
-Closes the object/file.
+Closes the object/file, no arguments.
 
 =item create
 
@@ -729,6 +744,14 @@ to list: B<field_names>, B<field_types>, B<field_lengths> and
 B<field_decimals>. The field types are specified by one letter
 strings (C, N, L, D). If you set some value as undefined, create will
 make it into some reasonable default.
+
+    my $newtable = $table->create("name" => "copy.dbf");
+	
+    my $newtable = XBase->create("name" => "copy.dbf",
+		"field_names" => [ "ID", "MSG" ],
+		"field_types" => [ "N", "C" ],
+		"field_lengths" => [ 6, 40 ],
+		"field_decimals" => [ 0, undef ]);
 
 The new file mustn't exist yet -- XBase will not allow you to
 overwrite existing table. Use B<drop> (or unlink) to delete it first.
@@ -760,9 +783,10 @@ field doesn't exist in the table.
 
 =head2 Reading the data one by one
 
-When dealing with the records, reading or writing, you have
-to specify the number of the record in the file. The range is
-C<0 .. $table-E<gt>last_record()>.
+When dealing with the records one by one, reading or writing (the
+following six methods), you have to specify the number of the record
+in the file as the first argument. The range is
+C<0 .. $table-E<gt>last_record>.
 
 =over 4
 
@@ -777,12 +801,17 @@ will be returned. The first value of the returned list is always the
 1/0 C<_DELETED> value saying if the record is deleted or not, so on
 success, B<get_record> will never return empty list.
 
+=item get_record_nf
+
+Instead if the names of the fields, you can pass list of numbers of
+the fields to read.
+
 =item get_record_as_hash
 
 Returns hash (in list context) or reference to hash (in scalar
 context) containing field values indexed by field names. The name of
 the deleted flag is C<_DELETED>. The only parameter in the call is
-the record number.
+the record number. The field names are returned as uppercase.
 
 =back
 
@@ -814,20 +843,105 @@ in the hash retain their value.
 To explicitely delete/undelete a record, use methods B<delete_record>
 or B<undelete_record> with record number as a parameter.
 
+Assorted examples of reading and writing:
+
+    my @data = $table->get_record(3, "jezek", "krtek");
+    my $hashref = $table->get_record_as_hash(38);
+    $table->set_record_hash(8, "jezek" => "jezecek",
+					"krtek" => 5);
+    $table->undelete_record(4);
+
+This is a code to update field MSG in record where ID is 123.
+
+    use XBase;
+    my $table = new XBase "test.dbf" or die XBase->errstr;
+    for (0 .. $table->last_record) {
+    	my ($deleted, $id) = $table->get_record($_, "ID")
+    	die $table->errstr unless defined $deleted;
+    	next if $deleted;
+	$table->update_record_hash($_, "MSG" => "New message")
+						if $id == 123;
+    	}
+
+=head2 Sequentially reading the file
+
+If you plan to sequentially walk through the file, you can create
+a cursor first and then repeatedly call B<fetch> to get next record.
+
+=over 4
+
+=item prepare_select
+
+As parameters, pass list of field names to return, if no parameters,
+the following B<fetch> will return all fields.
+
+Prepare will return object cursor, the following method are methods of
+the cursor, not of the table.
+
+=item fetch
+
+Return the fields of the next available undeleted record. The list
+thus doesn't contain the C<_DELETED> flag since you are guaranteed
+that the record is not deleted.
+
+=item fetch_hashref
+
+Return a hash reference of fields for the next non deleted record.
+
+=item last_fetched
+
+Returns the number of the record last fetched.
+
+=item prepare_select_with_index
+
+The first parameter is the file name of the ndx file, the rest is as
+above. The B<fetch> will then return records in the ascending order,
+according to the index.
+
+=item find_eq
+
+This only works with the index B<prepare_select_with_index>. Will roll
+to the first record what is equal to specified argument, or to the
+first greater if there is not one equal. The following B<fetch>es then
+continue normally.
+
+=back
+
+Examples of using cursors:
+
+    my $table = new XBase "names.dbf" or die XBase->errstr;
+    my $cursor = $table->prepare_select("ID", "NAME", "STREET");
+    while (my @data = $cursor->fetch)
+	{ ### do something here, like print "@data\n"; }
+
+    my $table = new XBase "employ.dbf";
+    my $cur = $table->prepare_select_with_index("empid.ndx");
+    $cur->find_eq(1097);
+    while (my $hashref = $cur->fetch_hashref
+			and $hashref->{"ID"} == 1097)
+	{ ### do something here with $hashref }
+
+The second example shows that after you have done B<find_eq>, the
+B<fetch>es continue untill the end of the index, so you have to check
+whether you are still on records with given value. And if there is no
+record with value 1097 in the indexed field, you will just get the
+next record in the order.
+
+The updating example can be rewritten to:
+
+    use XBase;
+    my $table = new XBase "test.dbf" or die XBase->errstr;
+    my $cursor = $table->prepare_select("ID")
+    while (my ($id) = $cursor->fetch) {
+	$table->update_record_hash($cursor->last_fetched,
+			"MSG" => "New message") if $id == 123	
+	}
+
 =head2 Dumping the content of the file
 
-If you need to deal with the whole content of the dbf file, there is
-a method B<get_all_records>. It returns a reference to array
-containing array of values for each record. Only not deleted records
-are returned and so the C<_DELETED> flag is not included in the record
-data. As a parameter, pass list of fields to return for each record.
-
-To read the records one by one, you can create a cursor using
-B<prepare_select>. This returns an object and you can then call
-repeatedly its method B<fetch> to retrieve next not deleted record. As
-for B<get_all_records>, the C<_DELETED> is not included in the
-returned list of field values, and you can specify only some of the
-fields to be fetched in each record.
+A method B<get_all_records> returns reference to an array containing
+array of values for each undeleted record at once. As parameters,
+pass list of fields to return for each record.
 
 To print the content of the file in a readable form, use method
 B<dump_records>. It prints all not deleted records from the file. By
@@ -863,6 +977,8 @@ Example of use is
     $table->dump_records("fs" => " | ", "rs" => " <-+\n",
 			"fields" => [ "id", "msg" ]);'
 
+Also note that there is a script dbfdump(1) that does the printing.
+
 =head2 Errors and debugging
 
 If the method fails (returns false or null list), the error message
@@ -870,32 +986,11 @@ can be retrieved via B<errstr> method. If the B<new> or B<create>
 method fails, you have no object so you get the error message using
 class syntax C<XBase-E<gt>errstr()>.
 
-The method B<get_header_info> returns (not prints) string with
+The method B<header_info> returns (not prints) string with
 information about the file and about the fields.
 
 Module XBase::Base(3) defines some basic functions that are inherited
 by both XBase and XBase::Memo(3) module.
-
-In the module XBase there is variable $CLEARNULLS that specifies,
-whether will the reading methods cut off spaces and nulls from the
-end of fixed character fields on read. The default is true.
-
-=head1 LITTLE EXAMPLE
-
-This is a code to update field MSG in record where ID is 123.
-
-    use XBase;
-    my $table = new XBase "test.dbf" or die XBase->errstr;
-    for (0 .. $table->last_record)
-    	{
-    	my ($deleted, $id) = $table->get_record($_, "ID")
-    	die $table->errstr unless defined $deleted;
-    	next if $deleted;
-	$table->update_record_hash($_, "MSG" => "New message")
-						if $id == 123;
-    	}
-
-For some more examples please see the eg directory of the distribution.
 
 =head1 MEMO FIELDS and INDEX FILES
 
@@ -904,38 +999,23 @@ file with the same name but extension dbt or fpt. It uses module
 XBase::Memo(3) for this. It reads and writes this memo field
 transparently (you do not know about it).
 
-No index files are currently supported. I'm working on a support for
-ndx index files but it's still far from being ready. Please send me
-examples of your data files and suggestions for interface if you need
-indexes.
+B<New:> There is a small read only support available for ndx index
+files. Please see the eg/use_index file in the distribution for
+examples and ideas. Send me examples of your data files and
+suggestions for interface if you need indexes.
 
-=head1 HISTORY
+=head1 INFORMATION SOURCE
 
-I have been using the Xbase(3) module by Pratap Pereira for quite
-a time to read the dbf files, but it had no writing capabilities, it
-was not C<use strict> clean and the author did not support the
-module behind the version 1.07. So I started to make my own patches
-and thought it would be nice if other people could make use of them.
-I thought about taking over the development of the original Xbase
-package, but the interface seemed rather complicated to me.
-
-So with the help of article XBase File Format Description by Erik
-Bachmann on URL
+This module is built using information from and article XBase File
+Format Description by Erik Bachmann, URL
 
     http://www.geocities.com/SiliconValley/Pines/2563/xbase.htm
 
-I have written a new module. It doesn't use any code from Xbase-1.07
-and you are free to use and distribute it under the same terms as Perl
-itself.
-
-Please send all bug reports or patches CC'ed to my e-mail, since I
-might miss your post in c.l.p.m or dbi-users (or other groups). Any
-comments about both the Perl and XBase issues of this module are also
-welcome.
+Thanks a lot.
 
 =head1 VERSION
 
-0.0641
+0.065
 
 =head1 AUTHOR
 

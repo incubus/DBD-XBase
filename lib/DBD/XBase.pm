@@ -19,7 +19,7 @@ use vars qw($VERSION @ISA @EXPORT $err $errstr $drh);
 
 require Exporter;
 
-$VERSION = '0.0641';
+$VERSION = '0.065';
 
 $err = 0;
 $errstr = '';
@@ -81,71 +81,28 @@ sub prepare
 		return;
 		}
 
-	if ($parsed_sql->{'command'} eq 'create')
-		{
-		return DBI::_new_sth($dbh, {
-			'Statement'	=> $statement,
-			'dbh'		=> $dbh,
-			'xbase_parsed_sql'	=> $parsed_sql,
-			});
-		}
-	
-	my $table = $parsed_sql->{'table'}[0];
-	my $xbase = $dbh->{'xbase_tables'}->{$table};
-	if (not defined $xbase)
-		{
-		my $filename = $dbh->{'dsn'} . '/' . $table;
-		my %opts = ("name" => $filename);
-		my $ignorememo = $dbh->FETCH("IgnoreMemo");
-		$opts{"ignorememo"} = $ignorememo if defined $ignorememo;
-		$xbase = new XBase(%opts);
-		if (not defined $xbase)
-			{
-			${$dbh->{'Err'}} = 3;
-			${$dbh->{'Errstr'}} =
-				"Table $table not found: @{[XBase->errstr]}\n";
-			return;
-			}
-		$dbh->{'xbase_tables'}->{$table} = $xbase;	
-		}
-
-	$parsed_sql->{'xbase'} = $xbase;
-
-	my $field;
-	my @nonexistfields = ();
-	for $field (@{$parsed_sql->{'usedfields'}})
-		{
-		push @nonexistfields unless (defined $xbase->field_type($field) or grep { $_ eq $field } @nonexistfields);
-		}
-	if (@nonexistfields)
-		{
-		my $plural = ((scalar(@nonexistfields) > 1) ? 1 : 0);
-		${$dbh->{'Err'}} = 4;
-		${$dbh->{'Errstr'}} = qq!Field@{[$plural ? "s" : ""]} @{[$plural ? "do not" : "doesn't"]} exist in table $table\n!;
-		return;
-		}
-
-	DBI::_new_sth($dbh, {
+	return DBI::_new_sth($dbh, {
 		'Statement'	=> $statement,
 		'dbh'		=> $dbh,
 		'xbase_parsed_sql'	=> $parsed_sql,
-		'xbase_table'	=> $xbase,
 		});
 	}
 
-sub STORE {
+sub STORE
+	{
 	my ($dbh, $attrib, $value) = @_;
 	if ($attrib eq 'AutoCommit')
 		{ return 1 if $value; croak("Can't disable AutoCommit"); }
-	elsif ($attrib eq 'IgnoreMemo')
+	elsif ($attrib eq 'xbase_ignorememo')
 		{ $dbh->{'xbase_ignorememo'} = $value; return; }
 	$dbh->DBD::_::db::STORE($attrib, $value);
 	}
-sub FETCH {
+sub FETCH
+	{
 	my ($dbh, $attrib) = @_;
 	if ($attrib eq 'AutoCommit')
 		{ return 1; }
-	elsif ($attrib eq 'IgnoreMemo')
+	elsif ($attrib eq 'xbase_ignorememo')
 		{ return $dbh->{'xbase_ignorememo'}; }
 	$dbh->DBD::_::db::FETCH($attrib);
 	}
@@ -174,6 +131,9 @@ sub commit
 sub rollback
 	{ warn "Commit ineffective while AutoCommit is on"; 0; }
 
+
+
+
 package DBD::XBase::st;
 use strict;
 use vars qw( $imp_data_size );
@@ -185,7 +145,6 @@ sub bind_param
 	$sth->{'param'}[$param - 1] = $value;
 	1;
 	}
-
 sub bind_columns
 	{
 	my ($sth, $attrib, @col_refs) = @_;
@@ -199,67 +158,77 @@ sub bind_col
 	my ($sth, $col_num, $col_var_ref) = @_;
 	$col_num--;
 	$sth->{'xbase_bind_col'}[$col_num] = $col_var_ref;
-	### print STDERR "bind_col: $sth, $col_num, $col_var_ref, $sth->{'xbase_bind_col'}[$col_num]\n";
 	1;
 	}
 
 sub execute
 	{
 	my $sth = shift;
-	if (@_)
-		{ @{$sth->{'param'}} = @_; }
+	if (@_)	{ @{$sth->{'param'}} = @_; }
 	$sth->{'param'} = [] unless defined $sth->{'param'};
-	my $xbase = $sth->{'xbase_table'};
+	
 	my $parsed_sql = $sth->{'xbase_parsed_sql'};
-
-	delete $sth->{'xbase_current_record'}
-				if defined $sth->{'xbase_current_record'};
-
 	my $command = $parsed_sql->{'command'};
-	if ($command eq 'delete')
+	my $table = $parsed_sql->{'table'}[0];
+	my $dbh = $sth->{'dbh'};
+
+	if ($command eq 'create')
 		{
-		my $recno = 0;
-		my $last = $xbase->last_record();
-		if (not defined $parsed_sql->{'wherefn'})
+		my $dbh = $sth->{'dbh'};
+		my $filename = $dbh->{'dsn'} . '/' . $table;
+		my $xbase = XBase->create('name' => $filename,
+			'field_names' => $parsed_sql->{'createfields'},
+			'field_types' => $parsed_sql->{'createtypes'},
+			'field_lengths' => $parsed_sql->{'createlengths'},
+			'field_decimals' => $parsed_sql->{'createdecimals'});
+		if (not defined $xbase)
 			{
-			for ($recno = 0; $recno <= $last; $recno++)
-				{ $xbase->delete_record($recno); }
+			${$sth->{'Err'}} = 10;
+			${$sth->{'Errstr'}} = XBase->errstr();
+			return;
 			}
-		else
-			{
-			for ($recno = 0; $recno <= $last; $recno++)
-				{
-				my $values = $xbase->get_record_as_hash($recno);
-				next if $values->{'_DELETED'} != 0;
-				next unless &{$parsed_sql->{'wherefn'}}($xbase, $values, $sth->{'param'});
-				$xbase->delete_record($recno);
-				}
-			}
+		$dbh->{'xbase_tables'}->{$table} = $xbase;	
 		return 1;
 		}
-	elsif ($command eq 'update')
+
+	my $xbase = $dbh->{'xbase_tables'}->{$table};
+	if (not defined $xbase)
 		{
-		my $recno = 0;
-		my $last = $xbase->last_record();
-		my $wherefn = $parsed_sql->{'wherefn'};
-		my @fields = @{$parsed_sql->{'fields'}};
-		my @values = &{$parsed_sql->{'updatefn'}}($xbase, $sth->{'param'}, 0);
-		for ($recno = 0; $recno <= $last; $recno++)
+		my $filename = $dbh->{'dsn'} . '/' . $table;
+		my %opts = ('name' => $filename);
+		$opts{'ignorememo'} = 1 if $dbh->{'xbase_ignorememo'};
+		$xbase = new XBase(%opts);
+		if (not defined $xbase)
 			{
-			my $values = $xbase->get_record_as_hash($recno);
-			next if $values->{'_DELETED'} != 0;
-			next if defined $wherefn and not &{$wherefn}($xbase, $values, $sth->{'param'});
-			
-			my %newval;
-			@newval{ @fields } = @values;
-			$xbase->update_record_hash($recno, %newval);
+			${$dbh->{'Err'}} = 3;
+			${$dbh->{'Errstr'}} = "Table $table not found: @{[XBase->errstr]}\n";
+			return;
 			}
-		return 1;
+		$dbh->{'xbase_tables'}->{$table} = $xbase;	
 		}
-	elsif ($command eq 'insert')
+
+	if (defined $parsed_sql->{'ChopBlanks'})
+		{ $xbase->{'ChopBlanks'} = $parsed_sql->{'ChopBlanks'}; }
+	$parsed_sql->{'ChopBlanks'} = \$xbase->{'ChopBlanks'};
+
+	my @nonexistfields;
+	for my $field (@{$parsed_sql->{'usedfields'}})
 		{
-		my $recno = 0;
-		my $last = $xbase->last_record();
+		push @nonexistfields, $field
+			unless (defined $xbase->field_type($field)
+				or grep { $_ eq $field } @nonexistfields);
+		}
+	if (@nonexistfields)
+		{
+		my $plural = ((scalar(@nonexistfields) > 1) ? 1 : 0);
+		${$dbh->{'Err'}} = 4;
+		${$dbh->{'Errstr'}} = qq!Field@{[$plural ? "s do not" : " doesn't"]} exist in table $table\n!;
+		return;
+		}
+
+	if ($command eq 'insert')
+		{
+		my $last = $xbase->last_record;
 		my @values = &{$parsed_sql->{'insertfn'}}($xbase, $sth->{'param'}, 0);
 		if (defined $parsed_sql->{'fields'})
 			{
@@ -274,32 +243,49 @@ sub execute
 			}
 		return 1;
 		}
-	elsif ($command eq 'create')
+	
+	if (defined $parsed_sql->{'selectall'})
 		{
-		my $dbh = $sth->{'dbh'};
-		my $table = ${$parsed_sql->{'table'}}[0];
-		my $filename = $dbh->{'dsn'} . '/' . $table;
-		my $xbase = XBase->create('name' => $filename,
-			'field_names' => $parsed_sql->{'createfields'},
-			'field_types' => $parsed_sql->{'createtypes'},
-			'field_lengths' => $parsed_sql->{'createlengths'},
-			'field_decimals' => $parsed_sql->{'createdecimals'});
-		if (not defined $xbase)
-			{
-			### ${$sth->{'Err'}} = 10;
-			${$sth->{'Errstr'}} = XBase->errstr();
-			return;
-			}
-		$dbh->{'xbase_tables'}->{$table} = $xbase;	
-		return 1;
+		$parsed_sql->{'fields'} = [ $xbase->field_names ];
+		for my $field (@{$parsed_sql->{'fields'}})
+			{ push @{$parsed_sql->{'usedfields'}}, $field
+			unless grep { $_ eq $field } @{$parsed_sql->{'usedfields'}}; }
 		}
-	elsif ($command eq 'select')
+	my $cursor = $xbase->prepare_select( @{$parsed_sql->{'usedfields'}} );
+	my $wherefn = $parsed_sql->{'wherefn'};
+	my @fields = @{$parsed_sql->{'fields'}} if defined $parsed_sql->{'fields'};
+	### use Data::Dumper; print Dumper $parsed_sql;
+	if ($command eq 'select')
 		{
-		unless (defined $sth->{'num_of_fields'})
+		$sth->{'xbase_cursor'} = $cursor;
+		$sth->{'NUM_OF_FIELDS'} = scalar @fields;
+		}
+	elsif ($command eq 'delete')
+		{
+		if (not defined $wherefn)
 			{
-			my $numfields = scalar( @{ $sth->FETCH('NAME') } );
-			$sth->STORE('NUM_OF_FIELDS', $numfields);
-			$sth->{'num_of_fields'} = $numfields;
+			my $last = $xbase->last_record;
+			for (my $i = 0; $i < $last; $i++)
+				{ $xbase->delete_record($i); }
+			return 1;
+			}
+		my $values;
+		while (defined($values = $cursor->fetch_hashref))
+			{
+			next unless &{$wherefn}($xbase, $values, $sth->{'param'}, 0);
+			$xbase->delete_record($cursor->last_fetched);
+			}
+		}
+	elsif ($command eq 'update')
+		{
+		my $values;
+		while (defined($values = $cursor->fetch_hashref))
+			{
+			### print Dumper $values;
+			next if defined $wherefn and not &{$wherefn}($xbase, $values, $sth->{'param'}, $parsed_sql->{'bindsbeforewhere'});
+			my %newval;
+			@newval{ @fields } = &{$parsed_sql->{'updatefn'}}($xbase, $values, $sth->{'param'}, 0);
+			$xbase->update_record_hash($cursor->last_fetched, %newval);
 			}
 		}
 	elsif ($command eq 'drop')
@@ -312,32 +298,32 @@ sub execute
 sub fetch
 	{
         my $sth = shift;
-	my $current = $sth->{'xbase_current_record'};
-	my $parsed_sql = $sth->{'xbase_parsed_sql'};
-	my $table = $sth->{'xbase_table'};
-	return unless $parsed_sql->{'command'} eq 'select';
-	$current = 0 unless defined $current;
-	my @fields = @{ $sth->FETCH('NAME') };
-	while ($current <= $table->last_record())
+	return unless defined $sth->{'xbase_cursor'};
+	my $cursor = $sth->{'xbase_cursor'};
+	my $wherefn = $sth->{'xbase_parsed_sql'}{'wherefn'};
+
+	my $xbase = $cursor->table;
+	my $values;
+	while (defined($values = $cursor->fetch_hashref))
 		{
-		my $values = $table->get_record_as_hash($current);
-		$sth->{'xbase_current_record'} = ++$current;
-		next if $values->{'_DELETED'} != 0;
-		if (defined $parsed_sql->{'wherefn'})
-			{ next unless &{$parsed_sql->{'wherefn'}}($table, $values, $sth->{'param'}); }
-		my $retarray = [ @{$values}{ @fields } ];
-		my $i = 0;
-		for my $ref ( @{$sth->{'xbase_bind_col'}} )
-			{
-### print STDERR "Ref: $ref\n";
-			next unless defined $ref;
-			$$ref = $retarray->[$i]
-			}
-		continue
-			{ $i++; }
-		return $retarray;
+		next if defined $wherefn and not &{$wherefn}($xbase, $values, $sth->{'param'}, 0);
+		last;
 		}
-	$sth->finish(); return;
+	my $retarray;
+	$retarray = [ @{$values}{ @{$sth->{'xbase_parsed_sql'}{'fields'}}} ]
+		if defined $values;
+	my $i = 0;
+	for my $ref ( @{$sth->{'xbase_bind_col'}} )
+		{
+		next unless defined $ref;
+		$$ref = $retarray->[$i];
+		}
+	continue
+		{ $i++; }
+	
+	if (defined $values)
+		{ return $retarray; }
+	return;
 	}
 *fetchrow_arrayref = \&fetch;
 
@@ -345,25 +331,19 @@ sub FETCH
 	{
 	my ($sth, $attrib) = @_;
 	if ($attrib eq 'NAME')
-		{
-		my $parsed_sql = $sth->{'xbase_parsed_sql'};
-		my $table = $sth->{'xbase_table'};
-		if (defined $parsed_sql->{'selectall'})
-			{ return [ $table->field_names() ]; }
-		else
-			{ return [ @{$parsed_sql->{'fields'}} ]; }
-		}
+		{ return [ @{$sth->{'xbase_parsed_sql'}{'fields'}} ]; }
 	elsif ($attrib eq 'NULLABLE')
-		{
-		my $name = $sth->FETCH('NAME');
-		return [ (1) x scalar(@$name) ];
-		}
+		{ return [ (1) x scalar(@{ $sth->FETCH('NAME') }) ]; }
+	elsif ($attrib eq 'ChopBlanks')
+		{ return $sth->{'xbase_parsed_sql'}->{'ChopBlanks'}; }
 	else
 		{ return $sth->DBD::_::st::FETCH($attrib); }
 	}
 sub STORE
 	{
 	my ($sth, $attrib, $value) = @_;
+	if ($attrib eq 'ChopBlanks')
+		{ $sth->{'xbase_parsed_sql'}->{'ChopBlanks'} = $value; }
 	return $sth->DBD::_::st::STORE($attrib, $value);
 	}
     
@@ -384,9 +364,7 @@ __END__
 
     my @data;
     while (@data = $sth->fetchrow_array())
-		{
-		## further processing
-		}
+		{ ## further processing }
 
 =head1 DESCRIPTION
 
@@ -395,79 +373,103 @@ documentation for how to actually use the module.
 In the B<connect> call, specify the directory for a database name.
 This is where the DBD::XBase will look for the tables.
 
-The SQL commands currently supported by DBD::XBase include:
+Note that with dbf, there is no database server that the driver
+would talk to. This DBD::XBase calls methods from XBase.pm module to
+read and write the files on the disk directly.
 
-=over 4
+The DBD::XBase doesn't make use of index files at the moment. If you
+really need indexed access, check XBase(3) for notes about ndx
+support.
 
-=item select
+=head1 SUPPORTED SQL COMMANDS
+
+The SQL commands currently supported by DBD::XBase's prepare are:
+
+=head2 select
 
     select fields from table [ where condition ]
 
 Fields is a comma separated list of fields or a C<*> for all. The
 C<where> condition specifies which rows will be returned, you can
-compare fields and constants and stack expressions using C<and> or
-C<or>, and also use brackets. Examples:
+have arbitrary arithmetic and boolean expression here, compare fields
+and constants and use C<and> and C<or>. Examples:
 
     select * from salaries where name = "Smith"	
     select first,last from people where login = "ftp"
 						or uid = 1324
+    select id,name employ where id = ?
 
-You can use bind parameters in the where clause. To check for NULL
-values, use ID IS NULL, not ID == NULL.
+You can use bind parameters in the where clause, as the last example
+shows. The actual value has to be supplied via bind_param or in the
+call to execute, see DBI(3) for details. To check for NULL values in
+the C<where> expression, use C<ID IS NULL> and C<ID IS NOT NULL>, not
+C<ID == NULL>.
 
-=item delete
+=head2 delete
 
     delete from table [ where condition ]
 
-The C<where> condition si the same as for C<select>. Examples:
+The C<where> condition is the same as for B<select>. Examples:
 
     delete from jobs		## emties the table
     delete from jobs where companyid = "ISW"
     delete from jobs where id < ?
 
-=item insert
+=head2 insert
 
     insert into table [ ( fields ) ] values ( list of values )
 
-Here fields is a comma separated list of fields to set, list of values
-is a list of values to assign. If the fields are not specified, the
-fields in the natural order in the table are set. Example:
+Here fields is a (optional) comma separated list of fields to set,
+list of values is a list of constants to assign. If the fields are
+not specified, sets the fields in the natural order of the table.
+You can use bind parameters in the list of values. Examples:
 
     insert into accounts (login, uid) values ("guest", 65534)
-
-You can use bind parameters in the list of values:
-
     insert into accounts (login, uid) values (?, ?)
+    insert into passwd values ("user","*",4523,100,"Nice user",
+				"/home/user","/bin/bash")
 
-=item update
+=head2 update
 
     update table set field = new value [ , set more fields ]
 					[ where condition ]
 
 Example:
 
-    update table set uid = 65534 where login = "guest"
+    update passwd set uid = 65534 where login = "guest"
+    update zvirata set name = "Jezek", age = 4 where id = 17
 
 Again, the value can also be specified as bind parameter.
 
-=item create table
+    update zvirata set name = ?, age = ? where id = ?
+
+=head2 create table
 
     create table table name ( columns specification )
 
 Columns specification is a comma separated list of column names and
 types. Example:
 
-    create table rooms ( roomid int, cat char(10), balcony boolean)
+    create table rooms ( roomid int, cat char(10), balcony boolean )
 
-=item drop table
+The allowed types are
+
+    char num numeric int integer float boolean blob memo date
+
+Some of them are synonyms. They are of course converted to appropriate
+XBase types.
+
+=head2 drop table
 
     drop table table name
 
-=back
+Example:
+
+    drop table passwd
 
 =head1 VERSION
 
-0.0641
+0.065
 
 =head1 AUTHOR
 
@@ -481,4 +483,3 @@ perl(1); DBI(3), XBase(3)
 
 =cut
 
-                                                                                                                                                                
