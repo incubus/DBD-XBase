@@ -26,9 +26,9 @@ Remember: Since the version number is pretty low now, you might want
 to check the CHANGES file any time you upgrade to see wheather some of
 the features you use haven't disappeared.
 
-Warning for now: It doesn't support any index files at the present
-time! That means if you change your dbf, your idx&mdx will not match.
-So do not do that.
+WARNING for now: It doesn't support any index files at the present
+time! That means if you change your dbf, your idx&mdx (if you have
+any) will not match. So do not do that.
 
 The following methods are supported:
 
@@ -61,16 +61,21 @@ in the file are included in this count.
 
 Number of the last field in the file.
 
+=item field_names, field_types
+
+List of field names or types for the dbf file.
+
 =back
 
-If the method fails (returns undef of null), the error message can be
-retrieved via B<errstr> method. If the B<new> method fails, you have
-no object and the you can get the error string in the $XBase::errstr
-variable.
+If the method fails (returns undef of null list), the error message
+can be retrieved via B<errstr> method. If the B<new> method fails, you
+have no object and so B<new> (and only B<new>) puts the error message
+into the $XBase::errstr variable.
 
 The methods B<get_header_info> and B<dump_records> can be used to
-quickly view the content of the file. They are here mainly for
-debugging purposes so please do not rely on them.
+quickly view the content of the file, at least for now. Please speak
+up if you like them and want them to be supported. They are here
+mainly for my debugging purposes.
 
 For writing, you have methods:
 
@@ -99,8 +104,8 @@ Deletes/undeletes the record.
 
 =back
 
-There are following variables (parameters) in the XBase
-namespace that affect the internal behavior:
+Module XBase::Base(3) defines some basic functionality and also following
+variable, that affect the internal behaviour:
 
 =over 4
 
@@ -108,17 +113,40 @@ namespace that affect the internal behavior:
 
 Enables error messages on stderr.
 
-=item $FIXERRORS
+=item $FIXPROBLEMS
 
 When reading the file, try to continue, even if there is some
 (minor) missmatch in the data.
 
-=item $CLEARNULLS
-
-If true, cuts off spaces and nulls from the end of character fields on
-read.
-
 =back
+
+In the module XBase there is variable $CLEARNULLS which if true, will
+make the reading methods cuts off spaces and nulls from the end of
+character fields on read.
+
+=head1 LITTLE EXAMPLE
+
+This is a code to update field MSG in record where ID is 123.
+
+	use XBase;
+	my $table = new XBase("test.dbf");
+	die $XBase::errstr unless defined $table;
+	for (0 .. $table->last_record())
+		{
+		my ($deleted, $id)
+			= $table->get_record($_, "ID");
+		die $table->errstr unless defined $deleted;
+		next if $deleted;
+		if ($id == 123)
+			{
+			$table->update_record_hash($_,
+				"MSG" => "New message");
+			last;
+			}
+		}
+
+Would you like different interface? Please, write me, we shall figure
+something out.
 
 =head1 HISTORY
 
@@ -137,13 +165,13 @@ use any code from Xbase-1.07 and you are free to use and distribute it
 under the same terms as Perl itself.
 
 Please send all bug reports CC'ed to my e-mail, since I might miss
-your post in c\.l\.p\.m(isc|odules) or dbi-users. Any comments from
-both Perl and XBase gurus are welcome, since I do neither use dBase
-nor Fox*, so there are probably pieces missing.
+your post in c.l.p.misc or dbi-users (or other groups). Any comments
+from both Perl and XBase gurus are welcome, since I do neither use
+dBase nor Fox*, so there are probably pieces missing.
 
 =head1 VERSION
 
-0.024
+0.025
 
 =head1 AUTHOR
 
@@ -151,64 +179,38 @@ Jan Pazdziora, adelton@fi.muni.cz
 
 =head1 SEE ALSO
 
-perl(1), DBD::XBase(3), DBI(3)
+perl(1), XBase::Base(3), DBD::XBase(3), DBI(3)
 
 =cut
 
-use 5.004;	# hmm, maybe it would work with 5.003 or so, but I do
+# ########
+use 5.004;	# Hmm, maybe it would work with 5.003 or so, but I do
 		# not have it, so this is more like a note, on which
-		# version it has been tested
+		# version the module has been tested
 
 
-# ##################################
+# #############################
 # Here starts the XBase package
 
-package XBase::dbt;	# just quick fix, so that we know the module
 package XBase;
 
 use strict;
-use IO::File;
+use XBase::Base;	# will give us general methods
 
 
 # ##############
 # General things
 
-use vars qw( $VERSION $DEBUG $errstr $FIXERRORS $CLEARNULLS );
-$VERSION = "0.024";
+use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
-# Sets the debug level
-$DEBUG = 1;
-sub DEBUG () { $DEBUG };
+@ISA = qw( XBase::Base );
 
-# FIXERRORS can be set to make XBase to try to work with (read)
-# even partially dameged file. Such actions are logged via Warning
-$FIXERRORS = 1;
-sub FIXERRORS () { $FIXERRORS };
+$VERSION = "0.025";
 
-# If set, will cut off the spaces and null from ends of character fields
+$errstr = '';	# only after new, otherwise use method $table->errstr;
+
+# If set, will cut off the spaces and nulls from ends of character fields
 $CLEARNULLS = 1;
-
-# Holds the text of the error, if there was one
-$errstr = '';
-
-# Issues warning to STDERR if there is debug level set, but does Error
-# if not FIXERRORS
-sub Warning
-	{
-	if (not FIXERRORS) { Error(@_); return; }
-	shift if ref $_[0];
-	print STDERR "Warning: ", @_ if DEBUG;
-	}
-# Prints error on STDERR if there is debug level set and sets $errstr
-sub Error
-	{
-	shift if ref $_[0];
-	print STDERR @_ if DEBUG;
-	$errstr .= join '', @_;
-	}
-# Nulls the $errstr, should be used in methods called from the mail
-# program
-sub NullError	{ $errstr = ''; }
 
 
 # ########################
@@ -218,32 +220,19 @@ sub NullError	{ $errstr = ''; }
 # .dbf file, returns the object if the file can be read, null otherwise
 sub new
 	{
-	NullError();
-	my ($class, $filename) = @_;
-	my $new = { 'filename' => $filename };
-	bless $new, $class;
-	$new->open() and return $new;
-	return;
+	my $class = shift;
+	my $result = $class->SUPER::new(@_);
+	$errstr = $XBase::Base::errstr unless $result;
+	$result;
 	}
-# Called by XBase::new; opens the file and parses the header,
-# sets the data structures of the object (field names, types, etc.).
-# Returns 1 on success, null otherwise.
-sub open
+
+# We have to provide way to fill up the object upon open
+sub read_header
 	{
 	my $self = shift;
-	return 1 if defined $self->{'opened'};
-				# won't open if already opened
+	my ($filename, $fh) = @{$self}{ qw( filename fh ) };
 
-	my $fh = new IO::File;
-	my ($filename, $writable, $mode) = ($self->{'filename'}, 0, "r");
-	($writable, $mode) = (1, "r+") if -w $filename;
-				# decide if we want r or r/w access
-
-	$fh->open($filename, $mode) or do
-		{ Error "Error opening file $self->{'filename'}: $!\n";
-		return; };	# open the file
-
-	my $header;
+	my $header;		# read the header
 	$fh->read($header, 32) == 32 or do
 		{ Error "Error reading header of $filename\n"; return; };
 
@@ -251,19 +240,18 @@ sub open
 		$res1, $incompl_trans, $enc_flag, $rec_thread,
 		$multiuser, $mdx_flag, $language_dr, $res2)
 		= unpack "Ca3Vvva2CCVa8CCa2", $header;
-				# read and parse the header
+				# parse the data
 
 	my ($names, $types, $lengths, $decimals) = ( [], [], [], [] );
 
 				# will read the field descriptions
 	while (tell($fh) < $header_len - 1)
 		{
-		my $field_def;
+		my $field_def;	# read the field description
 		$fh->read($field_def, 32) == 32 or do
-			{	# read the field description
-			my $offset = tell $fh;
-			Warning "Error reading field description at offset $offset\n";
-			last if FIXERRORS;
+			{
+			Warning "Error reading field description\n";
+			last if FIXPROBLEMS;
 			return;
 			};
 
@@ -274,6 +262,7 @@ sub open
 			$multiuser1, $work_area, $multiuser2,
 			$set_fields_flag, $res, $index_flag)
 				= unpack "A11aVCCa2Ca2Ca7C", $field_def;
+		
 		if ($type eq "C")
 			{ $length += 256 * $decimal; $decimal = 0; }
 				# fixup for char length > 256
@@ -285,46 +274,23 @@ sub open
 				# store the information
 		}
 
-				# create name-to-num_of_field hash
-	my ($hashnames, $i) = ({}, 0);
-	for $i (0 .. $#$names)
-		{
-		$hashnames->{$names->[$i]} = $i
-			unless defined $hashnames->{$names->[$i]};
-		}
-	my $template = "a1";
-	my $num;
-	for ($num = 0; $num <= $#$lengths; $num++)
-		{
-		my $totlen = $lengths->[$num] + $decimals->[$num];
-		$template .= "a$totlen";
-		}
+	my $hashnames;		# create name-to-num_of_field hash
+	@{$hashnames}{ reverse @$names } = reverse ( 0 .. $#$names );
 
-				# now it's the time to store the
-				# values to the object
-	@{$self}{ qw( fh writable version last_update num_rec
-		header_len record_len field_names field_types
-		field_lengths field_decimals opened hash_names
-		unpack_template last_field ) } =
-			( $fh, $writable, $version, $last_update, $num_rec,
-			$header_len, $record_len, $names, $types,
-			$lengths, $decimals, 1, $hashnames, $template,
-			$#$names );
+	my $template = join "", "a1",
+		map { "a" . ($lengths->[$_]+$decimals->[$_]); } (0 .. $#$names);
+	
+			# now it's the time to store the values to the object
+	@{$self}{ qw( version last_update num_rec header_len record_len
+		field_names field_types field_lengths field_decimals
+		hash_names unpack_template last_field ) } =
+			( $version, $last_update, $num_rec, $header_len,
+			$record_len, $names, $types, $lengths, $decimals,
+			$hashnames, $template, $#$names );
 
 	1;	# return true since everything went fine
 	}
 
-# Close the file, finish the work
-sub close
-	{
-	NullError();
-	my $self = shift;
-	if (not defined $self->{'opened'})
-		{ Error "Can't close file that is not opened\n"; return; }
-	$self->{'fh'}->close();
-	delete @{$self}{'opened', 'fh'};
-	1;
-	}
 
 # ###############
 # Little decoding
@@ -335,12 +301,15 @@ sub last_record
 # And the same for fields
 sub last_field
 	{ shift->{'last_field'}; }
-# computes record's offset in the file
-sub get_record_offset
-	{
-	my ($self, $num) = @_;
-	return $self->{'header_len'} + $num * $self->{'record_len'};
-	}
+# List of field names
+sub field_names
+	{ @{shift->{'field_names'}}; }
+# And list of field types
+sub field_types
+	{ @{shift->{'field_types'}}; }
+
+
+
 
 # #############################
 # Header, field and record info
@@ -409,6 +378,8 @@ sub decode_version_info
 	print "Version: $vbits; dbt: $dbtflag; memo: $memo; SQL table: $sqltable\n";
 	}
 
+
+
 # ###################
 # Reading the records
 
@@ -417,6 +388,7 @@ sub decode_version_info
 # fields. If no names are specified, all fields are returned. The
 # first value in the returned list if always 1/0 deleted flag. Returns
 # empty list on error
+
 sub get_record
 	{
 	NullError();
@@ -428,11 +400,7 @@ sub get_record
 	if ($num > $self->last_record())
 		{ Error "Can't read record $num, there is not so many of them\n"; return; }
 
-	my @data;
-	if (defined $self->{'cached_num'} and $self->{'cached_num'} == $num)
-		{ @data = @{$self->{'cached_data'}}; }
-	else
-		{ @data = $self->read_record($num); return unless @data; }
+	my @data = $self->read_and_process($num);
 
 	# now make a list of numbers of fields to be returned
 	if (@fields)
@@ -441,7 +409,7 @@ sub get_record
 			if (not defined $self->{'hash_names'}{$_})
 				{
 				Warning "Field named '$_' does not seem to exist\n";
-				return unless FIXERRORS;
+				return unless FIXPROBLEMS;
 				undef;
 				}
 			else
@@ -454,6 +422,28 @@ sub get_record
 # Once we have the binary data from the pack, we want to convert them
 # into reasonable perlish types. The arguments are the number of the
 # field and the value. The delete flag has special number -1
+sub read_and_process
+	{
+	my ($self, $num) = @_;
+
+	if (defined $self->{'cached_num'} and $self->{'cached_num'} == $num)
+		{ return @{$self->{'cached_data'}}; }
+
+	my $buffer = $self->read_record($num);
+	return unless defined $buffer;
+
+	my $template = $self->{'unpack_template'};
+	my @unpacked = unpack $template, $buffer;
+
+	
+	my @result = map { $self->process_item_on_read($_, $unpacked[$_ + 1]); }
+					( -1 .. $self->last_field() );
+
+	$self->{'cached_data'} = [ @result ];
+	$self->{'cached_num'} = $num;
+	@result;
+	}
+
 sub process_item_on_read
 	{
 	my ($self, $num, $value) = @_;
@@ -494,54 +484,6 @@ sub process_item_on_read
 	$value;
 	}
 
-# Actually reads the record from file, stores in cache as well
-sub read_record
-	{
-	my ($self, $num) = @_;
-
-	my ($fh, $tell, $record_len, $filename ) =
-		@{$self}{ qw( fh tell record_len filename ) };
-
-	if (not defined $self->{'opened'})
-		{ Error "The file $filename is not opened, can't read it\n";
-		return; }	# will only read from opened file
-
-	my $offset = $self->get_record_offset($num);
-				# need to know where to start
-
-	if (not defined $tell or $tell != $offset)
-		{		# seek to the start of the record
-		$fh->seek($offset, 0) or do {
-			Error "Error seeking on $filename to offset $offset: $!\n";
-			return;
-			};
-		}
-
-	delete $self->{'tell'};
-	my $buffer;
-				# read the record
-	$fh->read($buffer, $record_len) == $record_len or do {
-			Warning "Error reading the whole record from $filename\nstarting offset $offset, record length $record_len\n";
-			return unless FIXERRORS;
-			};
-
-	$self->{'tell'} = $tell = $offset + $record_len;
-				# now we know where we are
-
-	my $template = $self->{'unpack_template'};
-
-	my @data = unpack $template, $buffer;
-				# unpack the data
-
-	my @result = map { $self->process_item_on_read($_, $data[$_ + 1]); }
-					( -1 .. $self->last_field() );
-				# process them
-
-	$self->{'cached_data'} = [ @result ];
-	$self->{'cached_num'} = $num;		# store in cache
-
-	@result;		# and send back
-	}
 
 # Read additional data from the memo file
 sub read_memo_data
@@ -553,12 +495,15 @@ sub read_memo_data
 		my $filename = $self->{'filename'};
 		$filename =~ s/\.dbf//i;
 		$filename .= '.dbt';
-		$self->{'dbt'} = $dbt = new XBase::dbt($filename);
+		require 'XBase/Memo.pm';
+		$self->{'dbt'} = $dbt = XBase::Memo->new($filename);
 		return undef unless defined $dbt;
 		}
-	my $ret = $dbt->read_block($num);	
+	my $ret = $dbt->read_record($num);
 	return $ret;
 	}
+
+
 
 # #############
 # Write records
@@ -573,10 +518,8 @@ sub write_record
 
 	push @data, (undef) x ($self->last_field - $#data);
 
-				# seek to position
-	$self->will_write_record($num) or return;
-	$self->{'fh'}->print(' ');
-				# write undelete flag
+	$self->seek_to_record($num) or return;	# seek to position
+	$self->{'fh'}->print(' ');		# write undelete flag
 
 				# process and write items
 	$self->{'fh'}->print(
@@ -764,7 +707,7 @@ package XBase::dbt;
 
 sub Error (@)	{ XBase::Error(@_); }
 sub Warning (@)	{ XBase::Warning(@_); }
-sub FIXERRORS ()	{ XBase::FIXERRORS(); }
+sub FIXPROBLEMS ()	{ XBase::FIXPROBLEMS(); }
 
 # ###########################
 # Consturctor, open and close
@@ -852,7 +795,7 @@ sub read_block
 			my $buffer;
 			$fh->read($buffer, $block_size) == $block_size or do
 				{ Warning "Error reading memo block\n";
-				return unless FIXERRORS; };
+				return unless FIXPROBLEMS; };
 			if ($buffer =~ /^(.*?)\x1a\x1a/)
 				{ return $result . $+; }
 			$result .= $buffer;
@@ -866,7 +809,7 @@ sub read_block
 		my $buffer;
 		$fh->read($buffer, $block_size) == $block_size or do
 			{ Warning "Error reading memo block\n";
-			return unless FIXERRORS; };
+			return unless FIXPROBLEMS; };
 		my ($unused_id, $length) = unpack "VV", $buffer;
 		if ($length < $block_size - 8)
 			{ return substr $buffer, 8, $length; }
@@ -874,7 +817,7 @@ sub read_block
 		my $rest_data;
 		$fh->read($rest_data, $rest_length) == $rest_length or do
 			{ Warning "Error reading memo block\n";
-			return unless FIXERRORS; };
+			return unless FIXPROBLEMS; };
 		return $buffer . $rest_data;
 		}
 
