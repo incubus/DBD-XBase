@@ -171,7 +171,7 @@ dBase nor Fox*, so there are probably pieces missing.
 
 =head1 VERSION
 
-0.028
+0.029
 
 =head1 AUTHOR
 
@@ -205,7 +205,7 @@ use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
 
-$VERSION = "0.028";
+$VERSION = "0.029";
 
 $errstr = '';	# only after new, otherwise use method $table->errstr;
 
@@ -404,6 +404,8 @@ sub get_record
 	my @data = $self->read_record($num);
 				# SUPER will uncache/unpack for us
 	return unless @data;
+
+	@data = $self->process_list_on_read(@data);
 
 	if (@fields)		# now make a list of numbers of fields
 		{		# to be returned

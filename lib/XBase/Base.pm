@@ -62,7 +62,7 @@ Read $record_len bytes from get_record_offset position.
 
 =head1 VERSION
 
-0.028
+0.029
 
 =head1 AUTHOR
 
@@ -91,7 +91,7 @@ use Exporter;
 # ##############
 # General things
 
-$VERSION = "0.028";
+$VERSION = "0.029";
 
 # Sets the debug level
 $DEBUG = 1;
@@ -233,8 +233,9 @@ sub seek_to
 	1;
 	}
 
-# Read the record of given number. Of course, any class may redefine
-# it, if this behaviour is not suitable
+# Read the record of given number. Cache last record read; when
+# defined unpack_template, unpack into list. Of course, any class may
+# redefine it, if this behaviour is not suitable
 sub read_record
 	{
 	my ($self, $num, $in_length) = @_;
@@ -270,8 +271,6 @@ sub read_record
 	if (defined $self->{'unpack_template'})
 		{
 		my @data = unpack $self->{'unpack_template'}, $buffer;
-		if ($self->can('process_list_on_read'))
-			{ @data = $self->process_list_on_read(@data); }
 		$self->{'cached_data'} = [ @data ];
 		return @data;
 		}
@@ -280,6 +279,39 @@ sub read_record
 		$self->{'cached_data'} = $buffer;
 		return $buffer;
 		}
+	}
+
+# Write the record of given number
+sub write_record
+	{
+	my ($self, $num, $data) = @_;
+	if (not defined $num)
+		{ Error "Record number to write must be specified\n"; return; }
+
+	if (defined $self->{'cached_num'} and $num == $self->{'cached_num'})
+		{ delete $self->{'cached_num'}; }
+	
+	$self->seek_to_record($num) or return;
+	delete $self->{'tell'};
+	
+	my $fh = $self->{'fh'};
+	$fh->print($data) or
+		do { Error "Error writing record $num: $!\n"; return; } ;
+	$num;
+	}
+
+# Write to offset
+sub write_to
+	{
+	my ($self, $offset, $data) = @_;
+	
+	$self->seek_to($offset) or return;
+	delete $self->{'tell'};
+	
+	my $fh = $self->{'fh'};
+	$fh->print($data) or
+		do { Error "Error writing at offset $offset: $!\n"; return; } ;
+	$offset;
 	}
 
 1;
