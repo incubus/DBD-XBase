@@ -23,7 +23,7 @@ use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
 
-$VERSION = '0.0584';
+$VERSION = '0.059';
 
 $errstr = "Use of \$XBase::errstr is depreciated, please use XBase->errstr() instead\n";
 
@@ -36,54 +36,45 @@ $CLEARNULLS = 1;
 # Open the specified file or try to append .dbf suffix.
 sub open
 	{
-	my $self = shift;
-	if (@_ and not -f $_[0])
-		{
-		my $filename = shift;
-		if (-f ($filename . '.dbf'))
-			{ $filename .= '.dbf'; }
-		elsif (-f ($filename . '.DBF'))
-			{ $filename .= '.DBF'; }
-		unshift @_, $filename;
-		}
-	$self->SUPER::open(@_);
+	my ($self, $filename) = @_;
+	$self->SUPER::open($filename) and return 1;
+	if (not $filename =~ /\.dbf$/i and
+		( $self->SUPER::open($filename . '.DBF') or
+			$self->SUPER::open($filename . '.dbf')))
+				{ return 1; }
+	return;
 	}
 # We have to provide way to fill up the object upon open
 sub read_header
 	{
 	my $self = shift;
-	my ($filename, $fh) = @{$self}{ qw( filename fh ) };
+	my ($filename, $fh) = @{$self}{ 'filename', 'fh' };
 
-	my $header;		# read the header
+	my $header;					# read the header
 	$fh->read($header, 32) == 32 or do
 		{ Error "Error reading header of $filename\n"; return; };
 
-	my ($version, $last_update, $num_rec, $header_len, $record_len,
-		$res1, $incompl_trans, $enc_flag, $rec_thread,
-		$multiuser, $mdx_flag, $language_dr, $res2)
-		= unpack 'Ca3Vvva2CCVa8CCa2', $header;
-				# parse the data
+	my ($version, $last_update, $num_rec, $header_len, $record_len)
+		= unpack 'Ca3Vvv', $header;		# parse the data
 
 	my ($names, $types, $lengths, $decimals) = ( [], [], [], [] );
 
-				# will read the field descriptions
+					# will read the field descriptions
 	while (tell($fh) < $header_len - 1)
 		{
-		my $field_def;	# read the field description
-		$fh->read($field_def, 32) == 32 or do
+		my $field_def;		# read the field description
+		my $read = $fh->read($field_def, 32);
+		last if substr($field_def, 0, 1) eq "\r";
+				# we have found the terminator
+		
+		if ($read != 32)	
 			{
-			Warning "Error reading field description\n";
-			last if FIXPROBLEMS;
+			Error "Error reading field description\n";
 			return;
 			};
 
-		last if substr($field_def, 0, 1) eq "\r";
-				# we have found the terminator
-
-		my ($name, $type, $address, $length, $decimal,
-			$multiuser1, $work_area, $multiuser2,
-			$set_fields_flag, $res, $index_flag)
-				= unpack 'A11aVCCa2Ca2Ca7C', $field_def;
+		my ($name, $type, $length, $decimal)
+			= unpack 'A11a@16CC', $field_def;
 
 		$name =~ s/[\000 ].*$//s;
 		$name = uc $name;
@@ -101,8 +92,8 @@ sub read_header
 	my $hashnames;		# create name-to-num_of_field hash
 	@{$hashnames}{ reverse @$names } = reverse ( 0 .. $#$names );
 
-	my $template = join "", "a1",
-		map { "a" . $lengths->[$_]; } (0 .. $#$names);
+	my $template = join '', 'a1',
+		map { 'a' . $lengths->[$_]; } (0 .. $#$names);
 	
 			# now it's the time to store the values to the object
 	@{$self}{ qw( version last_update num_rec header_len record_len
@@ -264,7 +255,7 @@ sub decode_version_info
 	$result .= " containing SQL table" if $sqltable;
 	$result;
 	}
-
+sub version { shift->{'version'}; }
 
 
 # ###################
@@ -879,7 +870,7 @@ welcome.
 
 =head1 VERSION
 
-0.0584
+0.059
 
 =head1 AUTHOR
 

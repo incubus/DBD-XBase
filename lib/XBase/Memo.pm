@@ -20,7 +20,7 @@ types and they specify B<read_record> and B<write_record> methods.
 
 =head1 VERSION
 
-0.0584
+0.045
 
 =head1 AUTHOR
 
@@ -46,7 +46,7 @@ use vars qw( $VERSION @ISA );
 @ISA = qw( XBase::Base );
 
 
-$VERSION = "0.0584";
+$VERSION = "0.045";
 
 sub read_header
 	{
@@ -198,7 +198,7 @@ sub read_record
 	my $rest_length = $length - ($block_size - 8);
 	my $rest_data = $self->SUPER::read_record($num + 1, $rest_length);
 	if (not defined $rest_data) { return; }
-	return substr($buffer, 8, $block_size - 8) . $rest_data;
+	return $buffer . $rest_data;
 	}
 
 sub write_record

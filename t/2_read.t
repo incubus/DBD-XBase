@@ -2,12 +2,11 @@
 
 use strict;
 
-BEGIN	{ $| = 1; print "1..10\n"; }
+BEGIN	{ $| = 1; print "1..8\n"; }
 END	{ print "not ok 1\n" unless $::XBaseloaded; }
 
 
 print "Load the module: use XBase\n";
-
 use XBase;
 $::XBaseloaded = 1;
 print "ok 1\n";
@@ -15,33 +14,54 @@ print "ok 1\n";
 my $dir = ( -d "t" ? "t" : "." );
 
 $XBase::Base::DEBUG = 1;	# We want to see any problems
-$XBase::CLEARNULLS = 1;		# Yes, we want that
 
-print "Create the new XBase object, load the data from table test.dbf\n";
 
-my $table = new XBase("$dir/test.dbf");
-print "not " unless defined $table;
+print "Load table test.dbf\n";
+my $table = new XBase("$dir/test");
+print XBase->errstr(), 'not ' unless defined $table;
 print "ok 2\n";
 
 exit unless defined $table;	# It doesn't make sense to continue here ;-)
 
 
-my @expected = (
-	"0:1:Record no 1:This is a memo for record no one::19960813",
-	"1:2:No 2:This is a memo for record 2:1:19960814",
-	"0:3:Message no 3:This is a memo for record 3:0:19960102",
-	);
-my $rec_num = 0;
-while ($rec_num < 3)
-	{
-	print "Do get_record($rec_num)\n";
-	my $result = join ":", map { defined $_ ? $_ : "" }
-					$table->get_record($rec_num);
-	print "Got $result\nExpected $expected[$rec_num]\n";
-	print "not " if $result ne $expected[$rec_num];
-	print "ok ", $rec_num + 3, "\n";
-	$rec_num++;
-	}
+print "Load the records, one by one\n";
+my $records_expected = join "\n",
+	'0:1:Record no 1:This is a memo for record no one::19960813',
+	'1:2:No 2:This is a memo for record 2:1:19960814',
+	'0:3:Message no 3:This is a memo for record 3:0:19960102';
+my $records = join "\n", map {
+	join ":", map { defined $_ ? $_ : "" } $table->get_record($_);
+		} ( 0 .. 2 );
+if ($records_expected ne $records)
+	{ print "Expected:\n$records_expected\nGot:\n$records\nnot "; }
+print "ok 3\n";
+
+
+print "Get record 0 as hash\n";
+my $hash_values_expected = 'undef, 19960813, 1, 0, "This is a memo for record no one", "Record no 1"';
+my %hash = $table->get_record_as_hash(0);
+my $hash_values = join ', ',
+	map { defined $_ ? ( /^\d+$/ ? $_ : qq["$_"] ) : 'undef' }
+							values %hash;
+if ($hash_values_expected ne $hash_values)
+	{ print "Expected:\n\@hash{ qw( @{[keys %hash]} ) } =\n ($hash_values_expected)\nGot:\n$hash_values\nnot "; }
+print "ok 4\n";
+
+
+print "Load the table rooms\n";
+my $rooms = new XBase("$dir/rooms");
+print XBase->errstr, 'not ' unless defined $rooms;
+print "ok 5\n";
+
+
+print "Check the records\n";
+$records_expected = join '', <DATA>;
+$records = join "\n", (map { join ':', map { defined $_ ? $_ : '' }
+			$rooms->get_record($_) }
+				(0 .. $rooms->last_record())), '';
+if ($records_expected ne $records)
+	{ print "Expected:\n$records_expected\nGot:\n$records\nnot "; }
+print "ok 6\n";
 
 
 $XBase::Base::DEBUG = 0;
@@ -49,55 +69,14 @@ $XBase::Base::DEBUG = 0;
 print "Check if reading record that doesn't exist will produce error\n";
 my (@result) = $table->get_record(3);
 print "not " if @result;
-print "ok 6\n";
-
-print "Check error message\n";
-print "Errstr: ", $table->errstr();
-print "not " if $table->errstr() ne
-	"Can't read record 3, there is not so many of them\n";
 print "ok 7\n";
 
-
-
-print "Get record 0 as hash\n";
-
-my %hash = $table->get_record_as_hash(0);
-
-my @keys = keys %hash;
-my $gotvalues = join ', ',
-	map { defined $_ ? ( /^\d+$/ ? $_ : qq["$_"] ) : 'undef' }
-							values %hash;
-my $expectedvalues = 'undef, 19960813, 1, 0, "This is a memo for record no one", "Record no 1"';
-
-print "Got \@hash{ qw( @keys ) } =\n  ($gotvalues);\n";
-print "Expected\n  ($expectedvalues)\n";
-
-print "not " if $gotvalues ne $expectedvalues;
+print "Check error message\n";
+my $errstr = $table->errstr();
+my $errstr_expected = "Can't read record 3, there is not so many of them\n";
+if ($errstr ne $errstr_expected)
+	{ print "Expected: $errstr_expected\nGot: $errstr\nnot "; }
 print "ok 8\n";
-
-
-print "Create the new XBase object, load the data from table rooms.dbf\n";
-
-$table = new XBase("$dir/rooms");
-print XBase->errstr unless defined $table;
-print "not " unless defined $table;
-print "ok 9\n";
-
-exit unless defined $table;	# It doesn't make sense to continue here ;-)
-
-my $read_table = join "\n", (map { join ':', $table->get_record($_) }
-				(0 .. $table->last_record())), '';
-
-my $read_expected_data = join '', <DATA>;
-
-print "Read records and check what we've got\n";
-if ($read_table ne $read_expected_data)
-	{
-	print "Expected result:\n$read_expected_data";
-	print "Got:\n$read_table";
-	print "not ";
-	}
-print "ok 10\n";
 
 1;
 

@@ -3,89 +3,6 @@
 
 XBase::Base - Base input output module for XBase suite
 
-=head1 SYNOPSIS
-
-Used indirectly, via XBase or XBase::Memo.
-
-=head1 DESCRIPTION
-
-This module provides catch-all I/O methods for other XBase classes,
-should be used by people creating additional XBase classes/methods.
-The methods return nothing (undef) or error and the error message can
-be retrieved using the B<errstr> method. If the $XBase::Base::DEBUG
-variable is true, they also print the message on stderr, so the
-caller doesn't need to do this, just die or ignore the problem.
-
-Methods are:
-
-=over 4
-
-=item new
-
-Constructor. Creates the object and if the file name is specified,
-opens the file.
-
-=item open
-
-Opens the file and using method read_header reads the header and sets
-the object's data structure. The read_header should be defined in the
-derived class, there is no default.
-
-=item close
-
-Closes the file, doesn't destroy the object.
-
-=item get_record_offset
-
-The argument is the number of the record, if returns the number
-
-	$header_len + $number * $record_len
-
-using values from the object. Please note, that I use the term record
-here, even if in memo files the name block and in indexes page is more
-common. It's because I tried to unify the methods. Maybe it's
-a nonsense and we will drop this idea in the next version ;-)
-
-=item seek_to_record
-
-Seeks to record of given number.
-
-=item seek_to
-
-Seeks to given position. It undefs the tell value in the object, since
-it assumes the users that will do print afterwards would not update it.
-
-=item read_record
-
-Reads specified record from get_record_offset position. You can give
-second parameter saying length (in bytes) you want to read. The
-default is record_len. If the required length is -1, it will read
-record_len but will not complain if the file is shorter. Whis is nice
-on the end of memo file.
-
-The method caches last record read. Also, when key unpack_template
-is specified in the object, it unpacks the string read and returns
-list of resulting values.
-
-=item write_record, write_to
-
-Writes data to specified record position or to the absolute position
-in the file.
-
-=back
-
-=head1 VERSION
-
-0.045
-
-=head1 AUTHOR
-
-(c) Jan Pazdziora, adelton@fi.muni.cz
-
-=head1 SEE ALSO
-
-perl(1), XBase(3)
-
 =cut
 
 package XBase::Base;
@@ -132,7 +49,7 @@ sub Error (@)
 	{
 	my $self;
 	$self = shift if ref $_[0];
-	print STDERR @_ if DEBUG;
+	### print STDERR @_ if DEBUG;
 	(defined $self ? $self->{'errstr'} : $errstr) .= join '', @_;
 	}
 # Nulls the $errstr, should be used in methods called from the mail
@@ -152,39 +69,31 @@ sub new
 	if (@_)	{ $new->open(@_) and return $new; return; }
 	return $new;
 	}
-# Open the file. This is the second chance when filename can be
-# specified. It uses the read_header to load the header data
+# Open the specified file. Uses the read_header to load the header data
 sub open
 	{
 	NullError();
-	my $self = shift;
-	if (@_ and not defined $self->{'filename'})
-		{ $self->{'filename'} = shift; }
-	
-	return 1 if defined $self->{'opened'};
-				# won't open if already opened
+	my ($self, $filename) = @_;
+	if (defined $self->{'fh'}) { $self->close(); }
 
 	my $fh = new IO::File;
-	my ($filename, $writable, $mode) = ($self->{'filename'}, 0, 'r');
-
-	($writable, $mode) = (1, 'r+') if -w $filename;
-				# decide if we want r or r/w access
-
-	$fh->open($filename, $mode) or do
-		{ Error "Error opening file $filename: $!\n"; return; };
-				# open the file
+	my $rw;
+	if ($fh->open($filename, 'r+'))
+		{ $rw = 1; }
+	elsif ($fh->open($filename, 'r'))
+		{ $rw = 0; }
+	else
+		{ Error "Error opening file $filename: $!\n"; return; }
+	
 	binmode($fh);		# f..k Windoze
 
-	my $perms = (stat($filename))[2] & 0777;
-
-	@{$self}{ qw( opened fh writable perms ) }
-				= ( 1, $fh, $writable, $perms );
-
-	unless ($self->can('read_header'))
+	if (not $self->can('read_header'))
 		{ Error "Method read_header not defined for $self\n"; return; }
 	
-	unless ($self->read_header(@_))	# read_header should be
-		{ return; }		# defined in the derived class
+	@{$self}{ 'fh', 'filename', 'rw' } = ($fh, $filename, $rw);
+	
+	if (not $self->read_header(@_))		# read_header should be
+		{ return; }			# defined in the derived class
 
 	1;
 	}
@@ -292,9 +201,8 @@ sub seek_to
 	1;
 	}
 
-# Read the record of given number. Cache last record read; when
-# defined unpack_template, unpack into list. Of course, any class may
-# redefine it, if this behaviour is not suitable
+# Read the record of given number; when defined unpack_template, unpack
+# into list.
 sub read_record
 	{
 	my ($self, $num, $in_length) = @_;
@@ -304,21 +212,16 @@ sub read_record
 	if ($num > $self->last_record())
 		{ $self->Error("Can't read record $num, there is not so many of them\n"); return; }
 
-	if (defined $self->{'cached_num'} and $num == $self->{'cached_num'})
-		{
-		my $data = $self->{'cached_data'};
-		if (ref $data)	{ return @$data; }
-		return $data;
-		}
+	my ($fh, $record_len, $header_len) =
+			@{$self}{ qw( fh record_len header_len) };
+
+	my $offset = $header_len + $num * $record_len;
+	$fh->seek($offset, 0) or do
+		{ $self->Error("Error seeking to offset $offset on file $self->{'filename'}\n"); return; };
 	
-	my $tell = $self->{'tell'};
-	$self->seek_to_record($num) or return;
-
-	my ($fh, $record_len) = @{$self}{ qw( fh record_len ) };
-	my $buffer;
-
 	$in_length = $record_len unless defined $in_length;
-
+	
+	my $buffer;
 	my $actually_read = $fh->read($buffer, ($in_length == -1 ?
 						$record_len : $in_length));
 	
@@ -328,22 +231,10 @@ sub read_record
 		return unless FIXPROBLEMS;
 		};
 	
-	$self->{'tell'} = (defined $tell) ? $tell + $actually_read : $fh->tell();
-	
-	$self->{'cached_num'} = $num;
 	if (defined $self->{'unpack_template'})
-		{
-		my @data = unpack $self->{'unpack_template'}, $buffer;
-
-		$self->{'cached_data'} = [ @data ];
-
-		return @data;
-		}
+		{ return unpack $self->{'unpack_template'}, $buffer; }
 	else
-		{
-		$self->{'cached_data'} = $buffer;
-		return $buffer;
-		}
+		{ return $buffer; }
 	}
 
 # Write the record of given number
@@ -384,3 +275,89 @@ sub write_to
 
 1;
 
+__END__
+
+=head1 SYNOPSIS
+
+Used indirectly, via XBase or XBase::Memo.
+
+=head1 DESCRIPTION
+
+This module provides catch-all I/O methods for other XBase classes,
+should be used by people creating additional XBase classes/methods.
+The methods return nothing (undef) or error and the error message can
+be retrieved using the B<errstr> method. If the $XBase::Base::DEBUG
+variable is true, they also print the message on stderr, so the
+caller doesn't need to do this, just die or ignore the problem.
+
+Methods are:
+
+=over 4
+
+=item new
+
+Constructor. Creates the object and if the file name is specified,
+opens the file.
+
+=item open
+
+Opens the file and using method read_header reads the header and sets
+the object's data structure. The read_header should be defined in the
+derived class, there is no default.
+
+=item close
+
+Closes the file, doesn't destroy the object.
+
+=item get_record_offset
+
+The argument is the number of the record, if returns the number
+
+	$header_len + $number * $record_len
+
+using values from the object. Please note, that I use the term record
+here, even if in memo files the name block and in indexes page is more
+common. It's because I tried to unify the methods. Maybe it's
+a nonsense and we will drop this idea in the next version ;-)
+
+=item seek_to_record
+
+Seeks to record of given number.
+
+=item seek_to
+
+Seeks to given position. It undefs the tell value in the object, since
+it assumes the users that will do print afterwards would not update it.
+
+=item read_record
+
+Reads specified record from get_record_offset position. You can give
+second parameter saying length (in bytes) you want to read. The
+default is record_len. If the required length is -1, it will read
+record_len but will not complain if the file is shorter. Whis is nice
+on the end of memo file.
+
+The method caches last record read. Also, when key unpack_template
+is specified in the object, it unpacks the string read and returns
+list of resulting values.
+
+=item write_record, write_to
+
+Writes data to specified record position or to the absolute position
+in the file.
+
+=back
+
+=head1 VERSION
+
+0.045
+
+=head1 AUTHOR
+
+(c) Jan Pazdziora, adelton@fi.muni.cz
+
+=head1 SEE ALSO
+
+perl(1), XBase(3)
+
+=cut

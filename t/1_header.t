@@ -2,23 +2,21 @@
 
 use strict;
 
-BEGIN	{ $| = 1; print "1..9\n"; }
+BEGIN	{ $| = 1; print "1..8\n"; }
 END	{ print "not ok 1\n" unless $::XBaseloaded; }
 
 
-print "First, let's try to at least load the module: use XBase\n";
+BEGIN { print "Load the module: use XBase\n"; }
 
 use XBase;
 $::XBaseloaded = 1;
 print "ok 1\n";
 
 my $dir = ( -d "t" ? "t" : "." );
-
 $XBase::Base::DEBUG = 1;        # We want to see any problems
-$XBase::CLEARNULLS = 1;         # Yes, we want that
+
 
 print "Create the new XBase object, load the data from table test.dbf\n";
-
 my $table = new XBase("$dir/test.dbf");
 print "not " unless defined $table;
 print "ok 2\n";
@@ -27,51 +25,53 @@ exit unless defined $table;     # It doesn't make sense to continue here ;-)
 
 
 print "Now, look into the object and check, if it has been filled OK\n";
-
-my $version = $table->{'version'};
-printf "Version: expecting 0x83, got 0x%02x\n", $version;
-print "not " if $version != 0x83;
+my $info = sprintf "Version: 0x%02x, last record: %d, last field: %d",
+	$table->version, $table->last_record, $table->last_field;
+my $info_expect = 'Version: 0x83, last record: 2, last field: 4';
+if ($info ne $info_expect)
+	{ print "Expected:\n$info_expect\nGot:\n$info\nnot "; }
 print "ok 3\n";
 
 
-my $lastrec = $table->last_record();
-print "Last record: expecting 2, got $lastrec\n";
-print "not " if $lastrec != 2;
+print "Check the field names\n";
+my $names = join ' ', $table->field_names();
+my $names_expect = 'ID MSG NOTE BOOLEAN DATES';
+if ($names ne $names_expect)
+	{ print "Expected: $names_expect\nGot: $names\nnot "; }
 print "ok 4\n";
 
 
-my $lastfield = $table->last_field();
-print "Last field: expecting 4, got $lastfield\n";
-print "not " if $lastfield != 4;
+print "Get verbose header info (using header_info)\n";
+$info = $table->get_header_info();
+$info_expect = join '', <DATA>;
+if ($info ne $info_expect)
+	{ print "Expected: $info_expect\nGot: $info\nnot "; }
 print "ok 5\n";
-
-
-my $names = join " ", $table->field_names();
-my $names_ok = "ID MSG NOTE BOOLEAN DATES";
-print "Field names: expecting $names_ok, got $names\n";
-print "not " if $names ne $names_ok;
-print "ok 6\n";
 
 
 $XBase::Base::DEBUG = 0;
 
 print "Check if loading table that doesn't exist will produce error\n";
 my $badtable = new XBase("nonexistent.dbf");
-print "not " if defined $badtable;
-print "ok 7\n";
+print 'not ' if defined $badtable;
+print "ok 6\n";
 
 
 print "Check the returned error message\n";
 my $errstr = XBase->errstr();
-print "Got errstr: $errstr";
-print "not " if not $errstr =~ /^Error opening file nonexistent.dbf:/;
+my $errstr_expect = 'Error opening file nonexistent.dbf:';
+if (index($errstr, $errstr_expect) != 0)
+	{ print "Expected: $errstr_expect\nGot: $errstr\nnot "; }
+print "ok 7\n";
+
+
+print "Load table without specifying the .dbf suffix\n";
+$table = new XBase("$dir/test");
+print "not " unless defined $table;
 print "ok 8\n";
 
 
-print "Get verbose header info (using header_info)\n";
-
-my $verinfo = $table->header_info();
-my $goodinfo = <<'EOF';
+__DATA__
 Filename:	t/test.dbf
 Version:	0x83 (ver. 3 with DBT file)
 Num of records:	3
@@ -86,10 +86,3 @@ Num	Name		Type	Len	Decimal
 3.	NOTE            M       10      0
 4.	BOOLEAN         L       1       0
 5.	DATES           D       8       0
-EOF
-
-if ($verinfo ne $goodinfo)
-	{ print "Expected\n", $goodinfo, "Got\n", $verinfo, "not "; }
-print "ok 9\n";
-
-
