@@ -20,7 +20,7 @@ use XBase::Base;		# will give us general methods
 use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
-$VERSION = '0.141';
+$VERSION = '0.144-bindparams';
 $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 
 *errstr = \$XBase::Base::errstr;
@@ -145,7 +145,7 @@ sub read_header
 						$memo->read_record($value - 1) if defined $memo;
 						};
 					$wproc = sub {
-						my $value = $memo->write_record(-1, $type, shift) if defined $memo;
+						my $value = $memo->write_record(-1, $type, $_[0]) if defined $memo and defined $_[0];
 						sprintf '%*.*s', $length, $length,
 							(defined $value ? $value + 1: ''); };
 					}
@@ -1224,7 +1224,7 @@ Thanks a lot.
 
 =head1 VERSION
 
-0.141
+0.145
 
 =head1 AUTHOR
 
