@@ -1,6 +1,15 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
+0.145 Mon Jun 21 12:49:19 MET DST 1999
+	DBD::XBase: updated TYPE_INFO for BOOLEAN and BLOB.
+
+	t/5_dbd_select.t: added tests for the named bind params.
+
+0.144 Fri May 14 07:50:23 CEST 1999
+	XBase::SQL, DBD::XBase: added support for named bind parameters;
+	added comments.
+
 0.141 Thu Apr 29 23:17:25 CEST 1999
 	XBase::Index: added code for multiple page cdx and fix for big
 	endian. Added code for negative ntx numeric values.

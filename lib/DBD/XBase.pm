@@ -19,7 +19,7 @@ use Exporter;
 use vars qw( $VERSION @ISA @EXPORT $err $errstr $drh $sqlstate );
 			# a couple of global variables that may come handy
 
-$VERSION = '0.142';
+$VERSION = '0.145';
 
 $err = 0;
 $errstr = '';
@@ -269,7 +269,7 @@ sub rows {
 sub _set_rows {
 	my $sth = shift;
 	if (not @_ or not defined $_[0])
-		{ delete $sth->{'xbase_rows'}; return -1; }
+		{ $sth->{'xbase_rows'} = undef; return -1; }
 	$sth->{'xbase_rows'} = ( $_[0] ? $_[0] : '0E0' );
 	}
 # Execute the current statement, possibly binding parameters. For
@@ -296,7 +296,7 @@ sub execute
 
 	# cancel the count of rows done in the previous run, this is a
 	# new execute
-	delete $sth->{'xbase_rows'};
+	$sth->{'xbase_rows'} = undef;
 	
 	# we'll nee dbh, table name and to command to do with them	
 	my $dbh = $sth->{'Database'};
@@ -472,75 +472,6 @@ sub execute
 	elsif ($command eq 'select') {
 		$sth->{'xbase_cursor'} = $cursor;
 		}
-
-=comment
-
-	if (not defined $parsed_sql->{'fields'} and defined $parsed_sql->{'selectall'})
-		{
-		$parsed_sql->{'fields'} = [ $xbase->field_names ];
-		for my $field (@{$parsed_sql->{'fields'}})
-			{ push @{$parsed_sql->{'usedfields'}}, $field
-			unless grep { $_ eq $field } @{$parsed_sql->{'usedfields'}}; }
-		}
-	my $cursor = $xbase->prepare_select( @{$parsed_sql->{'usedfields'}} );
-	my @fields = @{$parsed_sql->{'fields'}} if defined $parsed_sql->{'fields'};
-
-=cut
-
-	### use Data::Dumper; print STDERR Dumper $parsed_sql;
-
-=comment
-
-	if ($command eq 'select')
-		{
-		if (defined $parsed_sql->{'orderfield'})
-			{
-			my $orderfield = ${$parsed_sql->{'orderfield'}}[0];
-
-			my $subparsed_sql = { %$parsed_sql };
-			delete $subparsed_sql->{'orderfield'};
-			unshift @{$subparsed_sql->{'fields'}}, $orderfield;
-			my $substh = DBI::_new_sth($dbh, {
-				'Statement'	=> $sth->{'Statement'},
-				'xbase_parsed_sql'	=> $subparsed_sql,
-				});
-			for my $key (keys %$bind_values) {
-				$substh->bind_param($key, $bind_values->{$key});
-				}
-			$substh->execute;
-			my $data = $substh->fetchall_arrayref;
-			my $type = $xbase->field_type($orderfield);
-			my $sortfn;
-			if (not defined $parsed_sql->{'orderdesc'})
-				{
-				if ($type =~ /^[CML]$/)
-					{ $sortfn = sub { $_[0] cmp $_[1] } }
-				else
-					{ $sortfn = sub { $_[0] <=> $_[1] } }
-				}
-			else
-				{
-				if ($type =~ /^[CML]$/)
-					{ $sortfn = sub { $_[1] cmp $_[0] } }
-				else
-					{ $sortfn = sub { $_[1] <=> $_[0] } }
-				}
-			$sth->{'xbase_lines'} =
-				[ map { shift @$_; [ @$_ ] }
-					sort { &{$sortfn}($a->[0], $b->[0]) } @$data ];
-			shift(@{$parsed_sql->{'fields'}});
-			}
-		else
-			{
-			$sth->{'xbase_cursor'} = $cursor;
-			}
-		### 'NUM_OF_FIELDS' => scalar($parsed_sql->{'selectfields'}),
-		if (not $sth->FETCH('NUM_OF_FIELDS') and scalar @fields)
-			{ $sth->STORE('NUM_OF_FIELDS', scalar @fields); }
-		}
-
-=cut
-
 	elsif ($command eq 'delete')
 		{
 		if (not defined $wherefn)
@@ -830,7 +761,7 @@ Example:
 
 =head1 VERSION
 
-0.140
+0.145
 
 =head1 AUTHOR
 

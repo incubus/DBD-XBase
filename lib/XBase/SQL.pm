@@ -8,7 +8,7 @@ package XBase::SQL;
 use strict;
 use vars qw( $VERSION %COMMANDS );
 
-$VERSION = '0.131';
+$VERSION = '0.145';
 
 # #################################
 # Type conversions for create table
@@ -86,7 +86,7 @@ my %TYPES = ( 'char' => 'C', 'varchar' => 'C',
 	'WHERE' =>	'where WHEREEXPR',
 	'WHEREEXPR' =>	'BOOLEAN',
 
-	'BOOLEAN' =>	q'\( BOOLEAN \) | RELATION ( ( AND | OR ) BOOLEAN ) *',
+	'BOOLEAN' =>	q'( \( BOOLEAN \) | RELATION ) ( ( AND | OR ) BOOLEAN ) *',
 	'RELATION' =>   'ARITHMETIC ( is not ? null | LIKE CONSTANT_NOT_NULL | RELOP ARITHMETIC )',
 	'AND' =>	'and',
 	'OR' =>		'or',
@@ -331,11 +331,11 @@ sub parse
 	else
 		{
 		# take the results and store them to $self
-		### use Data::Dumper; print STDERR Dumper @result;
+		use Data::Dumper; print STDERR Dumper $self if $ENV{'SQL_DUMPER'};
 		$self->store_results(\@result, \%STORE);
 		if (defined $self->{'whereerror'})
 			{ $self->{'errstr'} = "Some deeper problem: eval failed: $self->{'whereerror'}"; }
-		### use Data::Dumper; print STDERR Dumper $self;
+		use Data::Dumper; print STDERR Dumper $self if $ENV{'SQL_DUMPER'};
 		}
 	$self;
 	}

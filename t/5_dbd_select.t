@@ -13,7 +13,7 @@ BEGIN	{
 		print "ok 1\n";
 		exit;
 		}
-	print "1..22\n";
+	print "1..28\n";
 	print "DBI loaded\n";
 	}
 
@@ -259,6 +259,80 @@ if ($result ne $expected_result)
 	{ print "Expected:\n${expected_result}Got:\n${result}not "; }
 print "ok 22\n";
 
+
+$command = 'select facility, roomname from rooms where (facility = :fac or
+		facility = :fac1) and roomname not like :name';
+print "Prepare $command\n";
+$sth = $dbh->prepare($command) or do {
+	print $dbh->errstr, "not ok 23\n";
+	exit;
+	};
+print "ok 23\n";
+
+print "Bind named parameters: Film, Main, Bay%\n";
+$sth->bind_param(':fac', 'Film');
+$sth->bind_param(':fac1', 'Main');
+$sth->bind_param(':name', 'Bay%');
+
+$sth->execute or do {
+	print $dbh->errstr, "not ok 24\n";
+	exit;
+	};
+print "ok 24\n";
+
+print "And now get the result\n";
+$result = '';
+while (@line = $sth->fetchrow_array())
+	{ $result .= "@line\n"; }
+$expected_result = '';
+while (<DATA>)
+	{
+	last if /^__END_DATA__$/;
+	$expected_result .= $_;
+	}
+
+if ($result ne $expected_result)
+	{ print "Expected:\n${expected_result}Got:\n${result}not "; }
+print "ok 25\n";
+
+
+$command = 'select facility, roomname from rooms where roomname like :bay
+	or facility = :film';
+print "Prepare $command\n";
+$sth = $dbh->prepare($command) or do {
+	print $dbh->errstr, "not ok 26\n";
+	exit;
+	};
+print "ok 26\n";
+
+print "Bind named parameters in execute call\n";
+$sth->execute('Bay  _', 'Film') or do {
+	print $dbh->errstr, "not ok 27\n";
+	exit;
+	};
+print "ok 27\n";
+
+print "And now get the result\n";
+$result = '';
+while (@line = $sth->fetchrow_array())
+	{ $result .= "@line\n"; }
+$expected_result = '';
+while (<DATA>)
+	{
+	last if /^__END_DATA__$/;
+	$expected_result .= $_;
+	}
+
+if ($result ne $expected_result)
+	{ print "Expected:\n${expected_result}Got:\n${result}not "; }
+print "ok 28\n";
+
+
+
+
+
+
+
 $sth->finish();
 $dbh->disconnect();
 
@@ -338,3 +412,28 @@ ADR-Foley Audio
 Mach Rm Audio
 Transfer Audio
 Flambe Audio
+__END_DATA__
+Main Gigapix
+Main Dub
+Film FILM 1
+Film FILM 2
+Film FILM 3
+Film SCANNING
+Film BullPen
+Film Celco
+Main MacGrfx
+Main AVID
+__END_DATA__
+Main Bay  1
+Main Bay  2
+Main Bay  5
+Main Bay  6
+Main Bay  3
+Main Bay  4
+Main Bay  8
+Film FILM 1
+Film FILM 2
+Film FILM 3
+Film SCANNING
+Film BullPen
+Film Celco
