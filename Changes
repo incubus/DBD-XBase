@@ -1,6 +1,10 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
+0.0584 Mon Mar  2 10:04:00 MET 1998
+	Fix of XBase::Memo::dBaseIV::read_record for memo fields
+	longer than record length by Jochen Friedrich.
+
 0.0583 Thu Feb 12 00:08:07 MET 1998
 	Bug fix for floating fields, patch by Carlos Augusto de
 	Almeida.

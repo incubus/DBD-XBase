@@ -21,10 +21,7 @@ t/6_dbd_delete.t
 t/7_dbd_update.t
 t/8_dbd_insert.t
 t/9_dbd_create.t
-t/dump.to.dbf
 t/rooms.cdx
 t/rooms.dbf
 t/test.dbf
-t/test.dbf.dump
 t/test.dbt
-t/test.dbt.dump
