@@ -1,6 +1,0 @@
-perl -Ilib -MDBI -e 'my $dbh = DBI->connect("dbi:XBase:./t") or dir
-$DBI::errstr; my $sth = $dbh->do("select * from test"); use
-Data::Dumper; print Dumper $sth;'
-
-
-

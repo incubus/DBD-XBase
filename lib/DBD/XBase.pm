@@ -16,7 +16,7 @@ such a beast. Any help is appreciated.
 
 =head1 VERSION
 
-0.03
+0.031
 
 =head1 AUTHOR
 
@@ -42,7 +42,7 @@ use vars qw($VERSION @ISA @EXPORT $err $errstr $drh);
 
 require Exporter;
 
-$VERSION = '0.03';
+$VERSION = '0.031';
 
 $err = 0;
 $errstr = '';
@@ -78,6 +78,7 @@ sub connect
 		return undef;
 		}
 	my $this = DBI::_new_dbh($drh, { 'dsn' => $dsn } );
+	$this;
 	}
 
 sub disconnect_all
@@ -92,56 +93,25 @@ $imp_data_size = 0;
 sub prepare
 	{
 	my ($dbh, $statement, @attribs)= @_;
+	my $parsed_sql = DBD::XBase::db::_parse_SQL($statement);
+	if (not ref $parsed_sql or not defined $parsed_sql->{'command'})
+		{ print STDERR "Error: $parsed_sql\n"; return; }
 	my $sth = DBI::_new_sth($dbh, {
 		'Statement'	=> $statement,
 		'dbh'		=> $dbh,
+		'xbase_parsed_sql'	=> $parsed_sql,
 		});
 	$sth;
 	}
 
-
-
-package DBD::XBase::st;
-use strict;
-use vars qw( $imp_data_size );
-$imp_data_size = 0;
-sub errstr	{ $DBD::XBase::errstr }
-
-
-use Data::Dumper;
-sub execute
-	{
-	my $sth = shift;
-	my $result = $sth->DBD::XBase::st::_parse_SQL($sth->{'Statement'});
-	if (not ref $result)
-		{ print STDERR "Error: $result\n"; return; }
-
-	my $dbh = $sth->{'dbh'};
-	if (defined $result->{'command'} and $result->{'command'} eq "select")
-		{
-		my $table = $dbh->{'tables'}->{$result->{'table'}};
-		if (not defined $table)
-			{
-			my $table = new XBase($dbh->{'dsn'} . "/" .  $result->{'table'});
-		
-			print STDERR "Error creating XBase: $XBase::errstr\n"
-				unless defined $table;
-			
-			return;
-			
-			$dbh->{'tables'}->{$result->{'table'}} = $table;
-			}
-		
-		
-		$table->dump_records();
-
-		}
-
-	}
 sub _parse_SQL
 	{
-	shift if ref $_[0];
-	local $_ = shift;
+	my $statement = shift;
+	if (not @_)
+		{ $statement = $statement->{'Statement'} if ref $statement; }
+	else
+		{ $statement = shift; }
+	local $_ = $statement;
 	my $errstr = '';
 	my $backup = $_;
 	my $result = {};
@@ -176,9 +146,59 @@ sub _parse_SQL
 	}
 
 
-package DBD::XBase::table;
+package DBD::XBase::st;
 use strict;
+use vars qw( $imp_data_size );
+$imp_data_size = 0;
+sub errstr	{ $DBD::XBase::errstr }
 
+sub execute
+	{
+	my $sth = shift;
+	my $parsed_sql = $sth->{'xbase_parsed_sql'};
+	my $dbh = $sth->{'dbh'};
+	if ($parsed_sql->{'command'} eq "select")
+		{
+		my $from = $parsed_sql->{'table'};
+		my $table = $dbh->{'xbase_tables'}->{$from};
+		if (not defined $table)
+			{
+			my $filename = $dbh->{'dsn'} . "/" . $parsed_sql->{'table'};
+			$table = new XBase($filename);
 
+			if (not defined $table)
+				{
+				print STDERR $XBase::errstr
+							unless defined $table;
+				return;
+				}
+			
+			$dbh->{'xbase_tables'}->{$from} = $table;
+			}
+		$sth->{'xbase_current_record'} = 0;
+		$sth->{'xbase_table'} = $table;
+		}
+	}
 
+sub fetch
+	{
+        my $sth = shift;
+	my $current = $sth->{'xbase_current_record'};
+	my $table = $sth->{'xbase_table'};
+	my $parsed_sql = $sth->{'xbase_parsed_sql'};
+	my @fields;
+	if (defined $parsed_sql->{'selectall'})
+		{ @fields = $table->field_names(); }
+	else
+		{ @fields = @{$parsed_sql->{'fields'}}; }
+	while ($current <= $table->last_record())
+		{
+		my %hash = $table->get_record_as_hash($current);
+		$sth->{'xbase_current_record'} = ++$current;
+		if ($hash{'_DELETED'} == 0)
+			{ return [ @hash{ @fields } ]; }
+		}
+	$sth->finish(); return ();
+	}
+	
 1;
