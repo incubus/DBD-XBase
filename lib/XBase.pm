@@ -1,4 +1,6 @@
 
+use XBase::Memo;
+
 =head1 NAME
 
 XBase - Perl module for reading and writing the dbf files
@@ -18,7 +20,7 @@ use XBase::Base;		# will give us general methods
 use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
-$VERSION = '0.121';
+$VERSION = '0.127';
 $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 
 *errstr = \$XBase::Base::errstr;
@@ -36,7 +38,7 @@ sub open
 	$self->{'openoptions'} = { %options, @_ };
 
 	my %locoptions;
-	@locoptions{ qw( name readonly) } = @{$self->{'openoptions'}}{ qw( name readonly) };
+	@locoptions{ qw( name readonly ignorememo ) } = @{$self->{'openoptions'}}{ qw( name readonly ignorememo ) };
 	my $filename = $locoptions{'name'};
 	if ($filename eq '-')
 		{ return $self->SUPER::open(%locoptions); }
@@ -132,15 +134,21 @@ sub read_header
 				{ $memo = $self->{'memo'} = $self->init_memo_field() or return; }
 			if (defined $memo and $length == 10)
 				{
-				$rproc = sub {
-					my $value = shift;
-					return undef unless $value =~ /\d/;
-					$memo->read_record($value - 1) if defined $memo;
-					};
-				$wproc = sub {
-					my $value = $memo->write_record(-1, $type, shift) if defined $memo;
-					sprintf '%*.*s', $length, $length,
-						(defined $value ? $value + 1: ''); };
+				if (ref $memo eq 'XBase::Memo::Apollo') {
+					$rproc = sub { $memo->read_record(shift); }
+					## $wproc = sub { $memo->write_record(shift); }
+					}
+				else {
+					$rproc = sub {
+						my $value = shift;
+						return undef unless $value =~ /\d/;
+						$memo->read_record($value - 1) if defined $memo;
+						};
+					$wproc = sub {
+						my $value = $memo->write_record(-1, $type, shift) if defined $memo;
+						sprintf '%*.*s', $length, $length,
+							(defined $value ? $value + 1: ''); };
+					}
 				}
 			elsif (defined $memo and $length == 4)
 				{
@@ -156,6 +164,25 @@ sub read_header
 				$rproc = sub { undef; };
 				$wproc = sub { ' ' x $length; };
 				}
+			}
+		elsif ($type eq 'T')	# time fields
+			{
+			$rproc = sub {
+				my ($day, $time) = unpack 'VV', $_[0];
+
+				my $localday = $day - 2451232 + 10644;
+				my $localtime = $localday * 24 * 3600;
+				$localtime += $time / 1000 - 3600;
+				return $localtime;
+
+				my $localdata = "[$localday] $localtime: @{[localtime($localtime)]}";
+
+				my $usec = $time % 1000;
+				my $hour = int($time / 3600000);
+				my $min = int(($time % 3600000) / 60000);
+				my $sec = int(($time % 60000) / 1000);
+				return "$day($localdata)-$hour:$min:$sec.$usec";
+				};
 			}
 		$name =~ s/[\000 ].*$//s;
 		$name = uc $name;		# no locale yet
@@ -194,7 +221,7 @@ sub init_memo_field
 	if (defined $self->{'openoptions'}{'memofile'})
 		{ return XBase::Memo->new($self->{'openoptions'}{'memofile'}, %options); }
 	
-	for (qw( FPT fpt DBT dbt ))
+	for (qw( dbt DBT fpt FPT smt SMT ))
 		{
 		my $memo;
 		my $memoname = $self->{'filename'};
@@ -662,14 +689,26 @@ sub drop
 sub locksh
 	{
 	my $self = shift;
-	$self->SUPER::locksh;
-	$self->{'memo'}->locksh() if defined $self->{'memo'};
+	my $ret = $self->SUPER::locksh or return;
+	if (defined $self->{'memo'}) {
+		unless ($self->{'memo'}->locksh()) {
+			$self->SUPER::unlock;
+			return;
+			}
+		}
+	$ret;
 	}
 sub lockex
 	{
 	my $self = shift;
-	$self->SUPER::lockex;
-	$self->{'memo'}->lockex() if defined $self->{'memo'};
+	my $ret = $self->SUPER::lockex or return;
+	if (defined $self->{'memo'}) {
+		unless ($self->{'memo'}->lockex()) {
+			$self->SUPER::unlock;
+			return;
+			}
+		}
+	$ret;
 	}
 sub unlock
 	{
@@ -1145,7 +1184,7 @@ Thanks a lot.
 
 =head1 VERSION
 
-0.120
+0.127
 
 =head1 AUTHOR
 

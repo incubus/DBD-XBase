@@ -1,6 +1,22 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
+	
+
+	Fix for ignorememo. Need to fix handling attributes in DBD ...
+
+	XBase::Base: opening readonly files fixed, patch by Petr
+	Machacek.
+	
+	_unlockex fixed to _unlock. locksh, lockex and unlock now
+	return true/false based on result.
+
+	DBD::XBase::disconnect now closes the tables, patch by Martin
+	Treusch von Buttlar.
+
+	t/2_write.t: added $table->close before size check, patch by
+	Ilya Chelpanov.
+
 0.121 Thu Jan 21 20:07:04 MET 1999
 	XBase::Memo: Fixed a typo in measuring the next_for_append,
 	pointed out by Dan Albertsson.
@@ -9,9 +25,8 @@ Revision history for Perl extension XBase and DBD::Xbase.
 
 0.120 Wed Jan 13 13:24:15 MET 1999 
 	XBase.pm: added XBase::Cursor::rewind, names,
-	prepare_select_nf. Added
-	readonly options. Added options 'table' for dump -- using
-	Data::ShowTable.
+	prepare_select_nf. Added readonly option. Added option 'table'
+	for dump -- using Data::ShowTable.
 
 	XBase.pm, XBase::Base.pm: open method now accepts hash of
 	options.

@@ -133,6 +133,7 @@ print "ok 10\n";
 
 
 print "Check the size of the resulting fpt\n";
+$table->close;
 my $size = -s "$dir/write1.FPT";
 if ($size != 896) {
 	print "Expected size 896, got $size\nnot "

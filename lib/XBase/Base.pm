@@ -9,10 +9,12 @@ package XBase::Base;
 
 use strict;
 use IO::File;
-use Fcntl qw( O_RDWR O_BINARY O_RDONLY );
-BEGIN {
-	eval { my $a = O_BINARY; };
-	if ($@) { local $^W = 0; eval ' sub O_BINARY { 0 } ' }
+use Fcntl qw( O_RDWR O_RDONLY );
+
+### I _Realy_ hate to have this code here!
+BEGIN { local $^W = 0;
+	if ($^O =~ /mswin/i) { eval 'use Fcntl qw( O_BINARY )' }
+	else { eval ' sub O_BINARY { 0 } ' }
 	}
 
 $XBase::Base::VERSION = '0.120';
@@ -79,7 +81,7 @@ sub open
 			}
 		if (not $ok) {
 			if ($fh->open($options{'name'}, O_RDONLY|O_BINARY))
-				{ $rw = 0; }
+				{ $rw = 0; $ok = 1; }
 			else    { $ok = 0; }
 			}
 		if (not $ok) {
@@ -280,7 +282,7 @@ sub unlock	{ _unlock(shift->{'fh'}) }
 
 sub _locksh	{ flock(shift, 1); }
 sub _lockex	{ flock(shift, 2); }
-sub _unlockex	{ flock(shift, 8); }
+sub _unlock	{ flock(shift, 8); }
 
 
 1;

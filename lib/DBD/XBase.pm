@@ -156,7 +156,13 @@ sub rollback
 	}
 
 sub disconnect
-	{ 1; }
+	{
+	my $dbh = shift;
+	foreach my $xbase (values %{$dbh->{'xbase_tables'}}) {
+		$xbase->close;
+		delete $dbh->{'xbase_tables'}{$xbase};
+		}
+	}
 
 sub table_info
 	{
