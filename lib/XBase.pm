@@ -183,9 +183,6 @@ file with the same name but extension .dbt. It uses module
 XBase::Memo(3) for this. It reads and writes this memo field
 transparently (ie you do not know about it).
 
-Quiz question: can there be more than one memo field in the dbf file?
-In what file (.dbt?) should I search for their values? Any ideas?
-
 No index files are currently supported. Two reasons: you do not need
 them when reading the file because you specify the record number
 anyway and writing them is extremely difficult. I will try to add the
@@ -215,7 +212,7 @@ package, but the interface seemed rather complicated to me and I also
 disliked the licence Pratap had about the module.
 
 So with the help of article XBase File Format Description by Erik
-Bachmann, URL http://www.geocities.com/SiliconValley/Pines/2563/xbase.htm,
+Bachmann on URL http://www.geocities.com/SiliconValley/Pines/2563/xbase.htm
 I have written a new module. It doesn't use any code from Xbase-1.07
 and you are free to use and distribute it under the same terms as Perl
 itself.
@@ -227,7 +224,7 @@ dBase nor Fox*, so there are probably pieces missing.
 
 =head1 VERSION
 
-0.032
+0.033
 
 =head1 AUTHOR
 
@@ -262,7 +259,7 @@ use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
 
-$VERSION = "0.032";
+$VERSION = "0.033b1";
 
 $errstr = '';	# only after new, otherwise use method $table->errstr;
 
