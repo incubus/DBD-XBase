@@ -1,0 +1,10 @@
+Changes
+MANIFEST
+Makefile.PL
+Xbase.pm.notready
+XbaseTable.pm
+dump.to.dbf
+test.dbf
+test.dbf.backup
+test.dbf.dump
+test.pl

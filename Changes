@@ -1,0 +1,5 @@
+Revision history for Perl extension DBD::Xbase.
+
+0.01  Mon Oct  6 18:28:40 1997
+	- original version; created by h2xs 1.16
+
