@@ -1,6 +1,10 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
+0.141 Thu Apr 29 23:17:25 CEST 1999
+	XBase::Index: added code for multiple page cdx and fix for big
+	endian. Added code for negative ntx numeric values.
+
 0.140 Thu Apr 29 10:50:58 MET DST 1999
 	XBase: the -1 memo records handle the 4 byte fields as well,
 	patch by Zbigniew Malinowski.

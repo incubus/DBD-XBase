@@ -11,7 +11,7 @@ use vars qw( @ISA $DEBUG $VERSION );
 use XBase::Base;
 @ISA = qw( XBase::Base );
 
-$VERSION = '0.140';
+$VERSION = '0.141';
 
 $DEBUG = 0;
 
@@ -360,12 +360,6 @@ sub read_header
 	my $key_string = uc $self->{'key_string'};
 	$key_string =~ s/^.*?->//;
 	$self->{'key_string'} = $key_string;
-	my $field_type = (defined $self->{'dbf'} and $self->{'dbf'}->field_type($key_string));
-	if (not defined $field_type) {
-		__PACKAGE__->Error("Couldn't find key string `$key_string' in dbf file, can't determine field type\n");
-		return;
-		}
-	$self->{'key_type'} = ($field_type =~ /^[NDIF]$/ ? 1 : 0);
 
 	if ($self->{'signature'} != 3 and $self->{'signature'} != 6) {
 		__PACKAGE__->Error("$self: bad signature value `$self->{'signature'}' found\n");
@@ -376,6 +370,22 @@ sub read_header
 	$self->{'header_len'} = 0;
 	
 	$self->{'start_page'} = int($self->{'start_offset'} / $self->{'record_len'});
+	my $field_type;
+	if (defined $self->{'dbf'}) {
+		$field_type = $self->{'dbf'}->field_type($key_string);
+		if (not defined $field_type) {
+			__PACKAGE__->Error("Couldn't find key string `$key_string' in dbf file, can't determine field type\n");
+			return;
+			}
+		}
+	elsif (defined $opts{'type'}) {
+		$field_type = $opts{'type'};
+		}
+	else {
+		__PACKAGE__->Error("Index type (char/numeric) unknown for $self\n");
+		return;
+		}
+	$self->{'key_type'} = ($field_type =~ /^[NDIF]$/ ? 1 : 0);
 
 	$self;
 	}
@@ -424,6 +434,8 @@ sub new
 			### if looks like with ntx the numbers are
 			### stored as ASCII strings or something
 			### To Be Done
+			if ($key =~ tr!,+*)('&%$#"!0123456789!) { $key = '-' . $key; }
+			$key += 0;
 			}
 
 		print "$i: \@$offset VVa$keylength -> ($left, $recno, $key)\n" if $DEBUG > 1;
@@ -820,10 +832,12 @@ sub new
 			my $key = substr($prevkeyval, 0, $dupl);
 			if ($getlength) {
 				$key .= substr($data, -$getlength);
+				$key .= "\000" x $trail;
 				substr($data, -$getlength) = '';
 				}
 			$prevkeyval = $key;
 
+### print "Key $key\n";
 			if ($numdate)
 				{		# some decoding for numbers
 				if ("\200" & substr($key, 0, 1)) {
@@ -831,7 +845,7 @@ sub new
 					}
 				else { $key = ~$key; }
 				if ($keylength == 8) {
-					$key = reverse $key if $bigend;
+					$key = reverse $key unless $bigend;
 					$key = unpack 'd', $key;
 					}
 				else {
@@ -839,22 +853,37 @@ sub new
 					}
 				}
 
-			print "$key -> $recno\n" if $DEBUG;
+			print "$key -> $recno\n" if $DEBUG > 4;
 			push @$keys, $key;
 			push @$values, $recno;
 			push @$lefts, undef;
 			}
 		}
 
-	else { ### non leaf pages not ready yet
-               die <<'EOF';
-
-	You've got a cdx file that spans more than one page. I never
-	got to see such a file, so I'm unable to read it. But do not
-	worry -- just contact adelton@fi.muni.cz and I'm sure that if
-	you send him the cdx file, he should be able to fix me to
-	understand this file.                           -- Yours XBase::Index
-EOF
+	else {
+		for (my $i = 0; $i < $noentries; $i++) {
+			my $offset = 12 + $i * ($keylength + 8);
+			my ($key, $recno, $page)
+				= unpack "\@$offset a$keylength NN", $data;
+			if ($numdate)
+				{		# some decoding for numbers
+				if ("\200" & substr($key, 0, 1)) {
+					substr($key, 0, 1) &= "\177";
+					}
+				else { $key = ~$key; }
+				if ($keylength == 8) {
+					$key = reverse $key unless $bigend;
+					$key = unpack 'd', $key;
+					}
+				else {
+					$key = unpack 'N', $key;
+					}
+				}
+### 			print "Value: $key; dbf recno: $recno; page $page\n";
+			push @$keys, $key;
+			push @$values, undef;
+			push @$lefts, $page / 512;
+			}
 		}
 
 	my $self = bless { 'keys' => $keys, 'values' => $values,
@@ -1014,16 +1043,14 @@ testers and offers of example index files.
   ndx	Yes		Yes		Yes (you need to
   					convert to Julian)
 
-  ntx	Yes		Untested	Untested
-  			(will fail with floats and negatives)
+  ntx	Yes		Yes		Untested
 
   idx	Untested	Untested	Untested
   	(but should be pretty usable)
 
   mdx	Untested	Untested	Untested
 
-  cdx	Partially	Partially	Untested
-  	(will fail with index files bigger than one page)
+  cdx	Yes		Yes		Untested
 
 
   Writing of index files -- not supported untill the reading
@@ -1083,7 +1110,7 @@ directory.
 
 =head1 VERSION
 
-0.140
+0.141
 
 =head1 AUTHOR
 
