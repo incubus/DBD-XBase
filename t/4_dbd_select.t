@@ -13,6 +13,8 @@ $::DBIloaded = 1;
 print "ok 1\n";
 
 my $dir = ( -d './t' ? 't' : '.' );
+
+print "Connect to dbi:XBase:$dir\n";
 my $dbh = DBI->connect("dbi:XBase:$dir") or do
 	{
 	print $DBI::errstr;
@@ -21,6 +23,8 @@ my $dbh = DBI->connect("dbi:XBase:$dir") or do
 	};
 print "ok 2\n";
 
+my $command = "select (ID, MSG) from test";
+print "Prepare command '$command'\n";
 my $sth = $dbh->prepare("select (ID, MSG) from test") or do
 	{
 	$dbh->errstr();
@@ -29,6 +33,7 @@ my $sth = $dbh->prepare("select (ID, MSG) from test") or do
 	};
 print "ok 3\n";
 
+print "Execute it\n";
 $sth->execute() or do
 	{
 	$sth->errstr();
@@ -37,18 +42,24 @@ $sth->execute() or do
 	};
 print "ok 4\n";
 
+print "And get two lines\n";
 
 my @line;
 
 @line = $sth->fetchrow_array();
-print "not " if "1:Record no 1" ne join ":", @line;
+my $result = join ":", @line;
+print "Got: $result\n";
+print "not " if $result ne "1:Record no 1";
 print "ok 5\n";
 
 @line = $sth->fetchrow_array();
-print "not " if "3:Message no 3" ne join ":", @line;
+$result = join ":", @line;
+print "Got: $result\n";
+print "not " if $result ne "3:Message no 3";
 print "ok 6\n";
 
 @line = $sth->fetchrow_array();
+print "Got empty list\n" unless @line;
 print "not " if scalar(@line) != 0;
 print "ok 7\n";
 
