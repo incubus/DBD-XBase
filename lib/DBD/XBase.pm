@@ -19,7 +19,7 @@ use vars qw($VERSION @ISA @EXPORT $err $errstr $drh);
 
 require Exporter;
 
-$VERSION = '0.068';
+$VERSION = '0.0693';
 
 $err = 0;
 $errstr = '';
@@ -267,7 +267,7 @@ sub execute
 		return 1;
 		}
 	
-	if (defined $parsed_sql->{'selectall'})
+	if (not defined $parsed_sql->{'fields'} and defined $parsed_sql->{'selectall'})
 		{
 		$parsed_sql->{'fields'} = [ $xbase->field_names ];
 		for my $field (@{$parsed_sql->{'fields'}})
@@ -283,13 +283,16 @@ sub execute
 		if (defined $parsed_sql->{'orderfield'})
 			{
 			my $orderfield = ${$parsed_sql->{'orderfield'}}[0];
-			my $substh = $dbh->prepare(qq!SELECT $orderfield, @{[join ", ", @fields ]} from $table!) or do
-				{
-				${$sth->{'Err'}} = 106;
-				${$sth->{'Errstr'}} = "Error in subselect: @{[$dbh->errstr]}";
-				return;
-				};
-			$substh->execute;
+
+			my $subparsed_sql = { %$parsed_sql };
+			delete $subparsed_sql->{'orderfield'};
+			unshift @{$subparsed_sql->{'fields'}}, $orderfield;
+			my $substh = DBI::_new_sth($dbh, {
+				'Statement'	=> $sth->{'Statement'},
+				'dbh'		=> $dbh,
+				'xbase_parsed_sql'	=> $subparsed_sql,
+				});
+			$substh->execute(@{$sth->{'param'}});
 			my $data = $substh->fetchall_arrayref;
 			my $type = $xbase->field_type($orderfield);
 			if ($type =~ /^[CML]$/)
@@ -541,7 +544,7 @@ Example:
 
 =head1 VERSION
 
-0.068
+0.0693
 
 =head1 AUTHOR
 

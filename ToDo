@@ -5,16 +5,22 @@ Short term (I will do them as my time allows):
 
 	When creating table, have option to specify version.
 
+	Add support for MDX, CDX and IDX.
+
 Mid term (would appreciate help or comments):
+
+	Add sorting on more than one field in DBD.
 
 	Solve the memo position caching.
 
-	Add support for other index types.
+	Polish error reporting from XBase::Index.
 
 Long term (it really depends on many things, mainly whether other
 people will demand the feature):
 
-	Add index support to DBD::XBase (once we have mdx, probably).
+	Add index support to DBD::XBase (once we have MDX, probably).
+
+	Add write index support.
 
 --
 

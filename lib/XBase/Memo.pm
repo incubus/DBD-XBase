@@ -12,7 +12,7 @@ use XBase::Base;
 
 use vars qw( $VERSION @ISA );
 @ISA = qw( XBase::Base );
-$VERSION = '0.068';
+$VERSION = '0.0694';
 
 # Read header is called from open to fill the object structures
 sub read_header
@@ -172,9 +172,9 @@ sub read_record
 		}
 	my ($unused_id, $length) = unpack $unpackstr, $buffer;
 	my $block_size = $self->{'record_len'};
-	if ($length < $block_size - 8)
-		{ return substr $buffer, 8, $length; }
-	my $rest_length = $length - ($block_size - 8);
+	if ($length < $block_size)
+		{ return substr $buffer, 8, $length - 8; }
+	my $rest_length = $length - $block_size;
 	my $rest_data = $self->SUPER::read_record($num + 1, $rest_length);
 	if (not defined $rest_data) { return; }
 	return substr($buffer, 8) . $rest_data;
@@ -185,7 +185,7 @@ sub write_record
 	my ($self, $num) = (shift, shift);
 	my $type = shift;
 	my $data = join "", @_;
-	my $length = length $data;
+	my $length = (length $data) + 8;
 
 	my $startfield = "\xff\xff\x08\x00" . pack('V', $length);
 	if (ref $self eq 'XBase::Memo::Fox')
@@ -249,11 +249,11 @@ specify their specific B<read_record> and B<write_record> methods.
 
 =head1 VERSION
 
-0.068
+0.0694
 
 =head1 AUTHOR
 
-(c) 1997-1998 Jan Pazdziora, adelton@fi.muni.cz
+(c) 1997--1998 Jan Pazdziora, adelton@fi.muni.cz
 
 =head1 SEE ALSO
 

@@ -2,7 +2,7 @@
 
 use strict;
 
-BEGIN   { $| = 1; print "1..11\n"; }
+BEGIN   { $| = 1; print "1..12\n"; }
 END     { print "not ok 1\n" unless $::XBaseloaded; }
 
 $| = 1;
@@ -59,6 +59,16 @@ if ($result ne $expected_result)
 	{ print "Expected:\n${expected_result}Got:\n${result}not "; }
 print "ok 5\n";
 
+print "find_eq('6e') and fetch (it doesn't exist, so the result should be the same)\n";
+$cur->find_eq('6e');
+$result = '';
+while (my @data = $cur->fetch())
+	{ $result .= "@data\n"; }
+
+if ($result ne $expected_result)
+	{ print "Expected:\n${expected_result}Got:\n${result}not "; }
+print "ok 6\n";
+
 print "Before we look at the numeric and data index files, let's check
 if it makes sense (because of the way we implement double floats ;-)\n";
 
@@ -86,10 +96,10 @@ else
 
 print "Open ndx-num and index\n";
 $table = new XBase "$dir/ndx-num.dbf" or print XBase->errstr, 'not ';
-print "ok 6\n";
+print "ok 7\n";
 $cur = $table->prepare_select_with_index("$dir/ndx-num.ndx") or
 					print $table->errstr, 'not ';
-print "ok 7\n";
+print "ok 8\n";
 
 print "find_eq(1042) and fetch results\n";
 $cur->find_eq(1042);
@@ -101,25 +111,24 @@ while (defined($line = <DATA>))
 
 if ($result ne $expected_result)
 	{ print "Expected:\n${expected_result}Got:\n${result}not "; }
-print "ok 8\n";
+print "ok 9\n";
 
 
 print "Open ndx-date and index\n";
 $table = new XBase "$dir/ndx-date.dbf" or print XBase->errstr, 'not ';
-print "ok 9\n";
+print "ok 10\n";
 $cur = $table->prepare_select_with_index("$dir/ndx-date.ndx") or
 					print $table->errstr, 'not ';
-print "ok 10\n";
+print "ok 11\n";
 
 print "find_eq(2450795), which is Julian date for 1997/12/12 and fetch results\n";
 
-use Data::Dumper;
-print Dumper $cur;
+### use Data::Dumper;
+### print Dumper $cur;
 
 $cur->find_eq(2450795);
 
-use Data::Dumper;
-print Dumper $cur;
+### print Dumper $cur;
 
 $result = ''; $expected_result = '';
 while (my @data = $cur->fetch())
@@ -129,7 +138,7 @@ while (defined($line = <DATA>))
 
 if ($result ne $expected_result)
 	{ print "Expected:\n${expected_result}Got:\n${result}not "; }
-print "ok 11\n";
+print "ok 12\n";
 
 
 

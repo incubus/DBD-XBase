@@ -18,7 +18,7 @@ use XBase::Base;		# will give us general methods
 use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
-$VERSION = '0.0691';
+$VERSION = '0.0694';
 $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 
 *errstr = \$XBase::Base::errstr;
@@ -626,13 +626,16 @@ sub prepare_select_with_index
 	require XBase::Index;
 	my $index = new XBase::Index $file or
 		do { $self->Error(XBase->errstr); return; };
-	$index->prepare_select;
+	$index->prepare_select or
+		do { $self->Error($index->errstr); return; };
 	return bless [ $self, undef, $fieldnums, $fieldnames, $index ],
 							'XBase::IndexCursor';
 		# object, recno, field numbers, field names, index file
 	}
 
 package XBase::Cursor;
+use vars qw( @ISA );
+@ISA = qw( XBase::Base );
 
 sub fetch
 	{
@@ -708,8 +711,10 @@ files, if needed. Module XBase provides simple native interface to
 XBase files. For DBI compliant database access, see the DBD::XBase
 and DBI modules.
 
-B<New:> Currently, there is an alpha support for ndx index files
-available.
+B<New:> There is a support for B<ndx> and B<ntx> index files
+available. Check the B<prepare_select_with_index> method in this man
+page, or eg/use_index if you are brave and want to help me debugging
+the code.
 
 The following methods are supported by XBase module:
 
@@ -725,7 +730,7 @@ file. The first parameter should be the name of existing dbf file
 This method creates and initializes new object, will also check for
 memo file, if needed.
 
-The parameters can also be specified in the form of hash: values for
+The parameters can also be specified in the form of hash: value of
 B<name> is then the name of the table, other flags supported are:
 
 B<memofile> specifies non standard name for the associated memo file.
@@ -734,12 +739,13 @@ By default it's the name of the dbf file, with extension dbt or fpt.
 B<ignorememo> ignore memo file at all. This is usefull if you've lost
 the dbt file and you do not need it. Default is false.
 
-B<memosep> separator of memo records in the dBaseIII dbt files,
-default C<"\x1a\x1a">.
+B<memosep> separator of memo records in the dBase III dbt files, to
+read files created by broken clients, that put there something else
+than the default C<"\x1a\x1a">.
 
 B<nolongchars> prevents XBase to treat the decimal value of character
-fields as high byte of the length -- there are some products around
-producing character fields with decimal values set.
+fields as high byte of the length -- there are some broken products
+around producing character fields with decimal values set.
 
     my $table = new XBase "table.dbf" or die XBase->errstr;
 	
@@ -774,6 +780,11 @@ make it into some reasonable default.
 		"field_types" => [ "N", "C" ],
 		"field_lengths" => [ 6, 40 ],
 		"field_decimals" => [ 0, undef ]);
+
+Other attributes are B<memofile> for non standard memo file location,
+B<version> to force different version of the dbt (dbt) file. The
+default is the version of the object you create the new from, or 3 if
+you call this as class method (XBase->create).
 
 The new file mustn't exist yet -- XBase will not allow you to
 overwrite existing table. Use B<drop> (or unlink) to delete it first.
@@ -820,8 +831,8 @@ record. If you do not specify any other parameters, all fields are
 returned in the same order as they appear in the file. You can also
 put list of field names after the record number and then only those
 will be returned. The first value of the returned list is always the
-1/0 C<_DELETED> value saying if the record is deleted or not, so on
-success, B<get_record> will never return empty list.
+1/0 C<_DELETED> value saying whether the record is deleted or not, so
+on success, B<get_record> never returns empty list.
 
 =item get_record_nf
 
@@ -897,35 +908,39 @@ a cursor first and then repeatedly call B<fetch> to get next record.
 As parameters, pass list of field names to return, if no parameters,
 the following B<fetch> will return all fields.
 
+=item prepare_select_with_index
+
+The first parameter is the file name of the index file, the rest is
+as above. The B<fetch> will then return records in the ascending
+order, according to the index.
+
+=back
+
 Prepare will return object cursor, the following method are methods of
 the cursor, not of the table.
 
+=over 4
+
 =item fetch
 
-Return the fields of the next available undeleted record. The list
+Returns the fields of the next available undeleted record. The list
 thus doesn't contain the C<_DELETED> flag since you are guaranteed
 that the record is not deleted.
 
 =item fetch_hashref
 
-Return a hash reference of fields for the next non deleted record.
+Returns a hash reference of fields for the next non deleted record.
 
 =item last_fetched
 
 Returns the number of the record last fetched.
 
-=item prepare_select_with_index
-
-The first parameter is the file name of the ndx file, the rest is as
-above. The B<fetch> will then return records in the ascending order,
-according to the index.
-
 =item find_eq
 
-This only works with the index B<prepare_select_with_index>. Will roll
-to the first record what is equal to specified argument, or to the
-first greater if there is not one equal. The following B<fetch>es then
-continue normally.
+This only works with cursor created via B<prepare_select_with_index>.
+Will roll to the first record what is equal to specified argument, or
+to the first greater if there is none equal. The following B<fetch>es
+then continue normally.
 
 =back
 
@@ -1021,8 +1036,8 @@ file with the same name but extension dbt or fpt. It uses module
 XBase::Memo(3) for this. It reads and writes this memo field
 transparently (you do not know about it).
 
-B<New:> There is a small read only support available for ndx index
-files. Please see the eg/use_index file in the distribution for
+B<New:> There is a small read only support available for ndx and ntx
+index files. Please see the eg/use_index file in the distribution for
 examples and ideas. Send me examples of your data files and
 suggestions for interface if you need indexes.
 
@@ -1041,7 +1056,7 @@ Thanks a lot.
 
 =head1 VERSION
 
-0.069
+0.0694
 
 =head1 AUTHOR
 

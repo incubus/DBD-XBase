@@ -6,11 +6,11 @@
 This is the README file for the XBase and DBD::XBase packages.
 
 Module XBase provides access to XBase (dBase, Fox*) database files,
-namely dbf, dbt, fpt, ndx. It provides native Perl interface
+namely dbf, dbt, fpt, ndx, ntx. It provides native Perl interface
 ($table->get_record) to read and write the tables.
 
 Module DBD::XBase is DBI driver that uses XBase to actually access the
-data, giving you SQL interface ($dbh->prepare("SELECT * FROM TABLE").
+data, giving you SQL interface ($dbh->prepare("SELECT * FROM TABLE")).
 To use DBD::XBase, you need the DBI module -- please check the DBI(3)
 man page for how to use it. As an argument to connect, give
 "dbi:XBase:$dir", where $dir is directory with the data files.
@@ -23,9 +23,9 @@ something more powerfull, check (for example) MySQL or PostgreSQL.
 The distribution also includes a dbfdump script that prints out the
 content of the table in readable form.
 
-The support for ndx index files is rather minimal. It currently allows
-you to search directly to the record you want. But you cannot create
-the index, nor is the index updated when you change the dbf.
+The support for ndx/ntx index files is rather minimal. It currently
+allows you to search directly to the record you want. But you cannot
+create the index, nor is the index updated when you change the dbf.
 
 This module is provided in a hope you might find it usefull. My intent
 is to support as many variations of formats as possible, but I do not
@@ -55,7 +55,7 @@ Installation:
 
 	Some people asked whether it is possible to use the module
 	even if they do not have root access. Even if this is in
-	sufficiant detail coverend in the docs that come with Perl,
+	sufficient detail covered in the docs that come with Perl,
 	here's the process:
 
 	You install the module
@@ -77,7 +77,7 @@ Problems and bug reports:
 	messages you get and (if possible) your data files that cause
 	the problems, so that I can trace down the problem. Add info
 	about your OS, version of Perl and other modules that might be
-	relevant.  You can of course also send patches to actual bugs.
+	relevant. You can of course also send patches to actual bugs.
 	Please mention word XBase in the Subject line.
 
 	Sending bug reports and patches to c.l.p.m is fine but send
