@@ -1,6 +1,17 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
+0.060 Fri Mar 20 10:20:45 MET 1998
+	Added method prepare_select and XBase::Cursor to implement
+	long selects. Method dump_records now prints directly,
+	doesn't use get_all_records.
+
+	Added parameter --info into the script dbfdump to print the
+	header info.
+
+	Changed way of determining the type of the dbt file after
+	discussion with Sergey Lukashevich.
+	
 0.0599 Wed Mar 11 22:58:45 MET 1998
 	Option to specify the memo file in call to XBase::new added.
 
@@ -8,11 +19,12 @@ Revision history for Perl extension XBase and DBD::Xbase.
 
 0.0598 Tue Mar 10 22:40:00 MET 1998
 	Fixed bug when finding a name for the memo file in XBase; in
-	dBaseIII memo field we will only check for one \x1a; typo in
+	dBaseIII memo field we will only check for one \x1a to allow
+	as many formats possible, we still write two of them; typo in
 	init_memo fixed -- patches by Martin Jost.
 
 0.0597 Tue Mar  3 23:40:56 MET 1998
-	Code revision and check.
+	Major code revision and check:
 	
 	Error handling fixed, locking added. Rewritten process_* to
 	rproc and wproc arrays.

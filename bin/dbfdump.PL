@@ -19,19 +19,24 @@ use Getopt::Long;
 
 my %options;
 Getopt::Long::GetOptions( \%options,
-	'help', 'version', 'rs=s', 'fs=s', 'undef=s', 'fields=s'
+	'help', 'version', 'info', 'rs=s', 'fs=s', 'undef=s', 'fields=s'
 	) or exit;
 
 if (defined $options{'version'})
-	{ die "This is dbfdump version $XBase::VERSION\n"; }
+	{ print "This is dbfdump version $XBase::VERSION\n"; exit; }
 
-if (defined $options{'help'})
+if (@ARGV == 0 or defined $options{'help'})
 	{
 	die <<EOF;
 Usage: dbfdump [ options ] files
-    possible options: -rs record separator, -fs field separator,
-    -fields comma separated list of fields to print, -undef string
-    to print for NULL values
+    where the options specify
+	--rs		record separator
+	--fs		field separator
+	--fields	comma separated list of fields to print
+	--undef		what to print for NULL values
+    all having as parameter a string; and also
+	--info		print info about the file and fields
+	--version	print version of the XBase library
 EOF
 	}
 if (defined $options{'fields'})
@@ -46,7 +51,10 @@ for $file (@ARGV)
 		print STDERR XBase->errstr;
 		next;
 		}
-	$table->dump_records(%options);
+	if (defined $options{'info'})
+		{ print $table->header_info; }
+	else
+		{ $table->dump_records(%options); }
 	$table->close;
 	}
 
@@ -62,12 +70,14 @@ dbfdump - Dump the record of the dbf file
 
 	dbfdump [options] files
 
-options are
+where options are
 
-	-fields		comma separated list of fields to print
-	-rs		record separator
-	-fs		field separator
-	-undef		string to print for NULL values
+	--rs		record separator
+	--fs		field separator
+	--fields	comma separated list of fields to print
+	--undef		string to print for NULL values
+	--info		print info about the file and fields
+	--version	print version of the XBase library
 
 =head1 SYNOPSIS
 
@@ -80,7 +90,7 @@ Dbfdump print to standard output content of dbf files listed. By
 default, it prints all fields, separated by colons, one record on
 a line. The record separators can be changed by options on the command
 line. It is also possible to specify list of fields to print -- comma
-separated list for the C<-fields> command line parameter.
+separated list for the C<--fields> command line parameter.
 
 The content of associated memo files (dbf, fpt) is printed for memo
 fields.

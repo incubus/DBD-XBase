@@ -7,20 +7,23 @@ This is the README file for the XBase and DBD::XBase packages.
 
 Module XBase provides access to XBase (dBase, Fox*) database files,
 namely dbf, dbt, fpt. It provides native Perl interface to read and
-write the tables. My goal wasn't to write database engine but simply
+write the tables. The goal wasn't to write database engine but simply
 a parser, simple tool to read and write the data. If you are looking
 for something more powerfull, check (for example) MySQL or Postgres.
 
-The XBase module doesn't (currently?) make use of index files and
+The XBase module doesn't currently make use of index files and
 doesn't write them. So if you change your data files that have
 attached index files, you need to regenerate them using other software,
-that supports them.
+probably one that supports them.
 
 DBD::XBase is a database driver for Perl DBI interface. It talks to
 the XBase module that actually accesses the data. You need DBI module
 to use this database driver -- please check the DBI(3) man page on how
-to use it. As an argument to connect, send "dbi:XBase:$dir", where $dir
+to use it. As an argument to connect, give "dbi:XBase:$dir", where $dir
 is directory with the data files.
+
+The distribution also includes a dbfdump script that prints out the
+content of the table in readable form.
 
 Once more, this is a module to parse and update XBase files, not a db
 engine. It is provided in a hope you might find it usefull. My intent
@@ -29,8 +32,8 @@ have dBase/Fox* and do not plan to have, so send me examples of your
 data files if you feel your native XBase engines produce data
 incompatible with this module.
 
-A man pages for both XBase and DBD::XBase are included, examples of
-scripts are also in eg directory of the distribution.
+Man pages for XBase, DBD::XBase and dbfdump are included, examples of
+little scripts can also be found in eg directory of the distribution.
 
 Installation:
 	Download the tar.gz, unpack it, change to the DBD-XBase-*
@@ -51,21 +54,23 @@ Problems and bug reports:
 	If there are errors when actually using the module on your
 	data, please send me the errstr messages and (if possible)
 	your data files that cause the problems, so that I can trace
-	down the problem.
+	down the problem. You can of course also send patches to
+	actual bugs.
 
-	You can also send bug reports and patches to c.l.p.m but
-	send a CC to me as well, since I might miss your post.
+	Sending bug reports and patches to c.l.p.m is fine but send
+	a copy to me as well, since I might miss your post.
 
 If it works for you:
 	I'd appreciate any message if you use the module and find it
 	usefull -- I'm just curious for what tasks people use the
-	module. You can of course also send something more valuable ;-)
+	module and what they expect from it. You can of course also
+	send something more valuable.
 
 Available:
 	http://www.fi.muni.cz/~adelton/perl/ and from your favorite
 	CPAN site in the authors/id/JANPAZ/ directory.
 
-Copyright: (c) 1997 Jan Pazdziora, adelton@fi.muni.cz. All rights
+Copyright: (c) 1997--1998 Jan Pazdziora, adelton@fi.muni.cz. All rights
 	reserved. This package is free software; you can redistribute
 	it and/or modify it under the same terms as Perl itself.
 

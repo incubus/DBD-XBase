@@ -9,7 +9,8 @@ if (not $@)
 	been many changes since version $XBase::VERSION so you might want
 	to check the Changes file and also the documentation for what is
 	new. The DBD driver has been extended, there is a new method
-	read_all_records, dump_records is customizable.
+	get_all_records, dump_records is customizable, the distribution
+	includes new script dbfdump.
 EOF
 		}
 	elsif (eval { $XBase::VERSION <= 0.0597 } )
@@ -18,8 +19,8 @@ EOF
 	I can see you had XBase module installed before. There have been
 	quite a few changes since version $XBase::VERSION so you might want
 	to check the Changes file and also the documentation for what
-	is new. There is a new method read_all_records and dump_records was
-	made customizable, to name a few.
+	is new. There is a new method get_all_records and dump_records was
+	made customizable and there is a script dbfdump, to name a few.
 EOF
 		}
 	}

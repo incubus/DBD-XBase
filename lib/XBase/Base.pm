@@ -12,7 +12,7 @@ use IO::File;
 
 use vars qw( $VERSION $DEBUG $errstr );
 
-$VERSION = 0.0597;
+$VERSION = '0.060';
 
 # Sets the debug level
 $DEBUG = 0;
@@ -281,7 +281,7 @@ No more description -- check the source code if you need to know more.
 
 =head1 VERSION
 
-0.0597
+0.060
 
 =head1 AUTHOR
 

@@ -1,27 +1,20 @@
 
-This is the to-do list for XBase and DBD::XBase package:
-
+This is the to-do list for the XBase and DBD::XBase packages:
 
 Short term (I will do them as my time allows):
 
-	Finish DBD::XBase (pretty close now).
-
+	Solve the memo position caching.
 
 Mid term (would appreciate help or comments):
 
-	Locking -- will probably lock all the whole file when creating
-	the XBase object and unlock it upon close.
+	Start work on ndx index type.
 
+	Check DBD::XBase, make it DBI 0.93 compliant.
 
 Long term (it really depends on many things, mainly whether other
 people will demand the feature):
 
-	Indexing: how should this work? Am I able to rewrite _all_ the
-	indexing algorithms around from all the versions of dBase,
-	FoxBase, FoxPro, Clipper, some, some other?
-
-	I'm now working on some cdx parser but do not see any real use
-	for that just now.
+	Indexing.
 
 --
 

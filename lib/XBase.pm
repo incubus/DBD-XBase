@@ -19,7 +19,7 @@ use XBase::Base;	# will give us general methods
 use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
-$VERSION = 0.0599;
+$VERSION = '0.060';
 $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 
 *errstr = \$XBase::Base::errstr;
@@ -33,9 +33,9 @@ sub open
 	{
 	my ($self) = shift;
 	my %options;
-	if (scalar(@_) % 2) { $options{'filename'} = shift; }	
+	if (scalar(@_) % 2) { $options{'name'} = shift; }	
 	$self->{'openoptions'} = { %options, @_ };
-	my $filename = $self->{'openoptions'}{'filename'};
+	my $filename = $self->{'openoptions'}{'name'};
 	for my $ext ('', '.dbf', '.DBF')
 		{
 		if (-f $filename.$ext)
@@ -295,13 +295,13 @@ sub dump_records
 	my @fields = ();
 	@fields = @$fields if defined $fields;
 
-	my $result = $self->get_all_records(@fields);
-	return unless defined $result;
-
-	print map { (join($fs, map { defined $_ ? $_ : $undef } @$_),
-							$rs); } @$result;
+	my $cursor = $self->prepare_select(@fields);
+	my @record;
+	while (@record =  $cursor->fetch())
+		{ print join($fs, map { defined $_ ? $_ : $undef } @record), $rs; }
 	1;
 	}
+
 
 
 # ###################
@@ -362,16 +362,12 @@ sub _read_deleted
 sub get_all_records
 	{
 	my $self = shift;
-	my @fieldnums = map { $self->field_name_to_num($_); } @_;
+	my $cursor = $self->prepare_select(@_);
+
 	my $result = [];
-	my $lastrec = $self->last_record;
-	for (0 .. $lastrec)
-		{
-		my @record = $self->get_record_nf($_, @fieldnums);;
-		return unless @record;
-		unless ($record[0])
-			{ push @$result, [ @record[1 .. $#record] ]; }
-		}
+	my @record;
+	while (@record = $cursor->fetch())
+		{ push @$result, [ @record ]; }
 	$result;
 	}
 
@@ -563,14 +559,14 @@ sub drop
 sub locksh
 	{
 	my $self = shift;
-	$self->{'memo'}->locksh() if defined $self->{'memo'};
 	$self->SUPER::locksh;
+	$self->{'memo'}->locksh() if defined $self->{'memo'};
 	}
 sub lockex
 	{
 	my $self = shift;
-	$self->{'memo'}->lockex() if defined $self->{'memo'};
 	$self->SUPER::lockex;
+	$self->{'memo'}->lockex() if defined $self->{'memo'};
 	}
 sub unlock
 	{
@@ -578,6 +574,42 @@ sub unlock
 	$self->{'memo'}->unlock() if defined $self->{'memo'};
 	$self->SUPER::unlock;
 	}
+
+#
+# Attempt for cursory select
+#
+
+sub prepare_select
+	{
+	my $self = shift;
+	my $fieldnums = [ map { $self->field_name_to_num($_); } @_ ];
+	return bless [ $self, undef, $fieldnums ], 'XBase::Cursor';
+	}
+
+package XBase::Cursor;
+
+sub fetch
+	{
+	my $self = shift;
+	my ($xbase, $recno, $fieldnums) = @{$self}[0 .. 2];
+	if (defined $recno) { $recno++; }
+	else { $recno = 0; }
+	my $lastrec = $xbase->last_record;
+	while ($recno <= $lastrec)
+		{
+		my ($del, @result) = $xbase->get_record_nf($recno, @$fieldnums);
+		if (not $del)
+			{
+			$self->[1] = $recno;
+			return @result;
+			}
+		$recno++;
+		}
+	return;
+	}
+sub last_fetched
+	{ shift->[1]; }
+
 1;
 
 __END__
@@ -619,6 +651,10 @@ Creates the XBase object, one parameter should be the name of existing
 dbf file (table, in fact). A suffix .dbf will be appended if needed.
 This method creates and initializes new object, will also check for memo
 file, if needed.
+
+The parameters can also be specified in the form of hash: values for
+B<name> is then the name of the table and optionally memofile is the name
+of the memo file.
 
 =item close
 
@@ -669,9 +705,9 @@ field doesn't exist in the table.
 
 =back
 
-=head2 Reading the data
+=head2 Reading the data one by one
 
-When dealing with the records, reading or writing, you always have
+When dealing with the records, reading or writing, you have
 to specify the number of the record in the file. The range is
 C<0 .. $table-E<gt>last_record()>.
 
@@ -682,12 +718,11 @@ C<0 .. $table-E<gt>last_record()>.
 Returns a list of data (field values) from the specified record (line
 of the table). The first parameter in the call is the number of the
 record. If you do not specify any other parameters, all fields are
-returned in the same order as they appear in the file.
-
-You can also put list of field names after the record number and then
-only those will be returned. The first value of the returned list is
-always the 1/0 C<_DELETED> value saying if the record is deleted or not,
-so on success, B<get_record> will never return empty list.
+returned in the same order as they appear in the file. You can also
+put list of field names after the record number and then only those
+will be returned. The first value of the returned list is always the
+1/0 C<_DELETED> value saying if the record is deleted or not, so on
+success, B<get_record> will never return empty list.
 
 =item get_record_as_hash
 
@@ -697,12 +732,6 @@ the deleted flag is C<_DELETED>. The only parameter in the call is
 the record number.
 
 =back
-
-If you need to deal with the whole content of the dbf file, there is
-a method B<get_all_records>. It returns a reference to array
-containing array of values for each record. Only not deleted records
-are returned and so the C<_DELETED> flag is not included in the record
-data. As a parameter, pass list of fields to return.
 
 =head2 Writing the data
 
@@ -727,13 +756,25 @@ unspecified are undefed/emptied.
 Like B<set_record_hash> but fields that do not have value specified
 in the hash retain their value.
 
-=item delete_record, undelete record
-
-Deletes/undeletes specified record.
-
 =back
 
+To explicitely delete/undelete a record, use methods B<delete_record>
+or B<undelete_record> with record number as a parameter.
+
 =head2 Dumping the content of the file
+
+If you need to deal with the whole content of the dbf file, there is
+a method B<get_all_records>. It returns a reference to array
+containing array of values for each record. Only not deleted records
+are returned and so the C<_DELETED> flag is not included in the record
+data. As a parameter, pass list of fields to return for each record.
+
+To read the records one by one, you can create a cursor using
+B<prepare_select>. This returns an object and you can then call
+repeatedly its method B<fetch> to retrieve next not deleted record. As
+for B<get_all_records>, the C<_DELETED> is not included in the
+returned list of field values, and you can specify only some of the
+fields to be fetched in each record.
 
 To print the content of the file in a readable form, use method
 B<dump_records>. It prints all not deleted records from the file. By
@@ -776,24 +817,11 @@ can be retrieved via B<errstr> method. If the B<new> or B<create>
 method fails, you have no object so you get the error message using
 class syntax C<XBase-E<gt>errstr()>.
 
-The methods B<get_header_info> returns (not prints) string with
+The method B<get_header_info> returns (not prints) string with
 information about the file and about the fields.
 
-Module XBase::Base(3) defines some basic functionality and also following
-variables, that affect the internal behaviour:
-
-=over 4
-
-=item $DEBUG
-
-Enables error messages on stderr, zero by default.
-
-=item $FIXPROBLEMS
-
-When reading the file, try to continue, even if there is some
-(minor) missmatch in the data, true by default.
-
-=back
+Module XBase::Base(3) defines some basic functions that are inherited
+by both XBase and XBase::Memo(3) module.
 
 In the module XBase there is variable $CLEARNULLS that specifies,
 whether will the reading methods cut off spaces and nulls from the
@@ -823,16 +851,10 @@ file with the same name but extension dbt or fpt. It uses module
 XBase::Memo(3) for this. It reads and writes this memo field
 transparently (you do not know about it).
 
-No index files are currently supported. Two reasons: you do not need
-them when reading the file because you specify the record number
-anyway and writing them is extremely difficult. I might try to add the
-support but do not promise anything ;-) There are too many too complex
-questions: How about compound indexes? Which index formats should
-I support? What files contain the index data? I do not have dBase nor
-Fox* so do not have data to experiment.
-
-Please send me examples of your data files and suggestions for
-interface if you need indexes.
+No index files are currently supported. I'm working on a support for
+ndx index files but it's still far from being ready. Please send me
+examples of your data files and suggestions for interface if you need
+indexes.
 
 =head1 HISTORY
 
@@ -860,7 +882,7 @@ welcome.
 
 =head1 VERSION
 
-0.0599
+0.060
 
 =head1 AUTHOR
 

@@ -12,7 +12,7 @@ use XBase::Base;
 
 use vars qw( $VERSION @ISA );
 @ISA = qw( XBase::Base );
-$VERSION = 0.0597;
+$VERSION = '0.060';
 
 # Read header is called from open to fill the object structures
 sub read_header
@@ -34,9 +34,7 @@ sub read_header
 		{
 		($next_for_append, $version, $block_size)
 					= unpack 'V @16C @20v', $header;
-		if ($version == 3 or
-			($version == 0 and defined $dbf_version and
-				(($dbf_version & 7) == 3)))
+		if ((($dbf_version & 7) == 3) or $version == 3)
 			{
 			$block_size = 512;
 			$version = 3;
@@ -237,11 +235,11 @@ specify their specific B<read_record> and B<write_record> methods.
 
 =head1 VERSION
 
-0.0597
+0.060
 
 =head1 AUTHOR
 
-(c) Jan Pazdziora, adelton@fi.muni.cz
+(c) 1997-1998 Jan Pazdziora, adelton@fi.muni.cz
 
 =head1 SEE ALSO
 
