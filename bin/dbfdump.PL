@@ -19,7 +19,8 @@ use Getopt::Long;
 
 my %options;
 Getopt::Long::GetOptions( \%options,
-	'help', 'version', 'info', 'rs=s', 'fs=s', 'undef=s', 'fields=s'
+	'help', 'version', 'info', 'rs=s', 'fs=s', 'undef=s', 'fields=s',
+	'nomemo'
 	) or exit;
 
 if (defined $options{'version'})
@@ -35,6 +36,7 @@ Usage: dbfdump [ options ] files
 	--fields	comma separated list of fields to print
 	--undef		what to print for NULL values
     all having as parameter a string; and also
+	--nomemo	do not try to read the memo (dbt/fpt) file 
 	--info		print info about the file and fields
 	--version	print version of the XBase library
 EOF
@@ -42,10 +44,14 @@ EOF
 if (defined $options{'fields'})
 	{ $options{'fields'} = [ split /\s*,\s*/, $options{'fields'} ]; }
 
+my %addopts = ();
+if (defined $options{'nomemo'} or defined $options{'info'})
+	{ $addopts{'ignorememo'} = 1; }
+
 my $file;
 for $file (@ARGV)
 	{
-	my $table = new XBase $file;
+	my $table = new XBase 'name' => $file, %addopts;
 	if (not defined $table)
 		{
 		print STDERR XBase->errstr;

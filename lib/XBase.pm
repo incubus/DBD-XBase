@@ -19,7 +19,7 @@ use XBase::Base;	# will give us general methods
 use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
-$VERSION = '0.0631';
+$VERSION = '0.0632';
 $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 
 *errstr = \$XBase::Base::errstr;
@@ -304,7 +304,7 @@ sub dump_records
 
 	my $cursor = $self->prepare_select(@fields);
 	my @record;
-	while (@record =  $cursor->fetch())
+	while (@record = $cursor->fetch())
 		{ print join($fs, map { defined $_ ? $_ : $undef } @record), $rs; }
 	1;
 	}
@@ -599,7 +599,8 @@ sub prepare_select_with_index
 	my ($self, $file) = ( shift, shift );
 	my $fieldnums = [ map { $self->field_name_to_num($_); } @_ ];
 	require XBase::Index;
-	my $index = new XBase::Index $file;
+	my $index = new XBase::Index $file or
+		do { $self->Error(XBase->errstr); return; };
 	$index->prepare_select;
 	return bless [ $self, $index, $fieldnums ], 'XBase::IndexCursor';
 	}
@@ -649,7 +650,6 @@ sub fetch
 		($del, @result) = $xbase->get_record_nf($val - 1, @$fieldnums);
 		last unless @result;
 		}
-	### print "$key, $val, @result\n";
 	@result;
 	}
 
@@ -928,7 +928,7 @@ welcome.
 
 =head1 VERSION
 
-0.0631
+0.0632
 
 =head1 AUTHOR
 

@@ -33,16 +33,11 @@ sub read_header
 	}
 
 sub prepare_select
-	{
-	my $self = shift;
-	@{$self}{ qw( pages actives ) } = ( [], [] );
-	1;
-	}
+	{ }
 
 sub prepare_select_eq
 	{
-	my $self = shift;
-	my $eq = shift;
+	my ($self, $eq) = @_;
 	@{$self}{ qw( pages actives ) } = ( [], [] );
 	my $level = -1;
 	my $numdate = $self->{'key_type'};
@@ -55,13 +50,17 @@ sub prepare_select_eq
 		my $active = 0;
 		while (($key, $val) = $page->get_key_val($active))
 			{
-### print "$level: $key, $val\n";
-			if ($key =~ /^\000/ or
-				($numdate ? $key >= $eq : $key ge $eq))
+			### if ($key =~ /^\000/ or
+			if ($numdate ? $key >= $eq : $key ge $eq)
 				{ last; }
 			$active++;
 			}
 		$self->{'pages'}[$level] = $page;
+		if ($page->is_ref and $page->num_keys() < $active)
+			{
+			$active = $page->num_keys();
+			(undef, $val) = $page->get_key_val($active);
+			}
 		$self->{'actives'}[$level] = $active;
 		}
 	$self->{'actives'}[$level] --;
@@ -125,8 +124,10 @@ sub new
 	my ($indexfile, $num) = @_;
 	my $data = $indexfile->read_record($num) or return;
 	my $noentries = unpack 'V', $data;
-	print "Page $num " if $DEBUG;
-	if ($num == $indexfile->{'start_page'}) { $noentries++; print "(actually rootpage) " if $DEBUG; }
+	print "Page $num, " if $DEBUG;
+	### if ($num == $indexfile->{'start_page'}) { $noentries++; print "(actually rootpage) " if $DEBUG; }
+	### $noentries++;
+	my $isref = 0;
 	my $keylength = $indexfile->{'key_length'};
 	print "noentries $noentries, keylength $keylength, keyreclen $indexfile->{'key_record_length'}\n" if $DEBUG;
 	my $offset = 4;
@@ -142,25 +143,35 @@ sub new
 			$key = reverse $key if $bigend;
 			$key = unpack "d", $key;
 			}
-		print "\@$offset VVa$keylength -> ($lower, $recno, $key)\n" if $DEBUG;
-		push @$keys, $key;
+		### print "$i: \@$offset VVa$keylength -> ($lower, $recno, $key)\n" if $DEBUG;
 		if ($lower != 0) { $recno = -$lower; }
+		push @$keys, $key;
 		push @$values, $recno;
 		$offset += $indexfile->{'key_record_length'};
+		if ($i == 0 and $recno < 0)
+			{ $noentries++; $isref = 1; }
 		}
-	bless { 'keys' => $keys, 'values' => $values,
+	print "Page $num:\tkeys: @{[ map { s/\s+$//; $_; } @$keys]} -> values: @$values\n" if $DEBUG;
+	my $self = bless { 'keys' => $keys, 'values' => $values,
 		'num' => $num, 'keylength' => $keylength }, __PACKAGE__;
+	$self->{'is_ref'} = $isref;
+	$self;
 	}
 sub get_key_val
 	{
 	my ($self, $num) = @_;
+	my $printkey = $self->{'keys'}[$num];
+	$printkey =~ s/\s+$//;
+	print "Getkeyval: $num: $printkey, $self->{'values'}[$num]\n"
+				if $DEBUG and $num <= $#{$self->{'keys'}};
 	return ($self->{'keys'}[$num], $self->{'values'}[$num])
 				if $num <= $#{$self->{'keys'}};
 	();
 	}
 sub num_keys
 	{ $#{shift->{'keys'}}; }
-
+sub is_ref
+	{ shift->{'is_ref'}; }
 1;
 
 __END__

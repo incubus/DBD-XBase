@@ -12,7 +12,7 @@ use XBase::Base;
 
 use vars qw( $VERSION @ISA );
 @ISA = qw( XBase::Base );
-$VERSION = '0.062';
+$VERSION = '0.0632';
 
 # Read header is called from open to fill the object structures
 sub read_header
@@ -156,8 +156,14 @@ sub read_record
 
 	my $buffer = $self->SUPER::read_record($num, -1);
 	if (not defined $buffer) { return; }
-	my $unpackstr = 'VV';
-	$unpackstr = 'NN' if ref $self eq 'XBase::Memo::Fox';
+	my $unpackstr;
+	if (ref $self eq 'XBase::Memo::Fox')
+		{ $unpackstr = 'NN'; }
+	else
+		{
+		$unpackstr = 'VV';
+		return unless substr($buffer, 0, 4) eq "\xff\xff\x08\x00";
+		}
 	my ($unused_id, $length) = unpack $unpackstr, $buffer;
 	my $block_size = $self->{'record_len'};
 	if ($length < $block_size - 8)
@@ -239,7 +245,7 @@ specify their specific B<read_record> and B<write_record> methods.
 
 =head1 VERSION
 
-0.062
+0.0632
 
 =head1 AUTHOR
 

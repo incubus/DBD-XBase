@@ -1,6 +1,12 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
+0.0632 Wed May 27 12:27:04 MET DST 1998
+
+	Added --nomemo option to dbfdump. The list of entires is made
+	longer in any non-leaf page in ndx. Added check for the magic
+	"FFFF0800" tag in dBaseIV dbt file when reading it.
+
 0.0631 Fri May 22 22:24:02 CEST 1998
 
 	Fixed handling big endian in numeric fields in ndx, fixe

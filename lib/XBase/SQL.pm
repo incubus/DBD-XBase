@@ -43,14 +43,14 @@ my %TYPES = ( 'char' => 'C', 'num' => 'N', 'numeric' => 'N', 'int' => 'N',
 	'RELOP' => [ qw{ == | = | <= | >= | <> | != | < | > } ],
 	
 	'ARITHMETIC' => [ qw{ \( ARITHMETIC \)
-		| ( NUMBER | STRING | EXPFIELDNAME ) ( ( \+ | \- | \* | \/ | \% ) ARITHMETIC ) ? } ],
+		| ( CONSTANT | EXPFIELDNAME ) ( ( \+ | \- | \* | \/ | \% ) ARITHMETIC ) ? } ],
 	'NUMBER' => q'-?\d*\.?\d+',
 	'STRING' => [ qw{ STRINGDBL | STRINGSGL } ] ,
 	'STRINGDBL' => q' \\" (\\\\\\\\|\\\\"|[^\\"])* \\" ',
 	'STRINGSGL' => q! \\' (\\\\\\\\|\\\\'|[^\\'])* \\' !,
 	'ORDER' => [ qw{ order by FIELDNAME } ],
 	'INSERTCONSTANTS' => [ qw{ CONSTANT ( }, ',', qw{ INSERTCONSTANTS ) * } ],
-	'CONSTANT' => [ qw{ NUMBER | STRING } ],
+	'CONSTANT' => [ qw{ \? | NUMBER | STRING } ],
 	'INSERTFIELDS' =>	'\( FIELDNAME ( , FIELDNAME ) * \)',
 	
 	'SETCOLUMNS' => 'SETCOLUMN ( , SETCOLUMN ) *',

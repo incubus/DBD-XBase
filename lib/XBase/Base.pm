@@ -12,7 +12,7 @@ use IO::File;
 
 use vars qw( $VERSION $DEBUG $errstr );
 
-$VERSION = '0.060';
+$VERSION = '0.0632';
 
 # Sets the debug level
 $DEBUG = 0;
@@ -145,6 +145,8 @@ sub seek_to
 sub read_record
 	{
 	my ($self, $num, $in_length) = @_;
+	if (not defined $num)
+		{ $self->Error("Number of the record must be defined when reading it\n"); return; }
 	if ($num > $self->last_record)
 		{ $self->Error("Can't read record $num, there is not so many of them\n"); return; }
 	if (not defined $in_length)
@@ -281,7 +283,7 @@ No more description -- check the source code if you need to know more.
 
 =head1 VERSION
 
-0.060
+0.0632
 
 =head1 AUTHOR
 

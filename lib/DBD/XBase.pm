@@ -19,7 +19,7 @@ use vars qw($VERSION @ISA @EXPORT $err $errstr $drh);
 
 require Exporter;
 
-$VERSION = '0.063';
+$VERSION = '0.0632';
 
 $err = 0;
 $errstr = '';
@@ -156,9 +156,17 @@ use strict;
 use vars qw( $imp_data_size );
 $imp_data_size = 0;
 
+sub bind_param
+	{
+	my ($sth, $param, $value, $attribs) = @_;
+	$sth->{'param'}->[$param] = $value;
+	}
+
 sub execute
 	{
 	my $sth = shift;
+	if (@_)
+		{ push @{$sth->{'param'}}, @_; }
 	my $xbase = $sth->{'xbase_table'};
 	my $parsed_sql = $sth->{'xbase_parsed_sql'};
 
@@ -370,7 +378,7 @@ types. Example:
 
 =head1 VERSION
 
-0.063
+0.0632
 
 =head1 AUTHOR
 
