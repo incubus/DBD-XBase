@@ -2,7 +2,7 @@
 
 use strict;
 
-BEGIN	{ $| = 1; print "1..6\n"; }
+BEGIN	{ $| = 1; print "1..8\n"; }
 END	{ print "not ok 1\n" unless $::XBaseloaded; }
 
 
@@ -46,4 +46,19 @@ my $names_ok = "ID MSG NOTE BOOLEAN DATES";
 print "Field names: expecting $names_ok, got $names\n";
 print "not " if $names ne $names_ok;
 print "ok 6\n";
+
+
+$XBase::Base::DEBUG = 0;
+
+print "Check if loading table that doesn't exist will produce error\n";
+my $badtable = new XBase("nonexistent.dbf");
+print "not " if defined $badtable;
+print "ok 7\n";
+
+
+print "Check the returned error message\n";
+print "Errstr: $XBase::errstr";
+print "not " if $XBase::errstr ne
+	"Error opening file nonexistent.dbf: No such file or directory\n";
+print "ok 8\n";
 

@@ -9,10 +9,11 @@ Used indirectly, via XBase.
 
 =head1 DESCRIPTION
 
-This module provides catch all I/O methods for other XBase classes.
-The methods return true or nothing and on error they set the $errstr.
+This module provides catch all I/O methods for other XBase classes,
+should be used by people creating additional XBase classes/methods.
+The methods return true or nothing and they set the $errstr on error.
 If the $DEBUG is true, they also print the message on stderr, so the
-called doesn't need to do this, just die or ignore the problem.
+caller doesn't need to do this, just die or ignore the problem.
 
 Methods are:
 
@@ -51,8 +52,7 @@ Seeks to record of given number.
 =item seek_to
 
 Seeks to given position. It undefs the tell value in the object, since
-it assumes the users that will do print afterwards would not update
-it.
+it assumes the users that will do print afterwards would not update it.
 
 =item read_record
 
@@ -62,7 +62,7 @@ Read $record_len bytes from get_record_offset position.
 
 =head1 VERSION
 
-0.025
+0.028
 
 =head1 AUTHOR
 
@@ -91,7 +91,7 @@ use Exporter;
 # ##############
 # General things
 
-$VERSION = "0.025";
+$VERSION = "0.028";
 
 # Sets the debug level
 $DEBUG = 1;
@@ -100,10 +100,11 @@ sub DEBUG () { $DEBUG };
 # FIXPROBLEMS can be set to make XBase to try to work with (read)
 # even partially dameged file. Such actions are logged via Warning
 $FIXPROBLEMS = 1;
-sub FIXPROBLEMS () { $FIXPROBLEMS };
+sub FIXPROBLEMS () { $FIXPROBLEMS }
 
 # Holds the text of the error, if there was one
 $errstr = '';
+sub errstr ()	{ $errstr }
 
 # Issues warning to STDERR if there is debug level set, but does Error
 # if not FIXPROBLEMS
@@ -161,6 +162,7 @@ sub open
 
 	unless ($self->can('read_header'))
 		{ Error "Method read_header not defined for $self\n"; return; }
+	
 	unless ($self->read_header())	# read_header should be
 		{ return; }		# defined in the derived class
 
@@ -230,25 +232,54 @@ sub seek_to
 		};
 	1;
 	}
+
 # Read the record of given number. Of course, any class may redefine
 # it, if this behaviour is not suitable
 sub read_record
 	{
-	my ($self, $num) = @_;
+	my ($self, $num, $in_length) = @_;
 	if (not defined $num)
 		{ Error "Record number to read must be specified\n"; return; }
 	if ($num > $self->last_record())
-		{ Error "Can't read record $num, there is not so many
-		of them\n"; return; }
+		{ Error "Can't read record $num, there is not so many of them\n"; return; }
+
+	if (defined $self->{'cached_num'} and $num == $self->{'cached_num'})
+		{
+		my $data = $self->{'cached_data'};
+		if (ref $data)	{ return @$data; }
+		return $data;
+		}
+	
+	my $tell = $self->{'tell'};
 	$self->seek_to_record($num) or return;
+
 	my ($fh, $record_len) = @{$self}{ qw( fh record_len ) };
 	my $buffer;
-	$fh->read($buffer, $record_len) == $record_len or do {
+
+	my $length = $record_len if ((not defined $in_length) or $in_length == -1);
+	my $readlen = $fh->read($buffer, $length);
+
+	if ((not defined $in_length or $in_length != -1) and $readlen != $length)
+		{
 		Warning "Error reading the whole record num $num\n";
 		return unless FIXPROBLEMS;
 		};
-	$self->{'tell'} = $fh->tell();
-	$buffer;
+	$self->{'tell'} = (defined $tell) ? $tell + $length : $fh->tell();
+	
+	$self->{'cached_num'} = $num;
+	if (defined $self->{'unpack_template'})
+		{
+		my @data = unpack $self->{'unpack_template'}, $buffer;
+		if ($self->can('process_list_on_read'))
+			{ @data = $self->process_list_on_read(@data); }
+		$self->{'cached_data'} = [ @data ];
+		return @data;
+		}
+	else
+		{
+		$self->{'cached_data'} = $buffer;
+		return $buffer;
+		}
 	}
 
 1;

@@ -105,7 +105,7 @@ Deletes/undeletes the record.
 =back
 
 Module XBase::Base(3) defines some basic functionality and also following
-variable, that affect the internal behaviour:
+variables, that affect the internal behaviour:
 
 =over 4
 
@@ -171,7 +171,7 @@ dBase nor Fox*, so there are probably pieces missing.
 
 =head1 VERSION
 
-0.025
+0.028
 
 =head1 AUTHOR
 
@@ -205,7 +205,7 @@ use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
 
-$VERSION = "0.025";
+$VERSION = "0.028";
 
 $errstr = '';	# only after new, otherwise use method $table->errstr;
 
@@ -271,8 +271,7 @@ sub read_header
 		push @$types, $type;
 		push @$lengths, $length;
 		push @$decimals, $decimal;
-				# store the information
-		}
+		}		# store the information
 
 	my $hashnames;		# create name-to-num_of_field hash
 	@{$hashnames}{ reverse @$names } = reverse ( 0 .. $#$names );
@@ -288,7 +287,21 @@ sub read_header
 			$record_len, $names, $types, $lengths, $decimals,
 			$hashnames, $template, $#$names );
 
+	if (grep { /^[MGBP]$/ } @$types)
+		{ $self->{'memo'} = $self->init_memo_field(); }
+
 	1;	# return true since everything went fine
+	}
+
+sub init_memo_field
+	{
+	my $self = shift;
+	return $self->{'memo'} if defined $self->{'memo'};
+	my $filename = $self->{'filename'};
+	$filename =~ s/\.dbf//i;
+	$filename .= '.dbt';
+	require 'XBase/Memo.pm';
+	return XBase::Memo->new($filename);
 	}
 
 
@@ -296,19 +309,13 @@ sub read_header
 # Little decoding
 
 # Returns the number of the last record
-sub last_record
-	{ shift->{'num_rec'} - 1; }
+sub last_record		{ shift->{'num_rec'} - 1; }
 # And the same for fields
-sub last_field
-	{ shift->{'last_field'}; }
+sub last_field		{ shift->{'last_field'}; }
 # List of field names
-sub field_names
-	{ @{shift->{'field_names'}}; }
+sub field_names		{ @{shift->{'field_names'}}; }
 # And list of field types
-sub field_types
-	{ @{shift->{'field_types'}}; }
-
-
+sub field_types		{ @{shift->{'field_types'}}; }
 
 
 # #############################
@@ -364,8 +371,8 @@ sub dump_records
 	}
 sub decode_version_info
 	{
-	### my $version = shift->{'version'};
 	my $version = shift;
+	$version = $version->{'version'} if ref $version->{'version'};
 	my ($vbits, $dbtflag, $memo, $sqltable) = (0, 0, 0, 0);
 	if ($version == 3)	{ $vbits = 3; }
 	elsif ($version == 0x83)	{ $vbits = 3; $memo = 0; $dbtflag = 1;}
@@ -394,17 +401,12 @@ sub get_record
 	NullError();
 	my ($self, $num, @fields) = @_;
 
-	if (not defined $num)
-		{ Error "Record number to read must be specified\n"; return; }
+	my @data = $self->read_record($num);
+				# SUPER will uncache/unpack for us
+	return unless @data;
 
-	if ($num > $self->last_record())
-		{ Error "Can't read record $num, there is not so many of them\n"; return; }
-
-	my @data = $self->read_and_process($num);
-
-	# now make a list of numbers of fields to be returned
-	if (@fields)
-		{
+	if (@fields)		# now make a list of numbers of fields
+		{		# to be returned
 		return $data[0], map {
 			if (not defined $self->{'hash_names'}{$_})
 				{
@@ -419,91 +421,61 @@ sub get_record
 	return @data;
 	}
 
-# Once we have the binary data from the pack, we want to convert them
-# into reasonable perlish types. The arguments are the number of the
-# field and the value. The delete flag has special number -1
-sub read_and_process
+sub get_record_as_hash
 	{
 	my ($self, $num) = @_;
-
-	if (defined $self->{'cached_num'} and $self->{'cached_num'} == $num)
-		{ return @{$self->{'cached_data'}}; }
-
-	my $buffer = $self->read_record($num);
-	return unless defined $buffer;
-
-	my $template = $self->{'unpack_template'};
-	my @unpacked = unpack $template, $buffer;
-
-	
-	my @result = map { $self->process_item_on_read($_, $unpacked[$_ + 1]); }
-					( -1 .. $self->last_field() );
-
-	$self->{'cached_data'} = [ @result ];
-	$self->{'cached_num'} = $num;
-	@result;
+	my @list = $self->get_record($num);
+	return () unless @list;
+	my %hash;
+	@hash{ '_DELETED', $self->field_names() } = @list;
+	%hash;
 	}
 
-sub process_item_on_read
+sub process_list_on_read
 	{
-	my ($self, $num, $value) = @_;
+	my $self = shift;
 
-	my $type = $self->{'field_types'}[$num];
-
-	if ($num == -1)		# delete flag
+	my @data;
+	my $num;
+	for $num (0 .. $self->last_field() + 1)
 		{
-		if ($value eq '*')	{ return 1; }
-		if ($value eq ' ')	{ return 0; }
-		Warning "Unknown deleted flag '$value' found\n";
-		return undef;
+		my $value = $_[$num];
+		if ($num == 0)
+			{
+			if ($value eq '*')      { $data[$num] = 1; }
+			elsif ($value eq ' ')	{ $data[$num] = 0; }
+			else { Warning "Unknown deleted flag '$value' found\n";}
+			next;
+			}
+		my $type = $self->{'field_types'}[$num - 1];
+		if ($type eq 'C')
+			{
+			$value =~ s/\s+$// if $CLEARNULLS;
+			$data[$num] = $value
+			}
+		elsif ($type eq 'L')
+			{
+			if ($value =~ /^[YyTt]$/)	{ $data[$num] = 1; }
+			if ($value =~ /^[NnFf]$/)	{ $data[$num] = 0; }
+			# return undef;	# ($value eq '?')
+			}
+		elsif ($type eq 'N' or $type eq 'F')
+			{
+			substr($value, $self->{'field_lengths'}[$num - 1], 0) = '.';
+			$data[$num] = $value + 0;
+			}
+		elsif ($type =~ /^[MGBP]$/)
+			{
+			# memo fields are indexed from 1, we need $value - 1
+			$data[$num] = $self->{'memo'}->read_record($value - 1)
+				if defined $self->{'memo'} and
+					not $value =~ /^ +$/;
+			}
+		else
+			{ $data[$num] = $value;	}
 		}
-
-	# now the other fields
-	if ($type eq 'C')
-		{
-		$value =~ s/\s+$// if $CLEARNULLS;
-		return $value;
-		}
-	if ($type eq 'L')
-		{
-		if ($value =~ /^[YyTt]$/)	{ return 1; }
-		if ($value =~ /^[NnFf]$/)	{ return 0; }
-		return undef;	# ($value eq '?')
-		}
-	if ($type eq 'N' or $type eq 'F')
-		{
-		substr($value, $self->{'field_lengths'}[$num], 0) = '.';
-		return $value + 0;
-		}
-	if ($type =~ /^[MGBP]$/)
-		{
-		return undef if $value =~ /^ +$/;
-		return $self->read_memo_data($value + 0);
-		}
-
-	$value;
+	@data;
 	}
-
-
-# Read additional data from the memo file
-sub read_memo_data
-	{
-	my ($self, $num) = @_;
-	my $dbt = $self->{'dbt'};
-	if (not defined $dbt)
-		{
-		my $filename = $self->{'filename'};
-		$filename =~ s/\.dbf//i;
-		$filename .= '.dbt';
-		require 'XBase/Memo.pm';
-		$self->{'dbt'} = $dbt = XBase::Memo->new($filename);
-		return undef unless defined $dbt;
-		}
-	my $ret = $dbt->read_record($num);
-	return $ret;
-	}
-
-
 
 # #############
 # Write records
@@ -698,6 +670,36 @@ sub update_last_record
 	$self->{'fh'}->print(pack "V", $last);
 	$self->{'num_rec'} = $last;
 	}
+
+__END__
+
+
+# Creating new dbf file
+sub create
+	{
+	my $class = shift;
+	if (ref $class)
+		{ return $class->create_duplicate(@_); }
+		
+	}
+sub create_duplicate
+	{
+	my $other = shift;
+	my %options = @_;
+	if (not defined $options{'name'})
+		{
+		Error "Name tag has to be specified when creating new table\n";
+		return;
+		}
+	$options{'version'} = $other->{'version'}
+		unless defined $options{'version'};
+	return __PACKAGE__ create(%options,
+		'fields_names' => [ $other->field_names() ],
+		'field_types' => [ $other->field_types() ],
+		'field_lengths' => [ $other->{'field_lengths'} ],
+		'field_decimals' => [ $other->{'field_decimals'} ],
+	}
+
 1;
 
 # #######################################################
