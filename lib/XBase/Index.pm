@@ -3,6 +3,10 @@
 
 XBase::Index - base class for the index files for dbf
 
+=head1 SYNOPSIS
+
+No synopsis yet, sorry.
+
 =head1 DESCRIPTION
 
 =head2 Proposal:
@@ -29,4 +33,10 @@ for updates where we need to rewrite the content of the index.
 =back
 
 =cut
+
+package XBase::Index::Page;
+
+
+
+1;
 

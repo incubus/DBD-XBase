@@ -10,7 +10,7 @@ package XBase::SQL;
 use strict;
 use vars qw( $VERSION $DEBUG %COMMANDS );
 
-$VERSION = '0.061';
+$VERSION = '0.062';
 $DEBUG = 0;
 
 # ##################
@@ -18,8 +18,8 @@ $DEBUG = 0;
 
 
 my %TYPES = ( 'char' => 'C', 'num' => 'N', 'numeric' => 'N', 'int' => 'N',
-		'boolean' => 'L', 'blob' => 'M', 'memo' => 'M',
-		'float' => 'F', 'date' => 'D' );
+		'float' => 'N', 'boolean' => 'L',
+		'blob' => 'M', 'memo' => 'M', 'float' => 'F', 'date' => 'D' );
 
 %COMMANDS = (
 	'COMMANDS' => 	' SELECT | INSERT | DELETE | UPDATE | CREATE ',
@@ -30,8 +30,8 @@ my %TYPES = ( 'char' => 'C', 'num' => 'N', 'numeric' => 'N', 'int' => 'N',
 	'UPDATE' =>	' update TABLE set SETCOLUMNS WHERE ? ',
 	'CREATE' =>	q' create table TABLE \( COLUMNDEF ( , COLUMNDEF ) * \) ',
 
-	'TABLE' =>	q'\w+',
-	'FIELDNAME' =>	q'[a-z]+',
+	'TABLE' =>	q'[a-z_][a-z0-9_]*',
+	'FIELDNAME' =>	q'[a-z_][a-z0-9_]*',
 	'EXPFIELDNAME' => 'FIELDNAME',
 	'SELECTFIELDS' =>	'SELECTALL | FIELDNAME ( , FIELDNAME ) *',
 	'SELECTALL' =>	q'\*',	

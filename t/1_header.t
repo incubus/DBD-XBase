@@ -11,6 +11,7 @@ BEGIN { print "Load the module: use XBase\n"; }
 use XBase;
 $::XBaseloaded = 1;
 print "ok 1\n";
+print "This is XBase version $XBase::VERSION\n";
 
 my $dir = ( -d "t" ? "t" : "." );
 $XBase::Base::DEBUG = 1;        # We want to see any problems

@@ -12,7 +12,7 @@ use XBase::Base;
 
 use vars qw( $VERSION @ISA );
 @ISA = qw( XBase::Base );
-$VERSION = '0.061';
+$VERSION = '0.062';
 
 # Read header is called from open to fill the object structures
 sub read_header
@@ -34,7 +34,7 @@ sub read_header
 		{
 		($next_for_append, $version, $block_size)
 					= unpack 'V @16C @20v', $header;
-		if ((($dbf_version & 7) == 3) or $version == 3)
+		if ((($dbf_version & 15) == 3) or $version == 3)
 			{
 			$block_size = 512;
 			$version = 3;
@@ -50,7 +50,7 @@ sub read_header
 	$block_size = 512 if int($block_size) == 0;
 
 	@{$self}{ qw( next_for_append header_len record_len version ) }
-		= ( $next_for_append, 0, $block_size, $version );
+		= ( $next_for_append, 512, $block_size, $version );
 
 	1;
 	}
@@ -118,7 +118,7 @@ sub write_record
 	my ($self, $num) = (shift, shift);
 	my $type = shift;
 	my $data = join "", @_, "\x1a\x1a";
-	if ($num > 0 and $num < $self->last_record())
+	if ($num >= 0 and $num <= $self->last_record())
 		{
 		my $buffer = $self->read_record($num);
 		if (defined $buffer)
@@ -156,7 +156,9 @@ sub read_record
 
 	my $buffer = $self->SUPER::read_record($num, -1);
 	if (not defined $buffer) { return; }
-	my ($unused_id, $length) = unpack 'VV', $buffer;
+	my $unpackstr = 'VV';
+	$unpackstr = 'NN' if ref $self eq 'XBase::Memo::Fox';
+	my ($unused_id, $length) = unpack $unpackstr, $buffer;
 	my $block_size = $self->{'record_len'};
 	if ($length < $block_size - 8)
 		{ return substr $buffer, 8, $length; }
@@ -173,16 +175,17 @@ sub write_record
 	my $data = join "", @_;
 	my $length = length $data;
 
-	my $startfield = pack "CCCC", "\xff", "\xff", "\x08", 0;
+	my $startfield = pack "CCCCV", "\xff", "\xff", "\x08", 0, $length;
 	if (ref $self eq 'XBase::Memo::Fox')
 		{
-		if ($type eq 'P')	{ $startfield = pack 'V', 0; }
-		elsif ($type eq 'M')	{ $startfield = pack 'V', 1; }
-		else			{ $startfield = pack 'V', 2; }
+		if ($type eq 'P')	{ $startfield = pack 'N', 0; }
+		elsif ($type eq 'M')	{ $startfield = pack 'N', 1; }
+		else			{ $startfield = pack 'N', 2; }
+		$startfield .= pack 'N', $length;
 		}
-	$data = $startfield . pack ('V', $length) . $data . "\x1a\x1a";
+	$data = $startfield . $data . "\x1a\x1a";
 
-	if ($num < $self->last_record() and $num != -1)
+	if ($num <= $self->last_record() and $num != -1)
 		{
 		my $buffer = $self->read_record($num);
 		if (defined $buffer)
@@ -236,7 +239,7 @@ specify their specific B<read_record> and B<write_record> methods.
 
 =head1 VERSION
 
-0.061
+0.062
 
 =head1 AUTHOR
 
