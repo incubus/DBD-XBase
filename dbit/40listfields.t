@@ -21,12 +21,12 @@ $COL_KEY = '';
 use DBI;
 use vars qw($verbose);
 
-$mdriver = "";
+$dbdriver = "";
 foreach $file ("lib.pl", "t/lib.pl") {
     do $file; if ($@) { print STDERR "Error while executing lib.pl: $@\n";
 			   exit 10;
 		      }
-    if ($mdriver ne '') {
+    if ($dbdriver ne '') {
 	last;
     }
 }
@@ -95,9 +95,10 @@ while (Testing()) {
 	}
     }
 
-    Test($state or ($ref = $cursor->{'NULLABLE'})  &&  @$ref == @table_def
-		    &&  !($$ref[0] xor ($table_def[0][3] & $COL_NULLABLE))
-		    &&  !($$ref[1] xor ($table_def[1][3] & $COL_NULLABLE)))
+    Test($state  or  ($dbdriver eq 'CSV') or ($dbdriver eq 'ConfFile')
+	 or ($ref = $cursor->{'NULLABLE'})  &&  @$ref == @table_def
+	     &&  !($$ref[0] xor ($table_def[0][3] & $COL_NULLABLE))
+	     &&  !($$ref[1] xor ($table_def[1][3] & $COL_NULLABLE)))
 	   or DbiError($cursor->err, $cursor->errstr);
     if (!$state && $verbose) {
 	print "Nullable:\n";

@@ -458,43 +458,6 @@ sub new
 		my ($left, $key)
 			= unpack "\@${offset}Va${keylength}", $data;
 
-=comment
-
-		if ($indexfile->{'active'}{'key_type'} eq 'N')
-			{
-			my $f = substr $key, 0, 8;
-			my $exp = substr $key, 8, 2;
-			print "$key $f $exp\n";
-
-			$f = unpack 'V', $f;
-			$exp = unpack 'v', $exp;
-
-			print "$key $f $exp\n";
-		
-			$f &= 0xfffffffffffff;
-			$exp >>= 4;
-			
-			print "$key $f $exp\n";
-
-
-			print "$key $f $exp\n";
-
-			$f = pack 'V', $f;
-			$exp = pack 'v', $exp;
-
-			print "$key $f $exp\n";
-			exit;
-			
-			my $bigend = substr(pack( "d", 1), 0, 2) eq '?ð';
-			if ($bigend)
-				{
-				$key = reverse $key if $bigend;
-				### $key = unpack "d", $key;
-				}
-			}
-
-=cut
-
 		push @$keys, $key;
 
 		if ($noleaf == 54 or $noleaf == 20 or $noleaf == 32 or

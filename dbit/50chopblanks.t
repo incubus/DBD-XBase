@@ -107,8 +107,8 @@ while (Testing()) {
 	    or ErrMsgF("fetch failed: query $query, error %s.\n",
 		       $sth->errstr);
 	Test($state or ($$ref[1] eq $name)
-	            or ($$ref[1] =~ /^$name\s+$/ &&
-			($dbdriver eq 'XBase' or $dbdriver eq 'mysql'  ||  $dbdriver eq 'ODBC' )))
+	            or ($$ref[1] =~ /^$name\s+$/  &&
+			($dbdriver eq  'XBase' || $dbdriver eq 'mysql'  ||  $dbdriver eq 'ODBC')))
 	    or ErrMsgF("problems with ChopBlanks = 0:"
 		       . " expected '%s', got '%s'.\n",
 		       $name, $$ref[1]);
@@ -120,12 +120,11 @@ while (Testing()) {
 	    or ErrMsg("execute failed: query $query, error %s.\n",
 		      $sth->errstr);
 	my $n = $name;
-	$n =~ s/^\s+//;
 	$n =~ s/\s+$//;
 	Test($state or ($ref = $sth->fetchrow_arrayref))
 	    or ErrMsgF("fetch failed: query $query, error %s.\n",
 		       $sth->errstr);
-	Test($state or ($$ref[1] eq $n or $$ref[1] =~ /^\s+$n$/))
+	Test($state or ($$ref[1] eq $n))
 	    or ErrMsgF("problems with ChopBlanks = 1:"
 		       . " expected '%s', got '%s'.\n",
 		       $n, $$ref[1]);

@@ -20,11 +20,11 @@ use Getopt::Long;
 my %options;
 Getopt::Long::GetOptions( \%options,
 	'help', 'version', 'info', 'rs=s', 'fs=s', 'undef=s', 'fields=s',
-	'nomemo', 'memofile=s',
+	'nomemo', 'memofile=s', 'memosep=s',
 	) or exit;
 
 if (defined $options{'version'})
-	{ print "This is dbfdump version $XBase::VERSION\n"; exit; }
+	{ print "This is dbfdump version $XBase::VERSION.\n"; exit; }
 
 if (@ARGV == 0 or defined $options{'help'})
 	{
@@ -35,7 +35,8 @@ Usage: dbfdump [ options ] files
 	--fs		field separator
 	--fields	comma separated list of fields to print
 	--undef		what to print for NULL values
-	--memofile	sepcifies unstandard name of attached memo file
+	--memofile	specifies unstandard name of attached memo file
+	--memosep	separator for dBase III dbt's -- default "\x1a\x1a"
     all having as parameter a string; and also
 	--nomemo	do not try to read the memo (dbt/fpt) file 
 	--info		print info about the file and fields

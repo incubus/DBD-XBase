@@ -161,12 +161,54 @@ sub rollback
 sub disconnect
 	{ 1; }
 
-=comment
+sub table_info
+	{
+	my $dbh = shift;
+	my @tables = map { [ undef, undef, $_, 'TABLE', undef ] } $dbh->tables();
+	my $sth = DBI::_new_sth($dbh, { 'xbase_lines' => [ @tables ] } );
+	$sth->STORE('NUM_OF_FIELDS', 5);
+	$sth->execute and return $sth;
+	return;
+	}
 
-sub DESTROY
-	{ }
+my @TYPE_INFO_ALL = (
+	[ qw( TYPE_NAME DATA_TYPE PRECISION LITERAL_PREFIX LITERAL_SUFFIX CREATE_PARAMS NULLABLE CASE_SENSITIVE SEARCHABLE UNSIGNED_ATTRIBUTE MONEY AUTO_INCREMENT LOCAL_TYPE_NAME MINIMUM_SCALE MAXIMUM_SCALE ) ],
+	[ 'VARCHAR', DBI::SQL_VARCHAR, 65535, "'", "'", 'max length', 0, 1, 2, undef, 0, 0, undef, undef, undef ],
+	[ 'CHAR', DBI::SQL_CHAR, 65535, "'", "'", 'max length', 0, 1, 2, undef, 0, 0, undef, undef, undef ],
+	[ 'INTEGER', DBI::SQL_INTEGER, 0, '', '', 'number of digits', 1, 0, 2, 0, 0, 0, undef, 0, undef ],
+	[ 'FLOAT', DBI::SQL_FLOAT, 0, '', '', 'number of digits', 1, 0, 2, 0, 0, 0, undef, 0, undef ],
+	[ 'NUMERIC', DBI::SQL_FLOAT, 0, '', '', 'number of digits', 1, 0, 2, 0, 0, 0, undef, 0, undef ],
+	[ 'BOOLEAN', DBI::SQL_BINARY, 0, '', '', 'number of digits', 1, 0, 2, 0, 0, 0, undef, 0, undef ],
+	[ 'DATE', DBI::SQL_DATE, 0, '', '', 'number of digits', 1, 0, 2, 0, 0, 0, undef, 0, undef ],
+	[ 'BLOB', DBI::SQL_LONGVARBINARY, 0, '', '', 'number of digits', 1, 0, 2, 0, 0, 0, undef, 0, undef ],
+	);
 
-=cut
+my %TYPE_INFO_TYPES = map { ( $TYPE_INFO_ALL[$_][0] => $_ ) } ( 1 .. $#TYPE_INFO_ALL );
+my %REVTYPES = qw( C char N numeric F float L boolean D date M blob );
+my %REVSQLTYPES = map { ( $_ => $TYPE_INFO_ALL[  $TYPE_INFO_TYPES{ uc $REVTYPES{$_} } ][1] ) } keys %REVTYPES;
+
+### use Data::Dumper; print Dumper \%TYPE_INFO_TYPES, \%REVSQLTYPES;
+
+sub type_info_all
+	{
+	my $dbh = shift;
+	my $result = [ @TYPE_INFO_ALL ];
+	my $i = 0;
+	my $hash = { map { ( $_ => $i++) } @{$result->[0]} };
+	$result->[0] = $hash;
+	$result;
+	}
+sub type_info
+	{
+	my ($dbh, $type) = @_;
+	my $result = [];
+	for my $row ( 1 .. $#TYPE_INFO_ALL )
+		{
+		if ($type == DBI::SQL_ALL_TYPES or $type == $TYPE_INFO_ALL[$row][1])
+			{ push @$result, { map { ( $TYPE_INFO_ALL[0][$_] => $TYPE_INFO_ALL[$row][$_] ) } ( 0 .. $#{$TYPE_INFO_ALL[0]} ) } }
+		}
+	$result;
+	}
 
 package DBD::XBase::st;
 use strict;
@@ -179,39 +221,29 @@ sub bind_param
 	$sth->{'param'}[$param - 1] = $value;
 	1;
 	}
-
-=comment
-
-sub bind_columns
+sub rows
 	{
-	my ($sth, $attrib, @col_refs) = @_;
-	my $i = 1;
-	for (@col_refs)
-		{ $sth->bind_col($i, $_); $i++; }
-	1;
+	my $sth = shift;
+	if (defined $sth->{'xbase_rows'}) { return $sth->{'xbase_rows'}; }
+	return -1;
 	}
-sub bind_col
-	{
-	my ($sth, $col_num, $col_var_ref) = @_;
-	$col_num--;
-	$sth->{'xbase_bind_col'}[$col_num] = $col_var_ref;
-	1;
-	}
-
-=cut
-
 sub execute
 	{
 	my $sth = shift;
 	if (@_)	{ $sth->{'param'} = [ @_ ]; }
 	my $param = $sth->{'param'};
+
+	if (defined $sth->{'xbase_lines'})
+		{ return -1; }
+	delete $sth->{'xbase_rows'} if defined $sth->{'xbase_rows'};
 	
 	my $parsed_sql = $sth->{'xbase_parsed_sql'};
 	my $command = $parsed_sql->{'command'};
 	my $table = $parsed_sql->{'table'}[0];
 	my $dbh = $sth->{'Database'};
 		
-	$sth->STORE('NUM_OF_FIELDS', 0);
+	### if (not defined $sth->FETCH('NUM_OF_FIELDS'))
+	###	{ $sth->STORE('NUM_OF_FIELDS', 0); }
 
 	# Create table first -- we do not need to work with the table anymore
 	if ($command eq 'create')
@@ -290,6 +322,8 @@ sub execute
 	my $wherefn = $parsed_sql->{'wherefn'};
 	my @fields = @{$parsed_sql->{'fields'}} if defined $parsed_sql->{'fields'};
 	### use Data::Dumper; print STDERR Dumper $parsed_sql;
+	my $rows = 0;
+
 	if ($command eq 'select')
 		{
 		if (defined $parsed_sql->{'orderfield'})
@@ -330,7 +364,8 @@ sub execute
 			{
 			$sth->{'xbase_cursor'} = $cursor;
 			}
-		$sth->STORE('NUM_OF_FIELDS', scalar @fields);
+		if (not $sth->FETCH('NUM_OF_FIELDS') and scalar @fields)
+			{ $sth->STORE('NUM_OF_FIELDS', scalar @fields); }
 		}
 	elsif ($command eq 'delete')
 		{
@@ -338,14 +373,23 @@ sub execute
 			{
 			my $last = $xbase->last_record;
 			for (my $i = 0; $i <= $last; $i++)
-				{ $xbase->delete_record($i); }
-			return 1;
+				{
+				if (not ($xbase->get_record_fn($i, 0))[0])
+					{
+					$xbase->delete_record($i);
+					$rows++;
+					}
+				}
 			}
-		my $values;
-		while (defined($values = $cursor->fetch_hashref))
+		else
 			{
-			next unless &{$wherefn}($xbase, $values, $param, 0);
-			$xbase->delete_record($cursor->last_fetched);
+			my $values;
+			while (defined($values = $cursor->fetch_hashref))
+				{
+				next unless &{$wherefn}($xbase, $values, $param, 0);
+				$xbase->delete_record($cursor->last_fetched);
+				$rows++;
+				}
 			}
 		}
 	elsif ($command eq 'update')
@@ -358,13 +402,16 @@ sub execute
 			my %newval;
 			@newval{ @fields } = &{$parsed_sql->{'updatefn'}}($xbase, $values, $param, 0);
 			$xbase->update_record_hash($cursor->last_fetched, %newval);
+			$rows++;
 			}
 		}
 	elsif ($command eq 'drop')
 		{
 		$xbase->drop;
+		$rows = -1;
 		}
-	-1;
+	$sth->{'xbase_rows'} = $rows;
+	return $rows ? $rows : '0E0';
 	}
 sub fetch
 	{
@@ -387,6 +434,8 @@ sub fetch
 		$retarray = [ @{$values}{ @{$sth->{'xbase_parsed_sql'}{'fields'}}} ]
 			if defined $values;
 		}
+
+### use Data::Dumper; print Dumper $retarray;
 
 	return unless defined $retarray;
 
@@ -411,20 +460,23 @@ sub fetch
 sub FETCH
 	{
 	my ($sth, $attrib) = @_;
+	my $parsed_sql = $sth->{'xbase_parsed_sql'};
 	if ($attrib eq 'NAME')
 		{
-		return [ @{$sth->{'xbase_parsed_sql'}{'fields'}} ]; }
+		return [ @{$parsed_sql->{'fields'}} ];
+		}
 	elsif ($attrib eq 'NULLABLE')
 		{
-		return [ (1) x scalar(@{$sth->{'xbase_parsed_sql'}{'fields'}}) ];
+		return [ (1) x scalar(@{$parsed_sql->{'fields'}}) ];
 		}
 	elsif ($attrib eq 'TYPE')
 		{
-		return [ (0) x scalar(@{$sth->{'xbase_parsed_sql'}{'fields'}}) ];
+		return [ map { $REVSQLTYPES{$_} }
+			map { $sth->{'Database'}->{'xbase_tables'}->{$parsed_sql->{'table'}[0]}->field_type($_) }
+				@{$parsed_sql->{'fields'}} ];
 		}
-		
 	elsif ($attrib eq 'ChopBlanks')
-		{ return $sth->{'xbase_parsed_sql'}->{'ChopBlanks'}; }
+		{ return $parsed_sql->{'ChopBlanks'}; }
 	else
 		{ return $sth->DBD::_::st::FETCH($attrib); }
 	}

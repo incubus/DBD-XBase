@@ -55,7 +55,8 @@ sub read_header
 	@{$self}{ qw( next_for_append header_len record_len version ) }
 		= ( $next_for_append, $block_size, $block_size, $version );
 
-	$self->{'memosep'} = ( $options{'memosep'} or "\x1a\x1a" );
+	$self->{'memosep'} = $options{'memosep'};
+	$self->{'memosep'} = "\x1a\x1a" if not defined $self->{'memosep'};
 
 	1;
 	}
@@ -171,6 +172,8 @@ sub read_record
 		return unless substr($buffer, 0, 4) eq "\xff\xff\x08\x00";
 		}
 	my ($unused_id, $length) = unpack $unpackstr, $buffer;
+	$length += 8 if ref $self eq 'XBase::Memo::Fox';
+
 	my $block_size = $self->{'record_len'};
 	if ($length < $block_size)
 		{ return substr $buffer, 8, $length - 8; }
@@ -193,7 +196,7 @@ sub write_record
 		if ($type eq 'P')	{ $startfield = pack 'N', 0; }
 		elsif ($type eq 'M')	{ $startfield = pack 'N', 1; }
 		else			{ $startfield = pack 'N', 2; }
-		$startfield .= pack 'N', $length;
+		$startfield .= pack 'N', ($length - 8);
 		}
 	$data = $startfield . $data . "\x1a\x1a";
 
@@ -214,6 +217,8 @@ sub write_record
 		else
 			{ $num = $self->last_record() + 1; }
 		}
+	else
+		{ $num = $self->last_record() + 1; }
 	$self->SUPER::write_record($num, $data);
 	$num;
 	}

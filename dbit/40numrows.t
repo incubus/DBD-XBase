@@ -5,6 +5,9 @@
 #   This tests, whether the number of rows can be retrieved.
 #
 
+$^W = 1;
+$| = 1;
+
 
 #
 #   Make -w happy
@@ -19,7 +22,7 @@ $test_password = '';
 #
 use DBI;
 $mdriver = "";
-foreach $file ("lib.pl", "t/lib.pl") {
+foreach $file ("lib.pl", "t/lib.pl", "DBD-~DBD_DRIVER~/t/lib.pl") {
     do $file; if ($@) { print STDERR "Error while executing lib.pl: $@\n";
 			   exit 10;
 		      }

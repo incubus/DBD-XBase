@@ -6,10 +6,9 @@ package XBase::SQL::Expr;
 package XBase::SQL;
 
 use strict;
-use vars qw( $VERSION $DEBUG %COMMANDS );
+use vars qw( $VERSION %COMMANDS );
 
 $VERSION = '0.068';
-$DEBUG = 0;
 
 # #################################
 # Type conversions for create table
@@ -37,12 +36,14 @@ my %TYPES = ( 'char' => 'C', 'varchar' => 'C',
 
 # table, field name, number, string
 
-	'TABLE' =>	'[a-z_][a-z0-9_]*',
+	'TABLE' =>	'\\S+',
 	'FIELDNAME' =>	'[a-z_][a-z0-9_]*',
 	'NUMBER' => q'-?\d*\.?\d+',
-	'STRING' => [ qw{ STRINGDBL | STRINGSGL } ] ,
-	'STRINGDBL' => q' \\" (?:\\\\\\\\|\\\\"|[^\\"])* \\" ',
-	'STRINGSGL' => q! \\' (?:\\\\\\\\|\\\\'|[^\\'])* \\' !,
+	'STRING' => q! \\" STRINGDBL \\" | \\' STRINGSGL \\' !,
+	'STRINGDBL' => q' STRINGDBLPART ( \\\\. STRINGDBLPART ) * ',
+	'STRINGSGL' => q' STRINGSGLPART ( \\\\. STRINGSGLPART ) * ',
+	'STRINGDBLPART' => q' [^\\\\"]* ',
+	'STRINGSGLPART' => q! [^\\\\']* !,
 
 # select fields
 
@@ -55,9 +56,11 @@ my %TYPES = ( 'char' => 'C', 'varchar' => 'C',
 	'WHERE' =>	'where WHEREEXPR',
 	'WHEREEXPR' =>	'BOOLEAN',
 
-	'BOOLEAN' =>	q'\( BOOLEAN \) | RELATION ( ( and | or ) BOOLEAN ) *',
+	'BOOLEAN' =>	q'\( BOOLEAN \) | RELATION ( ( AND | OR ) BOOLEAN ) *',
 	'RELATION' =>	'EXPFIELDNAME ( RELOP ARITHMETIC | is not ? null )',
 	'EXPFIELDNAME' => 'FIELDNAME',
+	'AND' =>	'and',
+	'OR' =>		'or',
 	
 	'RELOP' => [ qw{ == | = | <= | >= | <> | != | < | > } ],
 	'ARITHMETIC' => [ qw{ \( ARITHMETIC \)
@@ -84,7 +87,7 @@ my %TYPES = ( 'char' => 'C', 'varchar' => 'C',
 # create definitions
 
 	'COLUMNDEF' =>	'COLUMNKEY | COLUMNNAMETYPE ( not null ) ?',
-	'COLUMNKEY' =>	'primary ? key \( FIELDNAME \)',
+	'COLUMNKEY' =>	'primary key \( FIELDNAME \)',
 	'COLUMNNAMETYPE' =>	'FIELDNAME FIELDTYPE',
 	'FIELDTYPE' =>	'TYPECHAR | TYPENUM | TYPEBOOLEAN | TYPEMEMO | TYPEDATE',
 	
@@ -120,6 +123,8 @@ my %ERRORS = (
 # ########################################
 # Simplifying conversions during the match
 my %SIMPLIFY = (
+	'STRINGDBL' => sub { join '', get_strings(@_); },
+	'STRINGSGL' => sub { join '', get_strings(@_); },
 	'STRING' => sub { my $e = (get_strings(@_))[1];
 			## $e =~ s/([\\'])/\\$1/g;
 			"XBase::SQL::Expr->string('$e')"; },
@@ -142,6 +147,8 @@ my %SIMPLIFY = (
 			{ return "not $1 defined(($values[0])->value)"; }
 		else { return join ' ', @values; }	},
 	'NULL' => 'XBase::SQL::Expr->null()',
+	'AND' =>	'and',
+	'OR' =>		'or',
 	);
 #
 #

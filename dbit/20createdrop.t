@@ -58,11 +58,15 @@ while (Testing()) {
     #   Create a new table
     #
     my $def;
-    Test($state or ($def = TableDefinition($table,
-					   ["id",   "INTEGER",  4, 0],
-					   ["name", "CHAR",    64, 0]),
-		    $dbh->do($def)))
-	   or DbiError($dbh->err, $dbh->errstr);
+    if (!$state) {
+	($def = TableDefinition($table,
+				["id",   "INTEGER",  4, 0],
+				["name", "CHAR",    64, 0]));
+	print "Creating table:\n$def\n";
+    }
+    Test($state or $dbh->do($def))
+	or DbiError($dbh->err, $dbh->errstr);
+
 
     #
     #   ... and drop it.
