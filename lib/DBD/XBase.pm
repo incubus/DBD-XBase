@@ -19,7 +19,7 @@ use Exporter;
 use vars qw( $VERSION @ISA @EXPORT $err $errstr $drh $sqlstate );
 			# a couple of global variables that may come handy
 
-$VERSION = '0.220';
+$VERSION = '0.230';
 
 $err = 0;
 $errstr = '';
@@ -171,9 +171,9 @@ sub rollback {
 # Upon disconnecting we close all tables
 sub disconnect {
 	my $dbh = shift;
-	foreach my $xbase (values %{$dbh->{'xbase_tables'}}) {
-		$xbase->close;
-		delete $dbh->{'xbase_tables'}{$xbase};
+	foreach my $table (keys %{$dbh->{'xbase_tables'}}) {
+		$dbh->{'xbase_tables'}->{$table}->close;
+		delete $dbh->{'xbase_tables'}{$table};
 	}
 	1;
 }
@@ -503,7 +503,7 @@ sub execute {
 							. $xbase->errstr);
 			return;
 		};
-		delete $dbh->{'xbase_tables'}{$xbase};
+		delete $dbh->{'xbase_tables'}{$table};
 		$rows = -1;
 	}
 	
@@ -764,7 +764,7 @@ The memo fields will come out as nulls.
 
 =head1 VERSION
 
-0.220
+0.230
 
 =head1 AUTHOR
 

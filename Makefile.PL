@@ -25,7 +25,7 @@ use ExtUtils::MakeMaker;
 WriteMakefile(
 	'NAME'		=> 'XBase',
 	'DISTNAME'	=> 'DBD-XBase',
-	'VERSION_FROM'	=> 'lib/XBase.pm',
+	'VERSION_FROM'	=> 'lib/DBD/XBase.pm',
     ($] >= 5.005 ? (
 	'AUTHOR'	=> 'Jan Pazdziora (adelton@fi.muni.cz)',
 	'ABSTRACT'	=> 'Reads and writes XBase (dbf) files, includes DBI support',
