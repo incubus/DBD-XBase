@@ -15,7 +15,7 @@ use DBI ();
 use XBase;
 use XBase::SQL;
 
-use vars qw($VERSION @ISA @EXPORT $err $errstr $drh);
+use vars qw( $VERSION @ISA @EXPORT $err $errstr $drh $sqlstate );
 
 require Exporter;
 
@@ -23,6 +23,7 @@ $VERSION = '0.0695';
 
 $err = 0;
 $errstr = '';
+$sqlstate = '';
 $drh = undef;
 
 sub driver
@@ -35,6 +36,7 @@ sub driver
 		'Version'	=> $VERSION,
 		'Err'		=> \$DBD::XBase::err,
 		'Errstr'	=> \$DBD::XBase::errstr,
+		'State'		=> \$DBD::XBase::sqlstate,
 		'Attribution'	=> 'DBD::XBase by Jan Pazdziora',
 		});
 	}
@@ -51,15 +53,14 @@ $imp_data_size = 0;
 sub connect
 	{
 	my ($drh, $dsn, $username, $password, $attrhash) = @_;
-
+	$dsn = '.' if $dsn eq '';
 	if (not -d $dsn)
 		{
 		$DBD::XBase::err = 1;
 		$DBD::XBase::errstr = "Directory $dsn doesn't exist";
-		return undef;
+		return;
 		}
-	my $this = DBI::_new_dbh($drh, { 'dsn' => $dsn } );
-	$this;
+	DBI::_new_dbh($drh, { 'dsn' => $dsn } );
 	}
 
 sub disconnect_all
@@ -81,23 +82,24 @@ sub prepare
 	### use Data::Dumper; print Dumper $parsed_sql;
 	if (defined $parsed_sql->{'errstr'})
 		{
-		${$dbh->{'Err'}} = 2;
-		${$dbh->{'Errstr'}} = 'Error in SQL parse: ' . $parsed_sql->{'errstr'};
+		DBI::set_err($dbh, 2,
+			'Error in SQL parse: ' . $parsed_sql->{'errstr'});
 		return;
 		}
 
-	return DBI::_new_sth($dbh, {
-		'Statement'	=> $statement,
-		'dbh'		=> $dbh,
-		'xbase_parsed_sql'	=> $parsed_sql,
-		});
+	my $sth = DBI::_new_sth($dbh, { 'Statement' => $statement });
+	$sth->STORE('xbase_parsed_sql', $parsed_sql);
+	$sth->STORE('NUM_OF_PARAMS',
+		exists($parsed_sql->{'numofbinds'})
+			? $parsed_sql->{'numofbinds'} : 0);
+	$sth;
 	}
 
 sub STORE
 	{
 	my ($dbh, $attrib, $value) = @_;
-	if ($attrib eq 'AutoCommit')
-		{ return 1 if $value; croak("Can't disable AutoCommit"); }
+	### if ($attrib eq 'Name')		{ return; }
+	if ($attrib eq 'AutoCommit')	{ return; }
 	elsif ($attrib eq 'xbase_ignorememo')
 		{ $dbh->{'xbase_ignorememo'} = $value; return; }
 	$dbh->DBD::_::db::STORE($attrib, $value);
@@ -105,8 +107,8 @@ sub STORE
 sub FETCH
 	{
 	my ($dbh, $attrib) = @_;
-	if ($attrib eq 'AutoCommit')
-		{ return 1; }
+	### if ($attrib eq 'Name')		{ return $dbh->{'dsn'}; }
+	if ($attrib eq 'AutoCommit')	{ return 1; }
 	elsif ($attrib eq 'xbase_ignorememo')
 		{ return $dbh->{'xbase_ignorememo'}; }
 	$dbh->DBD::_::db::FETCH($attrib);
@@ -190,14 +192,13 @@ sub execute
 	if (@_)	{ @{$sth->{'param'}} = @_; }
 	$sth->{'param'} = [] unless defined $sth->{'param'};
 	
-	my $parsed_sql = $sth->{'xbase_parsed_sql'};
+	my $parsed_sql = $sth->FETCH('xbase_parsed_sql');
 	my $command = $parsed_sql->{'command'};
 	my $table = $parsed_sql->{'table'}[0];
-	my $dbh = $sth->{'dbh'};
+	my $dbh = $sth->FETCH('Database');
 
 	if ($command eq 'create')
 		{
-		my $dbh = $sth->{'dbh'};
 		my $filename = $dbh->{'dsn'} . '/' . $table;
 		my $xbase = XBase->create('name' => $filename,
 			'field_names' => $parsed_sql->{'createfields'},
@@ -206,8 +207,7 @@ sub execute
 			'field_decimals' => $parsed_sql->{'createdecimals'});
 		if (not defined $xbase)
 			{
-			${$sth->{'Err'}} = 10;
-			${$sth->{'Errstr'}} = XBase->errstr();
+			DBI::set_err($sth, 10, XBase->errstr());
 			return;
 			}
 		$dbh->{'xbase_tables'}->{$table} = $xbase;	
@@ -223,8 +223,8 @@ sub execute
 		$xbase = new XBase(%opts);
 		if (not defined $xbase)
 			{
-			${$dbh->{'Err'}} = 3;
-			${$dbh->{'Errstr'}} = "Table $table not found: @{[XBase->errstr]}\n";
+			DBI::set_err($sth, 3, "Table $table not found: "
+							. XBase->errstr());
 			return;
 			}
 		$dbh->{'xbase_tables'}->{$table} = $xbase;	
@@ -298,7 +298,6 @@ sub execute
 			unshift @{$subparsed_sql->{'fields'}}, $orderfield;
 			my $substh = DBI::_new_sth($dbh, {
 				'Statement'	=> $sth->{'Statement'},
-				'dbh'		=> $dbh,
 				'xbase_parsed_sql'	=> $subparsed_sql,
 				});
 			$substh->execute(@{$sth->{'param'}});
@@ -387,6 +386,8 @@ sub fetch
 		}
 
 	return unless defined $retarray;
+
+	### $sth->_set_fbav($retarray); return $retarray;
 
 	my $i = 0;
 	for my $ref ( @{$sth->{'xbase_bind_col'}} )

@@ -18,7 +18,7 @@ use XBase::Base;		# will give us general methods
 use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
-$VERSION = '0.0697';
+$VERSION = '0.0901';
 $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 
 *errstr = \$XBase::Base::errstr;
@@ -83,9 +83,9 @@ sub read_header
 			# fixup for char length > 256
 			if ($decimal and not $self->{'openoptions'}{'nolongchars'})
 				{ $length += 256 * $decimal; $decimal = 0; }
-			$rproc = sub { my $value = shift;
+			$rproc = sub { my $value = $_[0];
 				if ($self->{'ChopBlanks'})
-					{ $value =~ s/\s+$//; } ### $value =~ s/^\s+//; }
+					{ $value =~ s/\s+$//; }
 				return $value;
 				( $value eq '' ? undef : $value ); };
 			$wproc = sub { my $value = shift;
@@ -140,8 +140,7 @@ sub read_header
 			elsif (defined $memo and $length == 4)
 				{
 				$rproc = sub {
-					my $value = unpack 'V', shift;
-					$memo->read_record($value - 1) if defined $memo;
+					$memo->read_record(unpack('V', $_[0]) - 1) if defined $memo;
 					};
 				$wproc = sub {
 					my $value = $memo->write_record(-1, $type, shift) if defined $memo;
@@ -1078,7 +1077,7 @@ Thanks a lot.
 
 =head1 VERSION
 
-0.0697
+0.0696
 
 =head1 AUTHOR
 
