@@ -206,7 +206,11 @@ sub read_header {
 		}
 		elsif ($type eq '0') {    # SNa : field "_NULLFLAGS"
 			$rproc = $wproc = sub { '' };
+		} elsif ($type eq 'Y') {	# Fox money
+			$rproc = sub { unpack('l', pack 'L', unpack 'V', scalar shift)/10000; };
+			$wproc = sub { scalar pack 'V', unpack 'L', pack 'l', (shift)*10000; };
 		}
+
 
 		$name =~ s/[\000 ].*$//s;
 		$name = uc $name;		# no locale yet
@@ -696,6 +700,7 @@ sub create {
 						# force correct lengths
 		if ($type =~ /^[MBGP]$/)	{ $length = 10; $decimal = 0; }
 		elsif ($type eq "L")	{ $length = 1; $decimal = 0; }
+		elsif ($type eq 'Y')	{ $length = 8; $decimal = 4; }
 
 		if (not defined $decimal) {
 			$decimal = 0;
