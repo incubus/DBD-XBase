@@ -89,7 +89,7 @@ my %TYPES = ( 'char' => 'C', 'varchar' => 'C',
 	'WHERE' =>	'where WHEREEXPR',
 	'WHEREEXPR' =>	'BOOLEAN',
 
-	'BOOLEAN' =>	q'( \( BOOLEAN \) | RELATION ) ( ( AND | OR ) BOOLEAN ) *',
+	'BOOLEAN' =>	q'not BOOLEAN | ( \( BOOLEAN \) | RELATION ) ( ( AND | OR ) BOOLEAN ) *',
 	'RELATION' =>   'ARITHMETIC ( is not ? null | LIKE CONSTANT_NOT_NULL | RELOP ARITHMETIC )',
 	'AND' =>	'and',
 	'OR' =>		'or',
@@ -660,6 +660,7 @@ use overload
 	'""' => sub { ref shift; },
 	'.' => sub { XBase::SQL::Expr->string($_[0]->value . $_[1]->value); },
 	'*'  => sub { XBase::SQL::Expr->number($_[0]->value * $_[1]->value);},
+	'not'  => sub { not $_[0]->value },
 	;
 
 sub new { bless {}, shift; }
