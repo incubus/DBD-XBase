@@ -820,6 +820,7 @@ sub create
 
 	if (grep { /^[MBGP]$/ } @{$options{'field_types'}})
 		{
+		require XBase::Memo;
 		my $dbtname = $options{'name'};
 		$dbtname =~ s/(\.dbf)?$/.dbt/i;
 		my $dbttmp = XBase::Memo->new();
