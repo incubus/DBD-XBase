@@ -181,8 +181,10 @@ sub read_from
 	my ($self, $offset, $in_length) = @_;
 	unless (defined $offset)
 		{ $self->Error("Offset to read from must be specified\n"); return; }
-	$self->seek_to_record($num) or return;
-
+	$self->seek_to($offset) or return;
+	my $buffer;
+	defined($self->{'fh'}->read($buffer, $in_length)) or return;
+	$buffer;
 	}
 # Write the record of given number
 sub write_record

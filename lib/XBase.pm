@@ -23,7 +23,7 @@ use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
 
-$VERSION = '0.0592';
+$VERSION = '0.0593';
 
 *errstr = \$XBase::Base::errstr;
 
@@ -59,9 +59,9 @@ sub read_header
 		= unpack 'Ca3Vvv', $header;	# parse the data
 
 	my ($names, $types, $lengths, $decimals) = ( [], [], [], [] );
-	my $offsets = [ 1 ];
+	my $unpacks = [ ];
 	my $readproc = [ ];
-
+	my $lastoffset = 1;
 	while (tell($fh) < $header_len - 1)	# will read the field desc's
 		{
 		my $field_def;
@@ -99,8 +99,8 @@ sub read_header
 		push @$types, $type;
 		push @$lengths, $length;
 		push @$decimals, $decimal;
-		my $lastoffset = $offsets->[$#$offsets];
-		push @$offsets, $length + $lastoffset
+		push @$unpacks, '@' . $lastoffset . 'a' .  $length;
+		$lastoffset += $length;
 		}		# store the information
 
 	my $hashnames;		# create name-to-num_of_field hash
@@ -109,11 +109,11 @@ sub read_header
 			# now it's the time to store the values to the object
 	@{$self}{ qw( version last_update num_rec header_len record_len
 		field_names field_types field_lengths field_decimals
-		hash_names last_field field_offsets
+		hash_names last_field field_unpacks
 		field_rproc ) } =
 			( $version, $last_update, $num_rec, $header_len,
 			$record_len, $names, $types, $lengths, $decimals,
-			$hashnames, $#$names, $offsets,
+			$hashnames, $#$names, $unpacks,
 			$readproc );
 
 	1;	# return true since everything went fine
@@ -286,16 +286,22 @@ sub get_record_nf
 	{
 	my ($self, $num, @fieldnums) = @_;
 	my $data = $self->read_record($num) or return;
-	my @out = ( _read_deleted($self, unpack 'a1', $data) );
-	unless (@fieldnums)
+
+	if (not @fieldnums)
 		{ @fieldnums = ( 0 .. $self->last_field ); }
-	my ($off, $len, $rproc) = @{$self}{ qw( field_offsets field_lengths field_rproc ) };
-	my $field;
-	for $field (@fieldnums)
-		{
-		push @out, &{$rproc->[$field]}( $self, unpack
-				"\@$off->[$field] a$len->[$field]", $data );
-		}
+	my $unpack = join ' ', '@0a1', map {
+		my $e = $self->{'field_unpacks'}[$_];
+		defined $e ? $e : '@0a0'; } @fieldnums;
+
+	my @fns = (\&_read_deleted, map { 
+		my $e = $self->{'field_rproc'}[$_];
+		defined $e ? $e : sub { undef; }; } @fieldnums);
+
+	my @out = unpack $unpack, $data;
+
+	for (@out)
+		{ $_ = &{ shift @fns }($self, $_); }
+
 	@out;
 	}
 sub get_record_as_hash
@@ -355,29 +361,19 @@ sub set_record_hash
 	{
 	my ($self, $num, %data) = @_;
 	$self->NullError();
-	$self->set_record($num, map { $data{$_} } @{$self->{'field_names'}} );
+	$self->set_record($num, map { $data{$_} } $self->field_names );
 	}
 
 # Write record, fields specified as hash, unspecified will be
 # unchanged
 sub update_record_hash
 	{
-	my ($self, $num, %data) = @_;
+	my ($self, $num) = ( shift, shift );
 	$self->NullError();
 
-	my @data = $self->get_record($num);	# read the original data first
-	return unless @data;
-
-	shift @data;		# remove the deleted flag
-
-	my $i;
-	for $i (0 .. $self->last_field())
-		{
-		if (exists $data{$self->{'field_names'}[$i]})
-			{ $data[$i] = $data{$self->{'field_names'}[$i]}; }
-		}
-
-	$self->set_record($num, @data);
+	my %olddata = $self->get_record_hash($num);
+	return unless %olddata;
+	$self->set_record_hash($num, %olddata, @_);
 	}
 
 # Actually write the data (calling XBase::Base::write_record) and keep
@@ -387,12 +383,12 @@ sub write_record
 	my ($self, $num) = (shift, shift);
 	my $ret = $self->SUPER::write_record($num, @_) or return;
 
-	if ($num > $self->last_record())
+	if ($num > $self->last_record)
 		{
 		$self->SUPER::write_record($num + 1, "\x1a");	# add EOF
 		$self->update_last_record($num) or return;
 		}
-	$self->update_last_change() or return;
+	$self->update_last_change or return;
 	$ret;
 	}
 
@@ -401,8 +397,6 @@ sub delete_record
 	{
 	my ($self, $num) = @_;
 	$self->NullError();
-	if ($num > $self->last_record())
-		{ $self->Error("Can't delete record number $num, there is not so many of them\n"); return;}
 	$self->write_record($num, "*");
 	1;
 	}
@@ -410,8 +404,6 @@ sub undelete_record
 	{
 	my ($self, $num) = @_;
 	$self->NullError();
-	if ($num > $self->last_record())
-		{ $self->Error("Can't undelete record number $num, there is not so many of them\n"); return;}
 	$self->write_record($num, " ");
 	1;
 	}

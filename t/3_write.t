@@ -60,6 +60,8 @@ if ($last_record_expected ne $last_record)
 	{ print "Expected: $last_record_expected\nGot: $last_record\nnot "; }
 print "ok 4\n";
 
+use Data::Dumper;
+print Dumper $table;
 
 print "Overwrite the record and check it back\n";
 $table->set_record(1, 5, 'New message', 'New note', 1, '19700101')
@@ -71,6 +73,7 @@ if ($result_expected ne $result)
 	{ print "Expected: $result_expected\nGot: $result\nnot "; }
 print "ok 5\n";
 
+print Dumper $table;
 
 print "The last record number should have stayed the same\n";
 $last_record = sprintf 'Last record: %d, last record in memo: %d',
