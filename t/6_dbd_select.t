@@ -9,6 +9,7 @@ END	{ print "not ok 1\n" unless $::DBIloaded; }
 print "Load DBI\n";
 
 use DBI;
+### DBI->trace(2);
 $::DBIloaded = 1;
 print "ok 1\n";
 
@@ -27,7 +28,7 @@ my $command = "select (ID, MSG) from test";
 print "Prepare command '$command'\n";
 my $sth = $dbh->prepare("select (ID, MSG) from test") or do
 	{
-	$dbh->errstr();
+	print $dbh->errstr();
 	print "not ok 3\n";
 	exit;
 	};
@@ -36,7 +37,7 @@ print "ok 3\n";
 print "Execute it\n";
 $sth->execute() or do
 	{
-	$sth->errstr();
+	print $sth->errstr();
 	print "not ok 4\n";
 	exit;
 	};
