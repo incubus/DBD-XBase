@@ -19,7 +19,7 @@ use vars qw($VERSION @ISA @EXPORT $err $errstr $drh);
 
 require Exporter;
 
-$VERSION = '0.064';
+$VERSION = '0.0641';
 
 $err = 0;
 $errstr = '';
@@ -95,7 +95,10 @@ sub prepare
 	if (not defined $xbase)
 		{
 		my $filename = $dbh->{'dsn'} . '/' . $table;
-		$xbase = new XBase($filename);
+		my %opts = ("name" => $filename);
+		my $ignorememo = $dbh->FETCH("IgnoreMemo");
+		$opts{"ignorememo"} = $ignorememo if defined $ignorememo;
+		$xbase = new XBase(%opts);
 		if (not defined $xbase)
 			{
 			${$dbh->{'Err'}} = 3;
@@ -134,12 +137,16 @@ sub STORE {
 	my ($dbh, $attrib, $value) = @_;
 	if ($attrib eq 'AutoCommit')
 		{ return 1 if $value; croak("Can't disable AutoCommit"); }
+	elsif ($attrib eq 'IgnoreMemo')
+		{ $dbh->{'xbase_ignorememo'} = $value; return; }
 	$dbh->DBD::_::db::STORE($attrib, $value);
 	}
 sub FETCH {
 	my ($dbh, $attrib) = @_;
 	if ($attrib eq 'AutoCommit')
 		{ return 1; }
+	elsif ($attrib eq 'IgnoreMemo')
+		{ return $dbh->{'xbase_ignorememo'}; }
 	$dbh->DBD::_::db::FETCH($attrib);
 	}
 
@@ -166,6 +173,7 @@ sub commit
 	{ warn "Commit ineffective while AutoCommit is on"; 1; }
 sub rollback
 	{ warn "Commit ineffective while AutoCommit is on"; 0; }
+
 package DBD::XBase::st;
 use strict;
 use vars qw( $imp_data_size );
@@ -459,7 +467,7 @@ types. Example:
 
 =head1 VERSION
 
-0.064
+0.0641
 
 =head1 AUTHOR
 
@@ -473,3 +481,4 @@ perl(1); DBI(3), XBase(3)
 
 =cut
 
+                                                                                                                                                                
