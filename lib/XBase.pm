@@ -227,6 +227,12 @@ sub read_header {
 		return $self->read_header;
 	}
 
+	if ($lastoffset != $self->{'record_len'}
+		and not defined $self->{'openoptions'}{'ignorebadheader'}) {
+		__PACKAGE__->Error("Missmatch in header of $self->{'filename'}: record_len $self->{'record_len'} but offset $lastoffset\n");
+		return;
+	}
+
 	my $hashnames = {};		# create name-to-num_of_field hash
 	@{$hashnames}{ reverse @$names } = reverse ( 0 .. $#$names );
 
