@@ -104,7 +104,7 @@ there are probably pieces missing.
 
 =head1 VERSION
 
-0.021
+0.022
 
 =head1 AUTHOR
 
@@ -134,7 +134,7 @@ use IO::File;
 # General things
 
 use vars qw( $VERSION $DEBUG $errstr $FIXERRORS $CLEARNULLS );
-$VERSION = "0.021";
+$VERSION = "0.022";
 
 # Sets the debug level
 $DEBUG = 1;
@@ -435,6 +435,7 @@ sub process_item_on_read
 	###
 	### Fixup for MGBP ### to be added, read from dbt
 	###
+
 	$value;
 	}
 
@@ -491,23 +492,70 @@ sub read_record
 # #############
 # Write records
 
+# Write record, values of the fields are in the argument list,
+# unspecified fields will be set to undef/empty. Record is always
+# undeleted
 sub write_record
 	{
 	NullError();
-	my ($self, $num, %hash) = @_;
+	my ($self, $num, @data) = @_;
+
+	push @data, (undef) x ($self->last_field - $#data);
+
+				# seek to position
+	$self->will_write_record($num) or return;
+	$self->{'fh'}->print(' ');
+				# write undelete flag
+
+				# process and write items
+	$self->{'fh'}->print(
+		### map { print "Writing: $_\n"; $_; }
+		map { $self->process_item_on_write($_, $data[$_]); }
+				( 0 .. $#data ) ) if @data;
+
+				# if we made the file longer, extend it
 	if ($num > $self->last_record())
-		{ Error "Can't rewrite record $num, there is not so many of them\n"; return; }
-	my $offset = $self->get_record_offset($num);
-	unless ($self->will_write_to($offset + 1))
-		{ Error "Can't rewrite record $num\n"; return; }
-	return;
-	$self->{'fh'}->print(map { $self->pricess_item_on_write() } 1);	
+		{
+		$self->{'fh'}->print("\x1a");	# add EOF
+		$self->update_last_record($num) or return;
+		}
+	
+	$self->update_last_change() or return;
+	1;
 	}
-sub update_record
+
+# Write record, fields are specified as hash, unspecified are set to
+# undef/empty
+sub write_record_hash
 	{
 	NullError();
-	my ($self, $num, %hash) = @_;
+	my ($self, $num, %data) = @_;
+	$self->write_record($num, map { $data{$_} } @{$self->{'field_names'}} );
+	}
 
+# Write record, fields specified as hash, unspecified will be
+# unchanged
+sub update_record_hash
+	{
+	NullError();
+	my ($self, $num, %data) = @_;
+	if ($num > $self->last_record())
+		{ Error "Can't updatge record $num, there is not so many of them\n"; return; }
+
+				# read the original data first
+	my @data = $self->get_record($num);
+	return unless @data;
+
+	shift @data;		# remove the deleted flag
+
+	my $i;
+	for $i (0 .. $self->last_field())
+		{
+		if (exists $data{$self->{'field_names'}[$i]})
+			{ $data[$i] = $data{$self->{'field_names'}[$i]}; }
+		}
+
+	$self->write_record($num, @data);
 	}
 
 # Delete and undelete record
@@ -518,9 +566,9 @@ sub delete_record
 	if ($num > $self->last_record())
 		{ Error "Can't delete record $num, there is not so many of them\n"; return; }
 	my $offset = $self->get_record_offset($num);
-	unless ($self->will_write_to($offset))
-		{ Error "Can't delete the record $num\n"; return; }
+	$self->will_write_record($num) or return;
 	$self->{'fh'}->print("*");
+	$self->update_last_change() or return;
 	1;
 	}
 sub undelete_record
@@ -529,10 +577,19 @@ sub undelete_record
 	my ($self, $num) = @_;
 	if ($num > $self->last_record())
 		{ Error "Can't undelete record $num, there is not so many of them\n"; return; }
+	$self->will_write_record($num) or return;
+	$self->{'fh'}->print(" ");
+	$self->update_last_change() or return;
+	1;
+	}
+
+# Prepare everything to write at record position
+sub will_write_record
+	{
+	my ($self, $num) = @_;
 	my $offset = $self->get_record_offset($num);
 	unless ($self->will_write_to($offset))
-		{ Error "Can't undelete the record $num\n"; return; }
-	$self->{'fh'}->print(" ");
+		{ Error "Error writing record $num\n"; return; }
 	1;
 	}
 
@@ -563,7 +620,65 @@ sub will_write_to
 	1;
 	}
 
+# Convert Perl values to those in dbf
+sub process_item_on_write
+	{
+	my ($self, $num, $value) = @_;
 
+	my ($type, $length, $decimal) = ($self->{'field_types'}[$num],
+		$self->{'field_lengths'}[$num],
+		$self->{'field_decimals'}[$num]);
+	my $totlen = $length + $decimal;
+
+	# now the other fields
+	if ($type eq 'C')
+		{
+		$value .= "";
+		return sprintf "%-$totlen.${totlen}s", $value;
+		}
+	if ($type eq 'L')
+		{
+		if (not defined $value)	{ $value = "?"; }
+		elsif ($value == 1)	{ $value = "Y"; }
+		elsif ($value == 0)	{ $value = "N"; }
+		else			{ $value = "?"; }
+		return sprintf "%-$totlen.${totlen}s", $value;
+		}
+	if ($type =~ /[NFD]/)
+		{
+		$value += 0;
+		$value = sprintf "%$totlen.${decimal}f", $value;
+		$value =~ s/[.,]//;
+		return $value;
+		}
+	
+	###
+	### Fixup for MGBP ### to be added, read from dbt
+	###
+
+	$value .= ""; 
+	return sprintf "%-$length.${decimal}s", $value;
+	}
+
+# Update the last change date
+sub update_last_change
+	{
+	my $self = shift;
+	return if defined $self->{'updated_today'};
+	$self->will_write_to(1) or return;
+	my ($y, $m, $d) = (localtime)[5, 4, 3]; $m++;
+	$self->{'fh'}->print(pack "C3", ($y, $m, $d));
+	$self->{'updated_today'} = 1;
+	}
+# Update the number of records
+sub update_last_record
+	{
+	my ($self, $last) = @_;
+	$last++;
+	$self->will_write_to(4);
+	$self->{'fh'}->print(pack "V", $last);
+	$self->{'num_rec'} = $last;
+	}
 1;
 
 package XbaseTable::dbt;
@@ -575,8 +690,6 @@ sub new
 sub close
 	{
 	}
-
-1;
 
 1;
 
