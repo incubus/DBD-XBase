@@ -104,7 +104,7 @@ there are probably pieces missing.
 
 =head1 VERSION
 
-0.01
+0.021
 
 =head1 AUTHOR
 
@@ -120,13 +120,21 @@ use 5.004;	# hmm, maybe it would work with 5.003 or so, but I do
 		# not have it, so this is more like a note, on which
 		# version it has been tested
 
+
+# ##################################
+# Here starts the XbaseTable package
+
 package XbaseTable;
 
 use strict;
 use IO::File;
 
+
+# ##############
+# General things
+
 use vars qw( $VERSION $DEBUG $errstr $FIXERRORS $CLEARNULLS );
-$VERSION = "0.01";
+$VERSION = "0.021";
 
 # Sets the debug level
 $DEBUG = 1;
@@ -163,6 +171,10 @@ sub Error
 sub NullError
 	{ $errstr = ''; }
 
+
+# ########################
+# Constructor, open, close
+
 # Constructor of the class; expects class name and filename of the
 # .dbf file, returns the object if the file can be read, null otherwise
 sub new
@@ -176,7 +188,7 @@ sub new
 	}
 # Called by XbaseTable::new; opens the file and parses the header,
 # sets the data structures of the object (field names, types, etc.).
-# Returns 1 on success, null otherwise. Opon error, calls
+# Returns 1 on success, null otherwise.
 sub open
 	{
 	my $self = shift;
@@ -184,16 +196,13 @@ sub open
 				# won't open if already opened
 
 	my $fh = new IO::File;
-	my ($writable, $mode) = (0, "r");
-	my $filename = $self->{'filename'};
-	if (-w $filename)
-		{ ($writable, $mode) = (1, "r+"); }
+	my ($filename, $writable, $mode) = ($self->{'filename'}, 0, "r");
+	($writable, $mode) = (1, "r+") if -w $filename;
 				# decide if we want r or r/w access
 
 	$fh->open($filename, $mode) or do
 		{ Error "Error opening file $self->{'filename'}: $!\n";
-		return; };
-				# open the file
+		return; };	# open the file
 	
 	my $header;
 	$fh->read($header, 32) == 32 or do
@@ -234,10 +243,10 @@ sub open
 		push @$types, $type;
 		push @$lengths, $length;
 		push @$decimals, $decimal;
-				# store the informationx
+				# store the information
 		}
 
-				# create name -> num_of_field hash
+				# create name-to-num_of_field hash
 	my ($hashnames, $i) = ({}, 0);
 	for $i (0 .. $#$names)
 		{
@@ -257,10 +266,11 @@ sub open
 	@{$self}{ qw( fh writable version last_update num_rec
 		header_len record_len field_names field_types
 		field_lengths field_decimals opened hash_names
-		unpack_template ) } =
+		unpack_template last_field ) } =
 			( $fh, $writable, $version, $last_update, $num_rec,
 			$header_len, $record_len, $names, $types,
-			$lengths, $decimals, 1, $hashnames, $template );
+			$lengths, $decimals, 1, $hashnames, $template,
+			$#$names );
 	
 	1;	# return true since everything went fine
 	}
@@ -271,27 +281,33 @@ sub close
 	NullError();
 	my $self = shift;
 	if (not defined $self->{'opened'})
-		{ Error "Can't close the file that is not opened\n"; return; }
+		{ Error "Can't close file that is not opened\n"; return; }
 	$self->{'fh'}->close();
 	delete @{$self}{'opened', 'fh'};
 	1;
 	}
 
-# Returns the number of records
-sub num_rec
-	{ shift->{'num_rec'}; }
+# ###############
+# Little decoding
 
-# Returns last_change item in printable string
-sub decode_last_change
+# Returns the number of the last record
+sub last_record
+	{ shift->{'num_rec'} - 1; }
+# And the same for fields
+sub last_field
+	{ shift->{'last_field'}; }
+# computes record's offset in the file
+sub get_record_offset
 	{
-	shift if ref $_[0];
-	my ($year, $mon, $day) = unpack "C3", shift;
-	$year += 1900;
-	return "$year/$mon/$day";
+	my ($self, $num) = @_;
+	return $self->{'header_len'} + $num * $self->{'record_len'};
 	}
 
+# #############################
+# Header, field and record info
+
 # Returns (not prints!) the info about the header of the object
-sub print_header
+sub get_header_info
 	{
 	my $self = shift;
 	my $hexversion = sprintf "0x%02x", $self->{'version'};
@@ -308,24 +324,40 @@ Num fields:	$numfields
 Field info:
 	Name		Type	Len	Decimal
 EOF
-	return $result, map { $self->print_field($_) }
-		(0 .. $#{$self->{'field_types'}});
+	return $result, map { $self->get_field_info($_) }
+					(0 .. $self->last_field());
 	}
 
 # Returns info about field in dbf file
-sub print_field
+sub get_field_info
 	{
 	my ($self, $num) = @_;
 	sprintf "\t%-16.16s%-8.8s%-8.8s%-8.8s\n", map { $self->{$_}[$num] }
 		qw( field_names field_types field_lengths field_decimals );
 	}
 
-# computes record's offset in the file
-sub get_record_offset
+# Returns last_change item in printable string
+sub decode_last_change
 	{
-	my ($self, $num) = @_;
-	return $self->{'header_len'} + $num * $self->{'record_len'};
+	shift if ref $_[0];
+	my ($year, $mon, $day) = unpack "C3", shift;
+	$year += 1900;
+	return "$year/$mon/$day";
 	}
+
+# Prints the records as comma separated fields
+sub dump_records
+	{
+	my $self = shift;
+	my $num;
+	for $num (0 .. $self->last_record())
+		{ print join(':', map { defined $_ ? $_ : ''; }
+				$self->get_record($num, @_)), "\n"; }
+	}
+
+
+# ###################
+# Reading the records
 
 # Returns fields of the specified record; parameters and number of the
 # record (starting from 0) and optionally names of the required
@@ -336,17 +368,90 @@ sub get_record
 	{
 	NullError();
 	my ($self, $num, @fields) = @_;
-	
-	if ($num >= $self->num_rec())
+
+	if (not defined $num)
+		{ Error "Record number to read must be specified\n"; return; }
+
+	if ($num > $self->last_record())
 		{ Error "Can't read record $num, there is not so many of them\n"; return; }
 
+	my @data;
+	if (defined $self->{'cached_num'} and $self->{'cached_num'} == $num)
+		{ @data = @{$self->{'cached_data'}}; }
+	else
+		{ @data = $self->read_record($num); return unless @data; }
+
+	# now make a list of numbers of fields to be returned
+	if (@fields)
+		{
+		return $data[0], map {
+			if (not defined $self->{'hash_names'}{$_})
+				{
+				Warning "Field named '$_' does not seem to exist\n";
+				return unless FIXERRORS;
+				undef;
+				}
+			else
+				{ $data[$self->{'hash_names'}{$_} + 1]; }
+			} @fields;
+		}
+	return @data;
+	}
+
+# Once we have the binary data from the pack, we want to convert them
+# into reasonable perlish types. The arguments are the number of the
+# field and the value. The delete flag has special number -1
+sub process_item_on_read
+	{
+	my ($self, $num, $value) = @_;
+
+	my $type = $self->{'field_types'}[$num];
+
+	if ($num == -1)		# delete flag
+		{
+		if ($value eq '*')	{ return 1; }
+		if ($value eq ' ')	{ return 0; }
+		Warning "Unknown deleted flag '$value' found\n";
+		return undef;
+		}
+
+	# now the other fields	
+	if ($type eq 'C')
+		{
+		$value =~ s/\s+$// if $CLEARNULLS;
+		return $value;
+		}
+	if ($type eq 'L')
+		{
+		if ($value =~ /^[YyTt]$/)	{ return 1; }
+		if ($value =~ /^[NnFf]$/)	{ return 0; }
+		return undef;	# ($value eq '?')
+		}
+	if ($type eq 'N' or $type eq 'F')
+		{
+		substr($value, $self->{'field_lengths'}[$num], 0) = '.';
+		return $value + 0;
+		}
+	###
+	### Fixup for MGBP ### to be added, read from dbt
+	###
+	$value;
+	}
+
+# Actually reads the record from file, stores in cache as well
+sub read_record
+	{
+	my ($self, $num) = @_;
+	
 	my ($fh, $tell, $record_len, $filename ) =
 		@{$self}{ qw( fh tell record_len filename ) };
 
 	if (not defined $self->{'opened'})
-		{ Error "The file $filename is not opened, can't get record\n"; return; }
+		{ Error "The file $filename is not opened, can't read it\n";
+		return; }	# will only read from opened file
 
 	my $offset = $self->get_record_offset($num);
+				# need to know where to start
 
 	if (not defined $tell or $tell != $offset)
 		{		# seek to the start of the record
@@ -360,86 +465,37 @@ sub get_record
 	my $buffer;
 				# read the record
 	$fh->read($buffer, $record_len) == $record_len or do {
-			Warning "Error reading the whole record from $filename\nstrting offset $offset, record length $record_len\n";
+			Warning "Error reading the whole record from $filename\nstarting offset $offset, record length $record_len\n";
 			return unless FIXERRORS;
 			};
-				# now we know where we are
+
 	$self->{'tell'} = $tell = $offset + $record_len;
+				# now we know where we are
 
 	my $template = $self->{'unpack_template'};
 
 	my @data = unpack $template, $buffer;
-				# unpacked
-
-				# now make a list of numbers of fields
-				# to be returned
+				# unpack the data
 	
-	my @field_nums;		# make list of numbers of fields
-	if (@fields)
-		{
-		@field_nums = map {
-			unless (defined $self->{'hash_names'}{$_})
-				{
-				Warning "Field named '$_' does not seem to exist in $filename\n";
-				return unless FIXERRORS;
-				}
-			push @field_nums, $self->{'hash_names'}{$_};
-			} @fields;
-		}
-	else
-		{ @field_nums = ( 0 .. $#{$self->{'field_types'}} ); }
+	my @result = map { $self->process_item_on_read($_, $data[$_ + 1]); }
+					( -1 .. $self->last_field() );
+				# process them
 
-				# first do the deleted flag
-	my $dflag = shift @data;
-	if ($dflag eq '*')	{ $dflag = 1; }
-	elsif ($dflag eq ' ')	{ $dflag = 0; }
-	else
-		{
-		Warning "Unknown deleted flag '$dflag' for record $num in $filename\n";
-		return unless FIXERRORS;
-		}
+	$self->{'cached_data'} = [ @result ];
+	$self->{'cached_num'} = $num;		# store in cache
 
-				# return what we have found
-	return $dflag, map { $self->process_item_on_read($_, \@data); }
-								@field_nums;
+	@result;		# and send back
 	}
 
-# Once we have the binary data from the pack, we want to convert them
-# into reasonable perlish types
-sub process_item_on_read
-	{
-	my ($self, $num, $data) = @_;
 
-	return undef unless defined $num;
-	
-	my $value = $data->[$num];
-	my $type = $self->{'field_types'}[$num];
-
-	if ($type eq 'C')
-		{ $value =~ s/\s+$// if $CLEARNULLS; }
-	elsif ($type eq 'L')
-		{
-		if ($value =~ /^[YyTt]$/)	{ $value = 1; }
-		elsif ($value =~ /^[NnFf]$/)	{ $value = 0; }
-		else		# ($value eq '?')		
-			{ $value = undef; }
-		}
-	elsif ($type eq 'N' or $type eq 'F')
-		{
-		substr($value, $self->{'field_lengths'}[$num], 0) = '.';
-		$value += 0;
-		}
-	###
-	### Fixup for MGBP ### to be added, read from dbt
-	###
-	$value;
-	}
+# #############
+# Write records
 
 sub write_record
 	{
 	NullError();
 	my ($self, $num, %hash) = @_;
-	if ($num >= $self->num_rec())
+	if ($num > $self->last_record())
 		{ Error "Can't rewrite record $num, there is not so many of them\n"; return; }
 	my $offset = $self->get_record_offset($num);
 	unless ($self->will_write_to($offset + 1))
@@ -459,7 +515,7 @@ sub delete_record
 	{
 	NullError();
 	my ($self, $num) = @_;
-	if ($num >= $self->num_rec())
+	if ($num > $self->last_record())
 		{ Error "Can't delete record $num, there is not so many of them\n"; return; }
 	my $offset = $self->get_record_offset($num);
 	unless ($self->will_write_to($offset))
@@ -471,7 +527,7 @@ sub undelete_record
 	{
 	NullError();
 	my ($self, $num) = @_;
-	if ($num >= $self->num_rec())
+	if ($num > $self->last_record())
 		{ Error "Can't undelete record $num, there is not so many of them\n"; return; }
 	my $offset = $self->get_record_offset($num);
 	unless ($self->will_write_to($offset))
@@ -507,15 +563,6 @@ sub will_write_to
 	1;
 	}
 
-# Prints the records as comma separated fields
-sub dump_records
-	{
-	my $self = shift;
-	my $num;
-	for $num (0 .. $self->num_rec() - 1)
-		{ print join(':', map { defined $_ ? $_ : ''; }
-				$self->get_record($num, @_)), "\n"; }
-	}
 
 1;
 
@@ -528,6 +575,8 @@ sub new
 sub close
 	{
 	}
+
+1;
 
 1;
 
