@@ -5,6 +5,9 @@ Revision history for Perl extension XBase and DBD::XBase.
 	insensitive clash with Xbase.pm, suggested by Michael Higgins
 	and Jan from AS.
 
+	Added documentation / comments about datetime, suggested
+	by John Freed.
+
 0.232 Thu Apr  3 17:47:39 CEST 2003
 	XBase::SQL: Fieldname can contain the table name (silently
 	dropped), suggested by Michael Semich, and table name now

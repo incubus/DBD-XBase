@@ -176,6 +176,10 @@ sub read_header {
 			}
 		}
 		elsif ($type eq 'T') {	# time fields
+			# datetime is stored internally as two
+			# four-byte numbers; the first is the day under
+			# the Julian Day System (JDS) and the second is
+			# the number of milliseconds since midnight
 			$rproc = sub {
 				my ($day, $time) = unpack 'VV', $_[0];
 
@@ -1319,9 +1323,9 @@ translation is done. The numbers are converted to Perl numbers. The
 date fields are returned as 8 character string of the 'YYYYMMDD' form
 and when inserting the date, you again have to provide it in this
 form. No checking for the validity of the date is done. The datetime
-field is returned in the number of seconds since 1970/1/1, possibly
-with decimal part (since it allows precision up to 1/1000 s). To get
-the fields, use the gmtime (or similar) Perl function.
+field is returned in the number of (possibly negative) seconds since
+1970/1/1, possibly with decimal part (since it allows precision up to
+1/1000 s). To get the fields, use the gmtime (or similar) Perl function.
 
 If there is a memo field in the dbf file, the module tries to open
 file with the same name but extension dbt, fpt or smt. It uses module
