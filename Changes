@@ -1,6 +1,11 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
+0.0352 Mon Dec 15 11:29:46 MET 1997
+	
+	Fixed bug with long memo fields, reported by Tejinderpal
+	Singh.
+
 0.0345 Mon Dec  8 13:02:46 MET 1997
 
 	Fixed bug with "\0" at the end of field names in header,

@@ -132,8 +132,9 @@ sub read_record
 		{
 		my $buffer = $self->SUPER::read_record($num, -1);
 		if (not defined $buffer) { return; }
-		if ($buffer =~ /^(.*?)\x1a\x1a/)
-			{ return $result . $+; }
+		my $index = index($buffer, "\x1a\x1a");
+		if ($index >= 0)
+			{ return $result . substr($buffer, 0, $index); }
 		$result .= $buffer;
 		$num++;
 		}
