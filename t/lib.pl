@@ -149,7 +149,7 @@ if (-f ($file = "t/$mdriver.mtest")  ||
 	my($result, $error, $diag) = @_;
 	++$::numTests;
 	if ($count == 2) {
-	    if ($::verbose && defined($diag)) {
+	    if (defined($diag)) {
 	        printf("$diag%s", (($diag =~ /\n$/) ? "" : "\n"));
 	    }
 	    if ($::state || $result) {

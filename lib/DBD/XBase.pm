@@ -19,7 +19,7 @@ use vars qw( $VERSION @ISA @EXPORT $err $errstr $drh $sqlstate );
 
 require Exporter;
 
-$VERSION = '0.0695';
+$VERSION = '0.0902';
 
 $err = 0;
 $errstr = '';
@@ -52,7 +52,7 @@ $imp_data_size = 0;
 
 sub connect
 	{
-	my ($drh, $dsn, $username, $password, $attrhash) = @_;
+	my ($drh, $dsn) = @_;
 	$dsn = '.' if $dsn eq '';
 	if (not -d $dsn)
 		{
@@ -60,7 +60,7 @@ sub connect
 		$DBD::XBase::errstr = "Directory $dsn doesn't exist";
 		return;
 		}
-	DBI::_new_dbh($drh, { 'dsn' => $dsn } );
+	DBI::_new_dbh($drh, { 'Name' => $dsn } );
 	}
 
 sub disconnect_all
@@ -76,7 +76,7 @@ $imp_data_size = 0;
 
 sub prepare
 	{
-	my ($dbh, $statement, @attribs)= @_;
+	my ($dbh, $statement)= @_;
 
 	my $parsed_sql = parse XBase::SQL($statement);
 	### use Data::Dumper; print Dumper $parsed_sql;
@@ -87,37 +87,41 @@ sub prepare
 		return;
 		}
 
-	my $sth = DBI::_new_sth($dbh, { 'Statement' => $statement });
-	$sth->STORE('xbase_parsed_sql', $parsed_sql);
-	$sth->STORE('NUM_OF_PARAMS',
-		exists($parsed_sql->{'numofbinds'})
-			? $parsed_sql->{'numofbinds'} : 0);
+	my $sth = DBI::_new_sth($dbh,
+		{
+		'Statement' => $statement,
+		'xbase_parsed_sql' => $parsed_sql,
+		'NUM_OF_PARAMS' => ( defined($parsed_sql->{'numofbinds'})
+					? $parsed_sql->{'numofbinds'} : 0),
+		});
 	$sth;
 	}
 
 sub STORE
 	{
 	my ($dbh, $attrib, $value) = @_;
-	### if ($attrib eq 'Name')		{ return; }
-	if ($attrib eq 'AutoCommit')	{ return; }
-	elsif ($attrib eq 'xbase_ignorememo')
-		{ $dbh->{'xbase_ignorememo'} = $value; return; }
+	if ($attrib eq 'AutoCommit')
+		{
+		unless ($value) { die "Can't disable AutoCommit"; }
+		return 1;
+		}
+	elsif ($attrib =~ /^xbase_/)
+		{ $dbh->{$attrib} = $value; return 1; }
 	$dbh->DBD::_::db::STORE($attrib, $value);
 	}
 sub FETCH
 	{
 	my ($dbh, $attrib) = @_;
-	### if ($attrib eq 'Name')		{ return $dbh->{'dsn'}; }
 	if ($attrib eq 'AutoCommit')	{ return 1; }
-	elsif ($attrib eq 'xbase_ignorememo')
-		{ return $dbh->{'xbase_ignorememo'}; }
+	elsif ($attrib =~ /^xbase_/)
+		{ return $dbh->{$attrib}; }
 	$dbh->DBD::_::db::FETCH($attrib);
 	}
 
 sub _ListTables
 	{
 	my $dbh = shift;
-	opendir DIR, $dbh->{'dsn'} or return;
+	opendir DIR, $dbh->{'Name'} or return;
 	my @result = ();
 	while (defined(my $item = readdir DIR))
 		{
@@ -127,6 +131,7 @@ sub _ListTables
 	closedir DIR;
 	@result;
 	}
+
 sub tables
 	{ my $dbh = shift; $dbh->DBD::XBase::db::_ListTables; }
 
@@ -134,30 +139,34 @@ sub quote
 	{
 	my $text = $_[1];
 	return 'NULL' unless defined $text;
-	$text =~ s/([\\'])/\\$1/g;
+	$text =~ s/\\/\\\\/sg;
+	$text =~ s/\'/\\\'/sg;
 	return "'$text'";
-
-	while ($text =~ /[\\']/sg)
-		{
-		my $pos = pos($text);
-		substr($text, $pos - 1, 0) = '\\';
-		pos($text) = $pos + 1;
-		}
-
-	return "'$text'";
-
+	return "'\Q$text\E'";
 	}
+
 sub commit
-	{ warn "Commit ineffective while AutoCommit is on"; 1; }
+	{
+	warn "Commit ineffective while AutoCommit is on"
+		if $_[0]->FETCH('Warn');
+	1;
+	}
 sub rollback
-	{ warn "Commit ineffective while AutoCommit is on"; 0; }
+	{
+	warn "Rollback ineffective while AutoCommit is on"
+		if $_[0]->FETCH('Warn');
+	0;
+	}
 
 sub disconnect
 	{ 1; }
 
+=comment
+
 sub DESTROY
 	{ }
 
+=cut
 
 package DBD::XBase::st;
 use strict;
@@ -170,6 +179,9 @@ sub bind_param
 	$sth->{'param'}[$param - 1] = $value;
 	1;
 	}
+
+=comment
+
 sub bind_columns
 	{
 	my ($sth, $attrib, @col_refs) = @_;
@@ -186,47 +198,49 @@ sub bind_col
 	1;
 	}
 
+=cut
+
 sub execute
 	{
 	my $sth = shift;
-	if (@_)	{ @{$sth->{'param'}} = @_; }
-	$sth->{'param'} = [] unless defined $sth->{'param'};
+	if (@_)	{ $sth->{'param'} = [ @_ ]; }
+	my $param = $sth->{'param'};
 	
-	my $parsed_sql = $sth->FETCH('xbase_parsed_sql');
+	my $parsed_sql = $sth->{'xbase_parsed_sql'};
 	my $command = $parsed_sql->{'command'};
 	my $table = $parsed_sql->{'table'}[0];
-	my $dbh = $sth->FETCH('Database');
+	my $dbh = $sth->{'Database'};
+		
+	$sth->STORE('NUM_OF_FIELDS', 0);
 
+	# Create table first -- we do not need to work with the table anymore
 	if ($command eq 'create')
 		{
-		my $filename = $dbh->{'dsn'} . '/' . $table;
-		my $xbase = XBase->create('name' => $filename,
-			'field_names' => $parsed_sql->{'createfields'},
-			'field_types' => $parsed_sql->{'createtypes'},
-			'field_lengths' => $parsed_sql->{'createlengths'},
-			'field_decimals' => $parsed_sql->{'createdecimals'});
-		if (not defined $xbase)
-			{
-			DBI::set_err($sth, 10, XBase->errstr());
-			return;
-			}
+		my $filename = $dbh->{'Name'} . '/' . $table;
+		my %opts;
+		@opts{ qw( name field_names field_types field_lengths
+				field_decimals ) } =
+			( $filename, @{$parsed_sql}{ qw( createfields
+				createtypes createlengths createdecimals ) } );
+		my $xbase = XBase->create(%opts) or do
+			{ DBI::set_err($sth, 10, XBase->errstr()); return; };
 		$dbh->{'xbase_tables'}->{$table} = $xbase;	
 		return 1;
 		}
 
 	my $xbase = $dbh->{'xbase_tables'}->{$table};
+	# If we do not have the table yet, open it
 	if (not defined $xbase)
 		{
-		my $filename = $dbh->{'dsn'} . '/' . $table;
+		my $filename = $dbh->{'Name'} . '/' . $table;
 		my %opts = ('name' => $filename);
 		$opts{'ignorememo'} = 1 if $dbh->{'xbase_ignorememo'};
-		$xbase = new XBase(%opts);
-		if (not defined $xbase)
+		$xbase = new XBase(%opts) or do
 			{
 			DBI::set_err($sth, 3, "Table $table not found: "
 							. XBase->errstr());
 			return;
-			}
+			};
 		$dbh->{'xbase_tables'}->{$table} = $xbase;	
 		}
 
@@ -234,45 +248,34 @@ sub execute
 		{ $xbase->{'ChopBlanks'} = $parsed_sql->{'ChopBlanks'}; }
 	$parsed_sql->{'ChopBlanks'} = \$xbase->{'ChopBlanks'};
 
-	my @nonexistfields;
+	my %nonexist;
 	for my $field (@{$parsed_sql->{'usedfields'}})
 		{
-		push @nonexistfields, $field
-			unless (defined $xbase->field_type($field)
-				or grep { $_ eq $field } @nonexistfields);
+		$nonexist{$field} = 1 unless defined $xbase->field_type($field);
 		}
-	if (@nonexistfields)
+	if (keys %nonexist)
 		{
-		my $plural = ((scalar(@nonexistfields) > 1) ? 1 : 0);
-		${$dbh->{'Err'}} = 4;
-		${$dbh->{'Errstr'}} = qq!Field@{[$plural ? "s do not" : " doesn't"]} exist in table $table\n!;
+		my @f = sort keys %nonexist;
+		DBI::set_err($sth, 4,
+			sprintf 'Unknown field %s found in table %s',
+				join(', ', @f), $table);
 		return;
 		}
 
 	if ($command eq 'insert')
 		{
 		my $last = $xbase->last_record;
-		my @values = &{$parsed_sql->{'insertfn'}}($xbase, $sth->{'param'}, 0);
+		my @values = &{$parsed_sql->{'insertfn'}}($xbase, $param, 0);
 		if (defined $parsed_sql->{'fields'})
 			{
 			my %newval;
 			@newval{ @{$parsed_sql->{'fields'} } } = @values;
-			$xbase->set_record($last + 1) and
-			$xbase->update_record_hash($last + 1, %newval)
-				or do {
-					${$dbh->{'Err'}} = 48;
-					${$dbh->{'Errstr'}} = "Insert failed: " . $xbase->errstr;
-					return;
-					};
+			@values = @newval{ $xbase->field_names };
 			}
-		else
-			{
-			$xbase->set_record($last + 1, @values) or do {
-				${$dbh->{'Err'}} = 49;
-				${$dbh->{'Errstr'}} = "Insert failed: " . $xbase->errstr;
-				return;
-				};
-			}
+		$xbase->set_record($last + 1, @values) or do {
+			DBI::set_err($sth, 49, 'Insert failed: ' . $xbase->errstr);
+			return;
+			};
 		return 1;
 		}
 	
@@ -300,7 +303,7 @@ sub execute
 				'Statement'	=> $sth->{'Statement'},
 				'xbase_parsed_sql'	=> $subparsed_sql,
 				});
-			$substh->execute(@{$sth->{'param'}});
+			$substh->execute(@$param);
 			my $data = $substh->fetchall_arrayref;
 			my $type = $xbase->field_type($orderfield);
 			my $sortfn;
@@ -327,7 +330,7 @@ sub execute
 			{
 			$sth->{'xbase_cursor'} = $cursor;
 			}
-		$sth->{'NUM_OF_FIELDS'} = scalar @fields;
+		$sth->STORE('NUM_OF_FIELDS', scalar @fields);
 		}
 	elsif ($command eq 'delete')
 		{
@@ -341,7 +344,7 @@ sub execute
 		my $values;
 		while (defined($values = $cursor->fetch_hashref))
 			{
-			next unless &{$wherefn}($xbase, $values, $sth->{'param'}, 0);
+			next unless &{$wherefn}($xbase, $values, $param, 0);
 			$xbase->delete_record($cursor->last_fetched);
 			}
 		}
@@ -351,9 +354,9 @@ sub execute
 		while (defined($values = $cursor->fetch_hashref))
 			{
 			### print Dumper $values;
-			next if defined $wherefn and not &{$wherefn}($xbase, $values, $sth->{'param'}, $parsed_sql->{'bindsbeforewhere'});
+			next if defined $wherefn and not &{$wherefn}($xbase, $values, $param, $parsed_sql->{'bindsbeforewhere'});
 			my %newval;
-			@newval{ @fields } = &{$parsed_sql->{'updatefn'}}($xbase, $values, $sth->{'param'}, 0);
+			@newval{ @fields } = &{$parsed_sql->{'updatefn'}}($xbase, $values, $param, 0);
 			$xbase->update_record_hash($cursor->last_fetched, %newval);
 			}
 		}
@@ -361,7 +364,7 @@ sub execute
 		{
 		$xbase->drop;
 		}
-	1;
+	-1;
 	}
 sub fetch
 	{
@@ -387,7 +390,10 @@ sub fetch
 
 	return unless defined $retarray;
 
-	### $sth->_set_fbav($retarray); return $retarray;
+### print STDERR "sth->{'NUM_OF_FIELDS'}: $sth->{'NUM_OF_FIELDS'} sth->{'NUM_OF_PARAMS'}: $sth->{'NUM_OF_PARAMS'}\n";
+
+
+	$sth->_set_fbav($retarray); return $retarray;
 
 	my $i = 0;
 	for my $ref ( @{$sth->{'xbase_bind_col'}} )
@@ -419,8 +425,6 @@ sub FETCH
 		
 	elsif ($attrib eq 'ChopBlanks')
 		{ return $sth->{'xbase_parsed_sql'}->{'ChopBlanks'}; }
-	elsif ($attrib eq 'NUM_OF_PARAMS')
-		{ return $sth->{'xbase_parsed_sql'}->{'numofbinds'}; }
 	else
 		{ return $sth->DBD::_::st::FETCH($attrib); }
 	}

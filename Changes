@@ -91,7 +91,7 @@ Revision history for Perl extension XBase and DBD::Xbase.
 0.065 Sun Jun  7 15:18:57 MET DST 1998
 
 	Added table specific ChopBlanks. Added fetch_hashref to
-	XBase::Dursor.
+	XBase::Cursor.
 
 	Docs updated.
 
