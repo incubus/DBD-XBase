@@ -71,16 +71,13 @@ $imp_data_size = 0;
 sub connect
 	{
 	my ($drh, $dsn, $username, $password, $attrhash) = @_;
-	my $this = DBI::_new_dbh($drh, { 'dsn' => $dsn } );
 
 	if (not -d $dsn)
 		{
 		$DBD::XBase::errstr = "Directory $dsn doesn't exist";
 		return undef;
 		}
-	my $this = DBI::_new_dbh($drh, {
-		'Name'	=> $dsn,
-		});
+	my $this = DBI::_new_dbh($drh, { 'dsn' => $dsn } );
 	}
 
 sub disconnect_all
