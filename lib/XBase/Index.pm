@@ -694,7 +694,8 @@ sub read_header
 	my %opts = @_;
 	my $header;
 	$self->{'dbf'} = $opts{'dbf'};
-	$self->{'fh'}->read($header, 512) == 512 or do
+
+	$self->{'fh'}->read($header, 1024) == 1024 or do
 		{ __PACKAGE__->Error("Error reading header of $self->{'filename'}: $!\n"); return; };
 	@{$self}{ qw( start_page start_free_list total_pages
 		key_length index_options index_signature
@@ -702,7 +703,7 @@ sub read_header
 		key_expression_length
 		key_string
 		) }
-		= unpack 'VVNv CC @502 vvv @510 v A512', $header;
+		= unpack 'VVNv CC @502 vvv @510 v @512 a512', $header;
 
 	$self->{'total_pages'} = -1;	### the total_pages value 11
 		### found in rooms.cdx is not correct, so we invalidate it
@@ -711,17 +712,26 @@ sub read_header
 		($self->{'key_string'} =~ /^([^\000]*)\000([^\000]*)/);
 
 	$self->{'key_record_length'} = $self->{'key_length'} + 4;
-	{ local $^W = 0; $self->{'key_string'} =~ s/[\000 ].*$//s; }
 	$self->{'record_len'} = 512;
 	$self->{'start_page'} /= $self->{'record_len'};
 	$self->{'start_free_list'} /= $self->{'record_len'};
-	$self->{'header_len'} = 0;
+	$self->{'header_len'} = defined $opts{'index_offset'} ?  $opts{'index_offset'} : 0;
 	
 	if (defined $opts{'tag'}) {
+### use Data::Dumper; print Dumper $self;
+		my $subidx = bless { %$self }, ref $self;
+
 		$self->prepare_select_eq($opts{'tag'});
 		my $value = $self->fetch;
+
 		print "Adjusting start_page value by $value for $opts{'tag'}\n" if $DEBUG;
-		$self->{'start_page'} += $value / 512;
+		$subidx->{'fh'}->seek($value, 0);
+		$subidx->read_header;
+### use Data::Dumper; print Dumper $subidx;
+
+		for (keys %$self) { delete $self->{$_} }
+		for (keys %$subidx) { $self->{$_} = $subidx->{$_} }
+		$self = $subidx;
 		}
 
 	$self;

@@ -1,6 +1,12 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
+0.133?
+	XBase::SQL: comments.
+
+
+
+
 0.130 Sat Feb 27 18:09:04 MET 1999
 	DBD::XBase: fixed handling of the rows method.
 
