@@ -2,7 +2,7 @@
 
 use strict;
 
-BEGIN	{ $| = 1; print "1..8\n"; }
+BEGIN	{ $| = 1; print "1..10\n"; }
 END	{ print "not ok 1\n" unless $::XBaseloaded; }
 
 
@@ -79,6 +79,18 @@ If all tests in this file passed, the module works to such an extend
 that new XBase loads the table and correctly parses the information in
 the file header.
 EOF
+
+print "Now reload with recompute_lastrecno\n";
+$table = new XBase("$dir/test.dbf", recompute_lastrecno => 1);
+print XBase->errstr(), 'not ' unless defined $table;
+print "ok 9\n";
+
+my $last_record = $table->last_record;
+if ($last_record != 2) {
+	print "recompute_lastrecno computed $last_record records\nnot ";
+}
+print "ok 10\n";
+
 
 __DATA__
 Filename:	t/test.dbf

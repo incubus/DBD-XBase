@@ -240,6 +240,10 @@ sub read_header {
 		__PACKAGE__->Error("Missmatch in header of $self->{'filename'}: record_len $self->{'record_len'} but offset $lastoffset\n");
 		return;
 	}
+	if ($self->{'openoptions'}{'recompute_lastrecno'}) {
+		$self->{num_rec} = int(((-s $self->{'fh'}) - $self->{header_len})
+			/ $self->{record_len});
+	}
 
 	my $hashnames = {};		# create name-to-num_of_field hash
 	@{$hashnames}{ reverse @$names } = reverse ( 0 .. $#$names );
@@ -1031,6 +1035,11 @@ around producing character fields with decimal values set.
 	
     my $table = new XBase "name" => "table.dbf",
 					"ignorememo" => 1;
+
+B<recompute_lastrecno> forces XBase.pm to disbelieve the information
+about the number of records in the header of the dbf file and
+recompute the number of records. Use this only if you know that
+some other software of yours produces incorrect headers.
 
 =item close
 

@@ -8,6 +8,9 @@ Revision history for Perl extension XBase and DBD::XBase.
 	Added documentation / comments about datetime, suggested
 	by John Freed.
 
+	Xbase: Added the recompute_lastrecno parameter, suggested by
+	Kevin J. Rice. Added EOF to create, suggested by Ilya Sandler.
+
 0.232 Thu Apr  3 17:47:39 CEST 2003
 	XBase::SQL: Fieldname can contain the table name (silently
 	dropped), suggested by Michael Semich, and table name now
