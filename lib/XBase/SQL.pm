@@ -8,7 +8,7 @@ package XBase::SQL;
 use strict;
 use vars qw( $VERSION %COMMANDS );
 
-$VERSION = '0.232';
+$VERSION = '0.233';
 
 # #################################
 # Type conversions for create table
@@ -63,7 +63,7 @@ my %TYPES = ( 'char' => 'C', 'varchar' => 'C',
 	'COLUMNDEF' =>	'COLUMNKEY | COLUMNNAMETYPE ( not null ) ?',
 	'COLUMNKEY' =>	'primary key \( FIELDNAME \)',
 	'COLUMNNAMETYPE' =>	'FIELDNAME FIELDTYPE',
-	'FIELDTYPE' =>	'TYPECHAR | TYPENUM | TYPEBOOLEAN | TYPEMEMO | TYPEDATE',
+	'FIELDTYPE' =>	'TYPECHAR | TYPENUM | TYPEBOOLEAN | TYPEMEMO | TYPEDATE | money ',
 	
 	'TYPECHAR' =>	' ( varchar | char ) ( \( TYPELENGTH \) ) ?',
 	'TYPENUM' =>	'( num | numeric | decimal | float | int | integer ) ( \( TYPELENGTH ( , TYPEDEC ) ? \) ) ?',

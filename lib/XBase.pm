@@ -211,8 +211,26 @@ sub read_header {
 		elsif ($type eq '0') {    # SNa : field "_NULLFLAGS"
 			$rproc = $wproc = sub { '' };
 		} elsif ($type eq 'Y') {	# Fox money
-			$rproc = sub { unpack('l', pack 'L', unpack 'V', scalar shift)/10000; };
-			$wproc = sub { scalar pack 'V', unpack 'L', pack 'l', (shift)*10000; };
+			$rproc = sub {
+				my ($x, $y) = unpack 'VV', scalar shift;
+				if ($y & 0x80000000) {
+					- ($y ^ 0xffffffff) * (2**32 / 10**$decimal) - (($x - 1) ^ 0xffffffff) / 10**$decimal;
+				} else {
+					$y * (2**32 / 10**$decimal) + $x / 10**$decimal;
+				}
+			};
+			$wproc = sub {
+				my $value = shift;
+				if ($value < 0) {
+					pack 'VV',
+						(-$value * 10**$decimal + 1) ^ 0xffffffff,
+						(-$value * 10**$decimal / 2**32) ^ 0xffffffff;
+				} else {
+					pack 'VV',
+						($value * 10**$decimal) % 2**32,
+						(($value * 10**$decimal) >> 32);
+				}
+			};
 		}
 
 
