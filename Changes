@@ -1,6 +1,11 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
+0.0697 Wed Nov 11 12:17:00 MET 1998
+
+	Fixed chopping ends of memo fields from fpt files, mentioned
+	by William McKee and Pawel Gajda.
+
 0.0696 Mon Oct 26 11:57:01 MET 1998
 
 	DBD::XBase: added bug reporting by INSERT command and fixed
