@@ -12,12 +12,12 @@ use XBase::Base;
 
 use vars qw( $VERSION @ISA );
 @ISA = qw( XBase::Base );
-$VERSION = '0.060';
+$VERSION = '0.061';
 
 # Read header is called from open to fill the object structures
 sub read_header
 	{
-	my ($self, $dbf_version) = (shift, shift);
+	my ($self, $dbf_version) = @_;
 
 	my $header;
 	$self->{'fh'}->read($header, 512) == 512 or do
@@ -112,6 +112,7 @@ sub read_record
 		}
 	return $result;
 	}
+
 sub write_record
 	{
 	my ($self, $num) = (shift, shift);
@@ -235,7 +236,7 @@ specify their specific B<read_record> and B<write_record> methods.
 
 =head1 VERSION
 
-0.060
+0.061
 
 =head1 AUTHOR
 
@@ -244,4 +245,6 @@ specify their specific B<read_record> and B<write_record> methods.
 =head1 SEE ALSO
 
 perl(1), XBase(3)
+
+=cut
 

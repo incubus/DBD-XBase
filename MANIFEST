@@ -10,6 +10,7 @@ eg/dump_table
 lib/DBD/XBase.pm
 lib/XBase.pm
 lib/XBase/Base.pm
+lib/XBase/Index.pm
 lib/XBase/Memo.pm
 lib/XBase/SQL.pm
 lib/XBase/cdx.pm

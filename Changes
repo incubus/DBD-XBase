@@ -1,7 +1,7 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
-0.061 working
+0.061 Tue Apr  7 21:52:07 MET DST 1998
 
 	Fixed writing undefined values in numeric fields.
 	Fixed dealing with uppercase extensions.
@@ -13,7 +13,7 @@ Revision history for Perl extension XBase and DBD::Xbase.
 
 	Added ignorememo option, opening a dbf that needs dbt but
 	doesn't have it yields an error now without this flag, request
-	by Martin Jost.
+	by Martin Jost. Other fixes by Martin Jost included.
 
 0.060 Fri Mar 20 10:20:45 MET 1998
 
