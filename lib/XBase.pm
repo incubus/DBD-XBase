@@ -311,7 +311,7 @@ sub read_header
 			return;
 			};
 
-		last if substr $field_def, 0, 1 eq "\x0d";
+		last if substr($field_def, 0, 1) eq "\r";
 				# we have found the terminator
 
 		my ($name, $type, $address, $length, $decimal,
