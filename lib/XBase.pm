@@ -243,7 +243,7 @@ welcome.
 
 =head1 VERSION
 
-0.046
+0.053
 
 =head1 AUTHOR
 
@@ -276,7 +276,7 @@ use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
 
-$VERSION = "0.046";
+$VERSION = "0.053";
 
 $errstr = "Use of \$XBase::errstr is depreciated, please use XBase->errstr() instead\n";
 

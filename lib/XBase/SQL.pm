@@ -8,20 +8,13 @@ package XBase::SQL;
 
 use strict;
 use vars qw( $VERSION $DEBUG %COMMANDS );
-$VERSION = '0.044';
+
+$VERSION = '0.051';
 $DEBUG = 0;
 
 # ##################
 # Regexp definitions
 
-my $FIELDNAME = q!\w+!;
-my $TABLENAME = q!\w+!;
-my $SELECTFIELDS = qq!\\*|$FIELDNAME(?:\\s*,\\s*$FIELDNAME)*!;
-my $INSERTFIELDS = qq#((?!values\\b)$FIELDNAME(?:\\s*,\\s*$FIELDNAME)*)?#;
-my $NUMBER = q!-?(\d*\.)?\d+!;
-my $STRINGSTART = q!["']!;
-my $STRING = "($STRINGSTART)" . q#(\\\\\\\\|\\\\\\2|.)*?\\2#;
-my $INSERTCONSTANTS = qq!(?:null|$STRING|$NUMBER)!;
 
 my %TYPES = ( 'char' => 'C', 'num' => 'N', 'boolean' => 'L', 'blob' => 'M',
 		'memo' => 'M', 'float' => 'N', 'date' => 'D' );
@@ -29,32 +22,37 @@ my $FIELDTYPE = join('|', '(', keys %TYPES, ')') .
 				q!\s*(\(\s*(\d+)(\.(\d+))?\s*\))?\s*!;
 
 %COMMANDS = (
-	'COMMANDS' => [ qw{ select SELECT | insert INSERT | delete
-				DELETE | update UPDATE | create CREATE } ],
-	'SELECT' => [ qw{ SELECTFIELDS ? from TABLE WHERE ? } ],
-	'INSERT' => [ qw{ into TABLE INSERTFIELDS ? values
-						\( INSERTCONSTANTS \) } ],
-	'DELETE' => [ qw{ from TABLE ( where BOOLEAN ) ? } ],
-	'UPDATE' => [ qw{ TABLE SETCOLUMNS ( where BOOLEAN ) ? } ],
-	'CREATE' => [ qw{ table TABLE \( COLUMNDEF \) } ],
-	'TABLE' => q'\w+',
-	'FIELDNAME' => q'\w+',
-	'SELECTFIELDS' => [ qw{ \* | FIELDNAME ( }, q'\s*,\s*', qw{ FIELDNAME ) * } ],
-	
-	'WHERE' => [ qw{ where BOOLEAN } ],
-	'BOOLEAN' => [ qw{ \( BOOLEAN \) | RELATION ( ( and | or ) RELATION ) * } ],
-	'RELATION' => [ qw{ FIELDNAME RELOP ARITHMETIC } ],
-	'RELOP' => [ qw{ = | == | <= | >= | <> | != | < | > } ],
+	'COMMANDS' => 	' SELECT | INSERT | DELETE | UPDATE | CREATE ',
+	'SELECT' =>	' select SELECTFIELDS from TABLE WHERE ? ORDER ? ',
+	'INSERT' =>	q' insert into TABLE ( values | INSERTFIELDS values )
+						\( INSERTCONSTANTS \) ',
+	'DELETE' =>	' delete from TABLE ( where BOOLEAN ) ? ',
+	'UPDATE' =>	' update TABLE SETCOLUMNS ( where BOOLEAN ) ? ',
+	'CREATE' =>	q' create table TABLE \( COLUMNDEF \) ',
+
+	'TABLE' =>	q'\w+',
+	'FIELDNAME' =>	q'[a-z]+',
+	'SELECTFIELDS' =>	'SELECTALL | FIELDNAME ( , FIELDNAME ) *',
+	'SELECTALL' =>	q'\*',	
+	'WHERE' =>	'where WHEREEXPR',
+	'WHEREEXPR' =>	'BOOLEAN',
+	'BOOLEAN' =>	q'\( BOOLEAN \) | RELATION ( ( and | or ) BOOLEAN ) *',
+	'RELATION' =>	'FIELDNAME RELOP ARITHMETIC',
+	'RELOP' => [ qw{ == | = | <= | >= | <> | != | < | > } ],
 	
 	'ARITHMETIC' => [ qw{ \( ARITHMETIC \)
-		| ( FIELDNAME | NUMBER | STRING ) ( ( \+ | \- | \* | \/ | \% ) ARITHMETIC ) ? } ],
+		| ( NUMBER | STRING | FIELDNAME ) ( ( \+ | \- | \* | \/ | \% ) ARITHMETIC ) ? } ],
 	'NUMBER' => q'-?\d*\.?\d+',
 	'STRING' => [ qw{ STRINGDBL | STRINGSGL } ] ,
-	'STRINGDBL' => [ qw{ \" (\\\\|\\"|.)* \" } ],
-	'STRINGSQL' => [ qw{ \' (\\\\|\\'|.)* \' } ],
+	'STRINGDBL' => [ qw{ \\" (\\\\\\\\|\\\\"|[^\\"])* \\" } ],
+	'STRINGSQL' => [ qw{ \\' (\\\\\\\\|\\\\'|[^\\'])* \\' } ],
+	'ORDER' => [ qw{ order by FIELDNAME } ],
+	'INSERTCONSTANTS' => [ qw{ CONSTANT ( }, ',', qw{ INSERTCONSTANTS ) * } ],
+	'CONSTANT' => [ qw{ NUMBER | STRING } ],
+	'INSERTFIELDS' =>	'FIELDNAME ( , FIELDNAME ) *',
 	);
 
-my %STORE = (
+my %OLD_STORE = (
 	'TABLE' => 'table',
 	'FIELDNAME' => sub { push @{shift->{'selectfields'}}, @_; },
 	'WHERE' => sub { my $self = shift; $self->{'whereexpression'} =
@@ -64,31 +62,268 @@ my %STORE = (
 	'<=' => sub { push @{ shift->{'expression'} }; },
 	);
 
-my %ERRORS = (
-	'TABLE' => 'Table name expected',
-	'RELATION' => 'Relation expected',
-	'ARITHMETIC' => 'Arithmetic expression expected',
-	'from' => 'From specification expected',
-	'into' => 'Into specification expected',
-	'values' => 'Values specification expected',
-	'\\(' => 'Left paren expected',
-	'\\)' => 'Right paren missing',
-	'\\*' => 'Star expected',
-	'\\"' => 'Double quote expected',
-	"\\'" => 'Single quote expected',
+my %STORE = (
+	'SELECT SELECTALL' => 'selectall',
+	'SELECT SELECTFIELDS FIELDNAME' => 'selectfields',
+	'SELECT TABLE' => 'selecttable',
+	'SELECT ORDER FIELDNAME' => 'orderfield',
+	'INSERT TABLE' => 'inserttable',
+	'INSERT INSERTCONSTANTS CONSTANT' => 'insertvalues',
+	'INSERT INSERTFIELDS FIELDNAME' => 'insertfields',
+	'WHEREEXPR' => 'whereexp',
+	);
+my %SIMPLIFY = (
+	'STRING' => sub { my $e = (get_strings(@_))[1];
+					"Expr->string('\Q$e\E')"; },
+	'NUMBER' => sub { my $e = (get_strings(@_))[0];
+					"Expr->number('\Q$e\E')"; },
+	'FIELDNAME' => sub { my $e = (get_strings(@_))[0];
+					"Expr->field('\Q$e\E')"; },
+	'WHEREEXPR' => sub { join ' ', get_strings(@_); },
+	'RELOP' => sub { my $e = (get_strings(@_))[0];
+			if ($e eq '=') { $e = '=='; }
+			elsif ($e eq '<>') { $e = '!=';}
+					$e; },
 	);
 
-sub Log (@)
+my %ERRORS = (
+	'TABLE' => 'Table name',
+	'RELATION' => 'Relation',
+	'ARITHMETIC' => 'Arithmetic expression',
+	'from' => 'From specification',
+	'into' => 'Into specification',
+	'values' => 'Values specification',
+	'\\(' => 'Left paren',
+	'\\)' => 'Right paren',
+	'\\*' => 'Star',
+	'\\"' => 'Double quote',
+	"\\'" => 'Single quote',
+	'STRING' => 'String',
+	'SELECTFIELDS' => 'Columns to select',
+	);
+
+my %NEWCOMMANDS = (
+	'COMMANDS' => qw( LESS | GREATER ),
+	'LESS' => qw( FIELD < NUMBER ),
+	'GREATER' => qw( FIELD > NUMBER ),
+	'FIELD' => q'\w+',
+	'NUMBER' => q'-?\d*\.?\d+',
+	);
+
+use Data::Dumper;
+
+sub parse
 	{
-	my $level = 1;
-	if (@_ > 1)	{ $level = shift; }
-	return if $DEBUG < $level;
-	my $i;
-	for ($i = 1; $i < 20; $i++)
-		{ last if ((caller($i))[3] ne 'XBase::SQL::match'); }
-	$i -= 2;
-	print STDERR '  ' x $i, @_;
+	my ($class, $string) = @_;
+	my $self = bless {}, $class;
+
+	my ($srest, $error, $errstr, @result) = match($string, 'COMMANDS');
+	$srest =~ s/^\s+//s;
+
+	if ($srest ne '' and not $error)
+		{ $error = 1; $errstr = 'Extra characters in SQL command'; }
+	if ($error)
+		{
+		substr($srest, 40) = '...' if length $srest > 44;
+		$self->{'errstr'} = "$errstr near `$srest'";
+		print "$self->{'errstr'}\n";
+		}
+	else
+		{
+		$self->store_results(\@result, \%STORE);
+		}
+	print_result(\@result);
+	print Dumper $self;
+	print Dumper \@result;
 	}
+sub store_results
+	{
+	my ($self, $result, $store) = @_;
+
+	my $i = 0;
+	while ($i < @$result)
+		{
+		my ($regexp, $match) = @{$result}[$i, $i + 1];
+		my %nstore;
+
+		my ($tag, $value);
+		while (($tag, $value) = each %$store)
+			{
+			### print "T: $tag, v: $value, r: $regexp, m: $match\n";
+			if (index($tag, $regexp) == 0)
+				{
+				print "Found `$regexp' in `$tag'\n";
+				($tag) = ($tag =~ /\s+(.*)$/s);
+				if ($tag eq '')
+					{
+					my @result;
+					if (ref $match)
+						{ @result = get_strings($match); }
+					else
+						{ @result = $match; }
+					print "Storing @result to $value\n";
+					push @{$self->{$value}}, @result;
+					next;
+					}
+				}
+			$nstore{$tag} = $value;
+			}
+	
+		if (ref $match)
+			{ $self->store_results($match, \%nstore); }
+		$i += 2;
+		}
+	}
+sub get_strings
+	{
+	my @strings = @_;
+	if (@strings == 1 and ref $strings[0])
+		{ @strings = @{$strings[0]}; }
+	my @result;	my $i = 1;
+	while ($i < @strings)
+		{
+		if (ref $strings[$i])
+			{ push @result, get_strings($strings[$i]); }
+		else
+			{ push @result, $strings[$i]; }
+		$i += 2;
+		}
+	@result;
+	}
+sub print_result
+	{
+	my $result = shift;
+	my @result = @$result;
+	my @before = @_;
+	my $i = 0;
+	while ($i < @result)
+		{
+		my ($regexp, $string) = @result[$i, $i + 1];
+		if (ref $string)
+			{ print_result($string, @before, $regexp); }
+		else
+			{ print "$string:\t @before $regexp\n"; }
+		$i += 2;
+		}
+	}
+sub match
+	{
+	my $string = shift;
+	my @regexps = @_;
+
+	my $origstring = $string;
+
+	my $title;
+
+	if (@regexps == 1 and defined $COMMANDS{$regexps[0]})
+		{
+		$title = $regexps[0];
+		my $c = $COMMANDS{$regexps[0]};
+		@regexps = expand( ( ref $c ) ? @$c :
+					grep { $_ ne '' } split /\s+/, $c);
+		print Dumper $title, \@regexps;
+		}
+
+	my $modif;
+	if (@regexps and $regexps[0] eq '?' or $regexps[0] eq '*')
+		{ $modif = shift @regexps; }
+
+	my @result;
+	my $i = 0;
+	while ($i < @regexps)
+		{
+		my $regexp = $regexps[$i];
+		my ($error, $errstr, @r);
+		if (ref $regexp)
+			{ ($string, $error, $errstr, @r) = match($string, @$regexp); }
+		elsif ($regexp eq '|')
+			{ $i = $#regexps; next; }
+		elsif (defined $COMMANDS{$regexp})
+			{ ($string, $error, $errstr, @r) = match($string, $regexp); }
+		elsif ($string =~ s/^\s*?($regexp)($|\b|(?=\W))//si)
+			{ @r = $1; }
+		else
+			{ $error = 1; }
+
+		if (defined $error)
+			{
+			if ($origstring eq $string)
+				{
+				while ($i < @regexps)
+					{ last if $regexps[$i] eq '|'; $i++; }
+				next if $i < @regexps;
+				last if defined $modif;
+				}
+	
+			if (not defined $errstr)
+				{
+				if (defined $ERRORS{$regexp})
+					{ $errstr = $ERRORS{$regexp}; }
+				elsif (defined $ERRORS{$title})
+					{ $errstr = $ERRORS{$title}; }
+				$errstr .= ' expected' if defined $errstr;
+				}
+
+			return ($string, 1, $errstr, @result);
+			}
+	
+		if (ref $regexp)
+			{ push @result, @r; }
+		elsif (@r > 1)
+			{ push @result, $regexp, [ @r ]; }
+		else
+			{ push @result, $regexp, $r[0]; }
+		}
+	continue
+		{
+		$i++;
+		if (defined $modif and $modif eq '*' and $i >= @regexps)
+			{ $origstring = $string; $i = 0; }
+		}
+	
+	if (defined $title and defined $SIMPLIFY{$title})
+		{
+		my $m = $SIMPLIFY{$title};
+		@result = (( ref $m eq 'CODE' ) ? &{$m}(\@result) : $m);
+		}
+	return ($string, undef, undef, @result);
+	}
+
+sub expand
+	{
+	my @result;
+	my $i = 0;
+	while ($i < @_)
+		{
+		my $t = $_[$i];
+		if ($t eq '(')
+			{
+			$i++;
+			my $begin = $i;
+			my $nest = 1;
+			while ($i < @_ and $nest)
+				{
+				my $t = $_[$i];
+				if ($t eq '(') { $nest++; }
+				elsif ($t eq ')') { $nest--; }
+				$i++;
+				}
+			$i--;
+			push @result, [ expand(@_[$begin .. $i - 1]) ];	
+			}
+		elsif ($t eq '?' or $t eq '*')
+			{
+			my $prev = pop @result;
+			push @result, [ $t, ( ref $prev ? @$prev : $prev ) ];
+			}
+		else
+			{ push @result, $t; }
+		$i++;
+		}
+	@result;
+	}
+
+__END__
 
 sub parse
 	{
