@@ -1,7 +1,7 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
-0.033 working
+0.03301 Thu Nov 20 17:32:53 MET 1997
 
 	Handling null numeric fields (John D Groenveld). Changed
 	"look for error" test in header.t to be OS portable. Fixed bug
