@@ -33,9 +33,9 @@ my $dbh = DBI->connect("dbi:XBase:$dir") or do
 	};
 print "ok 2\n";
 
-my $command = "select (ID, MSG) from test";
+my $command = "select ID, MSG from test";
 print "Prepare command '$command'\n";
-my $sth = $dbh->prepare("select (ID, MSG) from test") or do
+my $sth = $dbh->prepare($command) or do
 	{
 	print $dbh->errstr();
 	print "not ok 3\n";

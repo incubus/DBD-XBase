@@ -232,7 +232,7 @@ both about the Perl and XBase are welcome.
 
 =head1 VERSION
 
-0.0345
+0.0351
 
 =head1 AUTHOR
 
@@ -263,7 +263,7 @@ use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
 
-$VERSION = "0.0345";
+$VERSION = "0.0351";
 
 $errstr = "Use of \$XBase::errstr is depreciated, please use XBase->errstr() instead\n";
 
@@ -392,12 +392,20 @@ sub close
 sub last_record		{ shift->{'num_rec'} - 1; }
 # And the same for fields
 sub last_field		{ shift->{'last_field'}; }
-# List of field names
+
+# List of field names, types, lengths and decimals
 sub field_names		{ @{shift->{'field_names'}}; }
-# And list of field types
 sub field_types		{ @{shift->{'field_types'}}; }
-sub field_lengths     { @{shift->{'field_lengths'}}; }
-sub field_decimals    { @{shift->{'field_decimals'}}; }
+sub field_lengths	{ @{shift->{'field_lengths'}}; }
+sub field_decimals	{ @{shift->{'field_decimals'}}; }
+
+# Return field number for field name
+sub field_name_to_num
+	{
+	my $self = shift;
+	my $name = shift;
+	$self->{'hash_names'}{$name};
+	}
 
 
 # #############################

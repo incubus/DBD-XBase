@@ -5,332 +5,313 @@ use strict;
 use vars qw( $VERSION );
 $VERSION = '0.0343';
 
-my @COMMANDS = qw( select delete update insert );
-my $COMMANDS = '(' . join("|", @COMMANDS) . ')';
-
-sub new
+sub parse_command
 	{
 	my $class = shift;
-	my $string = shift;
+	local $_ = shift;
 
 	my $self = bless {}, $class;
 	my $errstr = undef;
 
-	$string =~ /^\s+/;
-	if ($string =~ /^$COMMANDS\s+/i)
-		{
-		my $command = $+;
-		my $parse = 'parse_' . $command;
+	s/^\s+//;
 
-		$self->{command} = $command;
-		$self->{string} = $';
-		$self->$parse();
+	my $command;
+	if (s/^(select|delete|update|insert)\s+//s)
+		{
+		$self->{'string'} = $_;
+		$self->{'command'} = $+;
+		my $exec = 'parse_' . $self->{'command'};
+		$self->$exec();
 		}
 	else
-		{ $self->{errstr} = "No known SQL command found"; }
-	
-	if (defined $self->{errstr})
 		{
-		my $string = $self->{string};
-		if ($string ne '')
-			{
-			$string = substr $string, 0, 16;
-			$self->{errstr} .= " at '$string'";
-			}
-		$self->{errstr} .= "\n";
+		$self->{'string'} = $_;
+		$self->{'errstr'} = "No supported SQL command found";
 		}
-	$self;	
+	if (defined $self->{'errstr'} and defined $self->{'string'})
+		{
+		$self->{'errstr'} .= " at '" .
+			substr($self->{'string'}, 0, 16) . "'";
+		}
+	$self;
 	}
 
 
 sub parse_select
 	{
 	my $self = shift;
-	my $string = $self->{string};
+	local $_ = $self->{'string'};
 
-	if ($string =~ s/^(\*\s+|\(\s*\*\s*\))\s*//)
-		{ $self->{selectall} = 1; }
-	elsif ($string =~ s/^\((\w+(\s*,\s*\w+)*)\s*\)\s+|(\w+(,\s*\w+)*)\s+//)
+	if (s/^\*\s+|\(\s*\*\s*\)\s*//s)
+		{ $self->{'selectall'} = 1; }
+	elsif (s/^([\w.]+(?:\s*,\s*[\w.]+)*)\s+//s)
 		{
-		my $fields = $1;
-		my @fields = split /\s*,\s*/, $fields;
-		$self->{fields} = [ @fields ];
+		$self->{'selectfields'} = [ split /\s*,\s*/, $+ ];
 		}
 	else
+		{ $self->{'errstr'} = "No column specification found"; return $self; }
+
+	unless (s/^from\s+//si)
 		{
-		$self->{errstr} = "No column specification found";
+		$self->{'string'} = $_;
+		$self->{'errstr'} = "From specification missing";
 		return $self;
 		}
 
-	if ($string =~ s/^from\s+//i)
+	unless (s/^([\w.]+)(?:$|\s+)//s)
 		{
-		if ($string =~ s/^(\w+)($|\s+)//)
-			{ $self->{table} = $1; }
-		else
+		$self->{'string'} = $_;
+		$self->{'errstr'} = "Table name expected";
+		return $self;
+		}
+
+	$self->{'table'} = $+;
+	$self->{'string'} = $_;
+
+	return $self;
+	}
+
+my %STRINGOP = ( '=' => 'eq', '<' => 'lt', '>' => 'gt', '<=' => 'le',
+                                '>=' => 'ge', '<>' => 'ne', '!=' => 'ne' );
+my %NUMOP = ( '=' => '==' );
+
+sub parse_conditions
+	{
+	my $self = shift;
+	if ($self->{'command'} eq 'select')
+		{
+		if (defined $self->{'selectall'})
 			{
-			$self->{errstr} = "Table name expected";
-			$self->{string} = $string;
-			return $self;
+			$self->{'selectfields'} = [ $self->{'xbase'}->field_names() ];
+			}
+		elsif (defined $self->{'selectfields'})
+			{
+			my $field;
+			for $field (@{$self->{'selectfields'}})
+				{
+				unless (defined $self->{'xbase'}->field_name_to_num(uc $field))
+					{
+					$self->{'errstr'} = "Column $field does not exist in table $self->{'table'}";
+					return;
+					}
+				$field = uc $field;
+				}
 			}
 		}
-	else
+	if ($self->{'string'} =~ s/^where(\s+|(?=\())//si)
 		{
-		$self->{errstr} = "From specification missing";
-		$self->{string} = $string;
-		return $self;
+		$self->parse_boolean();
+		return $self if defined $self->{'errstr'};
+		$self->{'whereexpression'} = $self->{'expression'};
+		delete $self->{'expression'};
+
+		my $command = '';
+		my $field; 
+		for $field (@{$self->{'whereexpression'}})
+			{       
+			if (ref $field) 
+				{       
+				if ($field->[0] eq 'op')
+					{
+					if ($field->[2] eq 's') 
+						{ $command .= $STRINGOP{$field->[1]}; }
+					elsif ($field->[1] eq '=')
+						{ $command .= '=='; } 
+					else
+						{ $command .= $field->[1]; }
+					}
+				elsif ($field->[0] eq 'field')
+					{ $command .= q!$HASH->{'! . (uc $field->[1]) . q!'}!; }
+				elsif ($field->[0] eq 'string' or $field->[0] eq 'number' or $field->[0] eq 'arop')
+					{ $command .= $field->[1]; }
+				}               
+			else            
+				{
+				if ($field eq 'left')
+					{ $command .= '('; }
+				if ($field eq 'right')
+					{ $command .= ')'; }
+				if ($field eq 'and')
+					{ $command .= 'and'; }
+				if ($field eq 'or')
+					{ $command .= 'or'; }
+				}               
+			}               
+		$command = "sub { my \$HASH = shift; $command; }";
+		### print STDERR "Where expression: $command\n";
+		my $fn = eval $command;
+		if ($@)
+			{
+			$self->{'errstr'} = "Eval on where expression $command failed: $@";
+			return $self;
+			}
+		$self->{'wherefn'} = $fn;
 		}
 
-	$self->{string} = $string;
-
-	if ($string =~ s/^where\s+//i)
+	if (not defined $self->{'errstr'} and
+		$self->{'string'} =~ s/^order\s+by(\s+|(?=\())//si)
 		{
-		$self->{string} = $string;
-		$self->parse_expression();
-		return $self if defined $self->{errstr};
-		$string = $self->{string};
-		}
-	
-	if ($string =~ s/^order\s+by\s+//i)
-		{
-		$self->{string} = $string;
 		$self->parse_order_by();
-		return $self if defined $self->{errstr};
-		$string = $self->{string};
 		}
-
-	if ($string ne '')
+        if (not defined $self->{'errstr'} and $self->{'string'} ne '')
 		{
-		$self->{errstr} = "Unknown pieces in SQL command";
+		$self->{'errstr'} = ( /^\)/ ?
+			"Extra right bracket found" :
+			"Unknown characters in SQL command");
 		}
-	
-	return $self;
+	if (defined $self->{'errstr'} and defined $self->{'string'})
+		{
+		$self->{'errstr'} .= " at '" .
+			substr($self->{'string'}, 0, 16) . "'";
+		}
+	$self;
 	}
-sub parse_insert
+
+sub parse_boolean
 	{
 	my $self = shift;
-	my $string = $self->{string};
-	if ($string !~ s/^into\s+//i)
-		{
-		$self->{errstr} = "Into specification missing";
-		return $self;
-		}
+	local $_ = $self->{'string'};
 
-	if ($string =~ s/^(\w+)\s+//)
-		{ $self->{table} = $1; }
-	else
-		{
-		$self->{errstr} = "Table name expected";
-		return $self;
-		}
+	my $first = 1;
+	my $quotes = 0;
 
-	if ($string =~ s/^(\w+(,\s*\w+)*)\s+|\((\w+(\s*,\s*\w+)*)\s*\)\s+//)
-		{
-		my $fields = $1;
-		my @fields = split /\s*,\s*/, $fields;
-		$self->{fields} = [ @fields ];
-		}
-	
-	$self->{string} = $string;
-	if ($string !~ s/^values\s+//i)
-		{
-		$self->{errstr} = "Values specification missing";
-		return $self;
-		}
+	while (s/^\(\s*//)
+		{ $quotes++; push @{$self->{'expression'}}, 'left'; }
 
-	$self->{string} = $string;
-	if ($string =~ s/^\((\w+(\s*,\s*\w+)*)\s*\)($|\s+)//)
+	$self->{'string'} = $_;
+	while ($self->parse_relation())
 		{
-		my $values = $1;
-		my @values = split /\s*,\s*/, $values;
-		if (defined $self->{fields} and
-				scalar @values != scalar @{$self->{fields}})
+		return $self if defined $self->{'errstr'};
+
+		if ($self->{'string'} eq $_)	# nothing new found
 			{
-			$self->{errstr} = "Number of values doesn't match number of columns";
-			return $self;
+			if ($first)
+				{
+				$self->{'errstr'} = "No expression found";
+				return $self;
+				}
+			last;
 			}
-		$self->{'values'} = [ @values ];
+
+		$first = 0;
+
+		$_ = $self->{'string'};
+
+		while ($quotes > 0 and s/^\)\s*//s)
+			{ $quotes--; push @{$self->{'expression'}}, 'right'; }
+		
+		if (s/^(and|or)(?:\s+|(?=\())//si)
+			{ push @{$self->{'expression'}}, $1; }
+		else
+			{ last; }
+
+		while (s/^\(\s*//)
+			{ $quotes++; push @{$self->{'expression'}}, 'left';}
+
+		$self->{'string'} = $_;
 		}
-	else
-		{
-		$self->{errstr} = "Values missing";
-		}
-	$self->{string} = $string;
-	return $self;
+
+	while ($quotes > 0 and s/^\)\s*//)
+		{ $quotes--; push @{$self->{'expression'}}, 'right'; }
+
+	$self->{'string'} = $_;
+	if ($quotes > 0)
+		{ $self->{'errstr'} = "Right bracket missing"; }
+
+	$self;
 	}
 
-sub parse_delete
-	{
-	my $self = shift;
-	my $string = $self->{string};
-	if ($string !~ s/^from\s+//i)
-		{
-		$self->{errstr} = "From specification missing";
-		return $self;
-		}
-
-	if ($string =~ s/^(\w+)($|\s+)//)
-		{ $self->{table} = $1; }
-	else
-		{
-		$self->{errstr} = "Table name expected";
-		return $self;
-		}
-
-	if ($string =~ s/^where\s+//i)
-		{
-		$self->{string} = $string;
-		$self->parse_expression();
-		return $self if defined $self->{errstr};
-		$string = $self->{string};
-		}
-	
-	if ($string ne '')
-		{
-		$self->{errstr} = "Unknown pieces in SQL command";
-		}
-	
-	return $self;
-	}
-
-sub parse_update
-	{
-	my $self = shift;
-	my $string = $self->{string};
-
-	if ($string =~ s/^(\w+)($|\s+)//)
-		{ $self->{table} = $1; }
-	else
-		{
-		$self->{errstr} = "Table name expected";
-		return $self;
-		}
-
-	if ($string !~ s/^set\s+//i)
-		{
-		$self->{errstr} = "Set specification missing";
-		return $self;
-		}
-
-	if ($string =~ s/^(\w+\s*=\s*\w+(\s*,\s*\w+\s*=\s*\w+)*)($|\s+)//)
-		{
-		my $sets = $1;
-		my @sets = split /\s*,\*/, $sets;
-		$self->{set} = [ @sets ];
-		}
-	else
-		{
-		$self->{errstr} = "Assignments missing";
-		return $self;
-		}
-	
-	if ($string =~ s/^where\s+//i)
-		{
-		$self->{string} = $string;
-		$self->parse_expression();
-		return $self if defined $self->{errstr};
-		$string = $self->{string};
-		}
-	
-	if (defined $string and $string ne '')
-		{
-		$self->{errstr} = "Unknown pieces in SQL command";
-		}
-	
-	return $self;
-	}
-
-sub parse_expression
-	{
-	my $self = shift;
-	my $string = $self->{string};
-
-
-
-	}
 sub parse_relation
 	{
 	my $self = shift;
-	my $string = $self->{string};
+	local $_ = $self->{'string'};
 
-	$string =~ s/^\s+//;
-
-	my $field1;
-	if ($string =~ s/^(\w+)\s*//)
-		{ $field1 = $+; }
+	if (s/^([\w.]+)\s*//)
+		{
+		unless (defined $self->{'xbase'}->field_name_to_num(uc $+))
+			{
+			$self->{'errstr'} = "Column $+ does not exist in table $self->{'table'}";
+			return;
+			}
+		push @{$self->{'expression'}}, [ 'field', $+ ];
+		}
 	else
-		{ $self->{errstr} = "Field name not found"; }
+		{ $self->{'errstr'} = "Field name not found"; return $self; }
+
+	my $type = $self->{'xbase'}->field_types($self->{'xbase'}->field_name_to_num($+));
+	$type = (($type =~ /^[CML]$/) ? 's' : 'd');
 
 	my $operator;
-	if ($string =~ s/=|<=|>=|<>|!=|<|>|=~//)
-		{ $operator = $&; }
-	else
+	unless (s/^(==?|<=|>=|<>|!=|<|>)\s*//)
 		{
-		$self->{string} = $string;
-		$self->{errstr} = "Operator not found";
+		$self->{'string'} = $_;
+		$self->{'errstr'} = "Operator not found";
 		return $self;
 		}
 
+	push @{$self->{'expression'}}, [ 'op', $+, $type ];
 
-	$self->parse_string_value();
-	my $left_value;
-	if (defined $self->{string_value})
-		{
-		$left_value = $self->{string_value};
-		delete $self->{string_value};
-		}
-	elsif ($string =~ s/^[\w.-]+//)
-		{
-		$left_value = $&;
-		}
-	else
-		{
-		$self->{errstr} = "No valid expression found";
-		return;
-		}
-
-	my $op;
-	if ($string =~ s/=|<=|>=|<>|!=|<|>//)
-		{ $op = $&; }
-	else
-		{
-		$self->{string} = $string;
-		$self->{errstr} = "Operand not found";
-		}
-
-	$self->parse_string_value();
-	my $right_value;
-	if (defined $self->{string_value})
-		{
-		$right_value = $self->{string_value};
-		delete $self->{string_value};
-		}
-	elsif ($string =~ s/^[\w.-]+//)
-		{ $right_value = $&; }
-	else
-		{
-		$self->{errstr} = "No valid expression found";
-		return;
-		}
-
-	$self->{where} = [ $left_value, $op, $right_value ];
-	$self;
+	$self->{'string'} = $_;
+	$self->parse_arithmetic();
 	}
 
-sub parse_order_by
-	{
-	}
-
-sub parse_string_value
+sub parse_arithmetic
 	{
 	my $self = shift;
-	my $string = $self->{string};
+	local $_ = $self->{'string'};
 
-	if ($string =~ s/^(["'])(\\\\|\\\1|.)*?\1//)
+	my $prevop = $#{$self->{'expression'}};
+
+	my $quotes = 0;
+	
+	while (s/^\(\s*//s)
+		{ $quotes++; push @{$self->{'expression'}}, 'left'; }
+
+	if (s/^(["'])((\\\\|\\\1|.)*?)\1//s)
 		{
-		$self->{string} = $string;
-		$self->{string_value} = $&;
+		my $string = $2;
+		if ($1 eq '"')
+			{ $string =~ s/'/\\'/gs; }
+		push @{$self->{'expression'}}, [ 'string', "'$string'" ];
+		if (ref $self->{'expression'}[$prevop] and
+				$self->{'expression'}[$prevop][0] eq 'op')
+			{ $self->{'expression'}[$prevop][2] = 's' }
 		}
-	$self;
+	elsif (s/^(-?(\d*\.)?\d+)//)
+		{
+		push @{$self->{'expression'}}, [ 'number', $1 ];
+		}
+	elsif (s/^[\w.]+//)
+		{
+		push @{$self->{'expression'}}, [ 'field', $& ];
+		}
+	else
+		{
+		$self->{'string'} = $_;
+		$self->{'errstr'} = "No field name, string or number found";
+		return $self;
+		}
+
+	s/^\s*//s;
+
+	if (s!^[-+/%]!!)
+		{
+		push @{$self->{'expression'}}, [ 'arop', $& ];
+		s/^\s*//s;
+		$self->{'string'} = $_;
+		$self->parse_arithmetic();
+		return $self if defined $self->{'errstr'};
+		$_ = $self->{'string'};
+		}
+
+	while ($quotes > 0 and s/^\)\s*//)
+		{ $quotes--; push @{$self->{'expression'}}, 'right'; }
+
+	$self->{'string'} = $_;
+	if ($quotes != 0)
+		{ $self->{'errstr'} = "Right bracket missing"; }
+
+	return $self;
 	}
 
 
