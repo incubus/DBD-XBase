@@ -1,6 +1,10 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
+0.172 Tue Feb  6 10:22:11 MET 2001
+	XBase::Memo: creating of fpt supported; bug pointed out by
+	Massimo Matteuzzi.
+
 0.170 Fri Jan 26 18:35:01 MET 2001
 	XBase::idx: create support and better reading support.
 

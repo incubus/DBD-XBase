@@ -94,7 +94,16 @@ print "Check if the files newtable.dbf and newtable.dbt have been deleted\n";
 print "not " if (-f "$dir/newtable.dbf" or -f "$dir/newtable.dbt");
 print "ok 11\n";
 
-
+### use XBase;
+### my $table = XBase->create(
+### 	'name' => 'tab.dbf',
+### 	'memofile' => 'tab.fpt',
+### 	'field_names' => [ 'ID', 'MSG' ],
+### 	'field_types' => [ 'C', 'M' ],
+### 	'field_lengths' => [ 20 ],
+### 	'field_decimals' => []
+### ) or die XBase->errstr;
+### $table->set_record(0, 'jezek', 'krtek');
 
 __DATA__
 Filename:	newtable.dbf

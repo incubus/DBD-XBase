@@ -12,7 +12,7 @@ use XBase::Base;
 
 use vars qw( $VERSION @ISA );
 @ISA = qw( XBase::Base );
-$VERSION = '0.129';
+$VERSION = '0.172';
 
 # Read header is called from open to fill the object structures
 sub read_header
@@ -92,11 +92,19 @@ sub create {
 	my %options = @_;
 	$self->create_file($options{'name'}) or return;
 	my $version = $options{'version'};
-	$version = 3 unless defined $version;
-	$version = 0 if $version == 4;
-	my $header = $self->write_to(0, pack 'VVa8Ca3va490', 1, 0,
-			$options{'dbf_filename'}, $version, '', 512, '')
-						or return;
+	if ($options{'name'} =~ /\.smt$/i) {
+		# For xmt file (whatever they are)
+		$self->write_to(0, pack 'VV a504', 1, 512, '') or return;
+	} elsif ($version == 5) {
+		# Fox fpt file
+		$self->write_to(0, pack 'N a2 n a504', 1, '', 512, '') or return;
+	} else {
+		$version = 3 unless defined $version;
+		$version = 0 if $version == 4;
+		$self->write_to(0, pack 'VVa8Ca3va490', 1, 0,
+				$options{'dbf_filename'}, $version, '', 512, '')
+							or return;
+	}
 	$self->close();
 	return $self;
 }
@@ -317,11 +325,11 @@ appropriate.
 
 =head1 VERSION
 
-0.129
+0.172
 
 =head1 AUTHOR
 
-(c) 1997--1999 Jan Pazdziora, adelton@fi.muni.cz
+(c) 1997--2001 Jan Pazdziora, adelton@fi.muni.cz
 
 =head1 SEE ALSO
 

@@ -20,7 +20,7 @@ use XBase::Base;		# will give us general methods
 use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
-$VERSION = '0.171';
+$VERSION = '0.172';
 $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 
 *errstr = \$XBase::Base::errstr;
@@ -660,7 +660,14 @@ sub create {
 	}
 
 	my $version = $options{'version'};
-	$version = 3 unless defined $version;
+	if (not defined $version) {
+		if (defined $options{'memofile'}
+			and $options{'memofile'} =~ /\.fpt$/i) {
+			$version = 0xf5;
+		} else {
+			$version = 3;
+		}
+	}
 
 	my $key;
 	for $key ( qw( field_names field_types field_lengths field_decimals ) ) {
@@ -670,6 +677,7 @@ sub create {
 		}
 	}
 
+	my $needmemo = 0;
 
 	my $fieldspack = '';
 	my $record_len = 1;
@@ -704,8 +712,13 @@ sub create {
 		}
 		$fieldspack .= pack 'a11a1VCCvCvCa7C', $name, $type, $offset,
 				$length, $decimal, 0, 0, 0, 0, '', 0;
-		if ($type eq 'M') { $version |= 0x80; }
+		if ($type eq 'M') {
+			$needmemo = 1;
+			if ($version != 0x30) {
+				$version |= 0x80;
+			}
 		}
+	}
 	$fieldspack .= "\x0d";
 
 	my $header = pack 'CCCCVvvvCCa12CCv', $version, 0, 0, 0, 0,
@@ -723,17 +736,22 @@ sub create {
 	$tmp->update_last_change();
 	$tmp->close();
 
-	if ($version & 0x80)
-		{
+	if ($needmemo) {
 		require XBase::Memo;
 		my $dbtname = $options{'memofile'};
 		if (not defined $dbtname) {
 			$dbtname = $options{'name'};
-			$dbtname =~ s/\.DBF$/.DBT/ or $dbtname =~ s/(\.dbf)?$/.dbt/;
+			if ($version == 0x30 or $version == 0xf5) {
+				$dbtname =~ s/\.DBF$/.FPT/ or $dbtname =~ s/(\.dbf)?$/.fpt/;
+			} else {
+				$dbtname =~ s/\.DBF$/.DBT/ or $dbtname =~ s/(\.dbf)?$/.dbt/;
 			}
+		}
 		my $dbttmp = XBase::Memo->new();
+		my $memoversion = ($version & 15);
+		$memoversion = 5 if $version == 0x30;
 		$dbttmp->create('name' => $dbtname,
-			'version' => ($version & 15),
+			'version' => $memoversion,
 			'dbf_filename' => $basename) or return;
 	}
 
@@ -1331,7 +1349,7 @@ Thanks a lot.
 
 =head1 VERSION
 
-0.171
+0.173
 
 =head1 AUTHOR
 
