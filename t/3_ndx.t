@@ -112,6 +112,10 @@ $cur = $table->prepare_select_with_index("$dir/ndx-date.ndx") or
 print "ok 10\n";
 
 print "find_eq(2450795), which is Julian date for 1997/12/12 and fetch results\n";
+
+use Data::Dumper;
+print Dumper $cur;
+
 $cur->find_eq(2450795);
 
 use Data::Dumper;

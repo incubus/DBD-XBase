@@ -27,10 +27,11 @@ sub prepare_select
 
 sub get_record
 	{
-	my ($self, $num) = @_;
+	my $self = shift;
 	my $newpage = ref $self;
-	$newpage .= '::Page::new';
-	return $self->$newpage($num);
+	$newpage .= '::Page' unless substr($newpage, -6) eq '::Page';
+	$newpage .= '::new';
+	return $self->$newpage(@_);
 	}
 
 
@@ -136,7 +137,7 @@ package XBase::ndx::Page;
 use strict;
 use vars qw( $DEBUG );
 
-$DEBUG = 0;
+$DEBUG = 1;
 
 sub new
 	{
@@ -194,6 +195,10 @@ sub is_ref
 	{ shift->{'is_ref'}; }
 
 
+#
+# Clipper NTX
+#
+
 package XBase::ntx;
 use strict;
 use vars qw( @ISA );
@@ -209,7 +214,7 @@ sub read_header
 	@{$self}{ qw( signature compiler_version start_offset first_unused
 		key_record_length key_length decimals max_item
 		half_page key_string unique ) }
-		= unpack 'vvVVvvvvva256c', $header;
+			= unpack 'vvVVvvvvva256c', $header;
 
 	$self->{'key_string'} =~ s/[\000 ].*$//s;
 	$self->{'record_len'} = 1024;
@@ -219,42 +224,72 @@ sub read_header
 
 	$self;
 	}
-
 sub fetch
 	{
 	my $self = shift;
-	my $level = $#{$self->{'actives'}};
-	if ($level < 0)
+	my ($level, $page, $row, $key, $val, $left);
+	while (not defined $val)
 		{
-		$self->{'pages'}[0] = $self->get_record($self->{'start_page'});
-		$level = 0;
-		}
+		$level = $self->{'level'};
+		if (not defined $level)
+			{
+			$level = $self->{'level'} = 0;
+			$page = $self->get_record($self->{'start_page'});
+			if (not defined $page)
+				{
+				$self->Error("Index corrupt: ntx: no root page $self->{'start_page'}\n");
+				return;
+				}
+			$self->{'pages'} = [ $page ];
+			$self->{'rows'} = [];
+			}
 
-	my ($key, $val, $left);
-	while ($level >= 0 and not defined $val)
-		{
-		if (defined $self->{'actives'}[$level])
-			{ $self->{'actives'}[$level]++; }
+		$page = $self->{'pages'}[$level];
+		if (not defined $page)
+			{
+			$self->Error("Index corrupt: ntx: page for level $level lost\n");
+			return;
+			}
+
+		my $row = $self->{'rows'}[$level];
+		if (not defined $row)
+			{ $row = $self->{'rows'}[$level] = 0; }
 		else
-			{ $self->{'actives'}[$level] = 0; }
-		my ($page, $active) = ( $self->{'pages'}[$level],
-					$self->{'actives'}[$level] );
-		($key, $val, $left) = $page->get_key_val_left($active);
-		if (not defined $val)	{ $level--; }
+			{ $self->{'rows'}[$level] = ++$row; }
+		
+		($key, $val, $left) = $page->get_key_val_left($row);
+		if (defined $left)
+			{
+			$level++;
+			my $oldpage = $page;
+			$page = $oldpage->get_record($left);
+			if (not defined $page)
+				{
+				$self->Error("Index corrupt: ntx: no page $left, referenced from $oldpage, for level $level\n");
+				return;
+				}
+			$self->{'pages'}[$level] = $page;
+			$self->{'rows'}[$level] = undef;
+			$self->{'level'} = $level;
+			$val = undef;
+			next;
+			}
+		if (defined $val)
+			{
+			return ($key, $val);
+			}
+		else
+			{
+			$self->{'level'} = --$level;
+			next if $level < 0;
+			$page = $self->{'pages'}[$level];
+			next unless defined $page;
+			$row = $self->{'rows'}[$level];
+			my ($backkey, $backval, $backleft) = $page->get_key_val_left($row);
+			if (defined $backleft and defined $backval)
+				{ return ($backkey, $backval); }
+			}
 		}
-	return unless defined $val;
-
-	while ($val < 0)
-		{
-		$level++;
-		my $page = $self->get_record($val);
-		$self->{'actives'}[$level] = 0;
-		$self->{'pages'}[$level] = $page;
-		($key, $val, $left) = $page->get_key_val_left(0);
-		}
-
-### print "pages @{[ map { $_->{'num'} } @{$self->{'pages'}} ]}, actives @{$self->{'actives'}}\n";
-	($key, $val);
 	}
 
 sub last_record
@@ -263,49 +298,62 @@ sub last_record
 
 package XBase::ntx::Page;
 use strict;
-use vars qw( $DEBUG );
+use vars qw( $DEBUG @ISA );
+@ISA = qw( XBase::ntx );
 
 $DEBUG = 1;
 
 sub new
 	{
 	my ($indexfile, $num) = @_;
+	my $parent;
+	if ((ref $indexfile) =~ /::Page$/)		### parent page
+		{
+		$parent = $indexfile;
+		$indexfile = $parent->{'indexfile'};
+		}
 	my $data = $indexfile->read_record($num) or return;
-	my $noentries = unpack 'v', $data;
-
-	my @pointers = unpack "\@2 v$noentries", $data;
-
+	my $maxnumitem = $indexfile->{'max_item'} + 1;
 	my $keylength = $indexfile->{'key_length'};
+	my $record_len = $indexfile->{'record_len'};
 
-	print "noentries $noentries, keylength $keylength, keyreclen $indexfile->{'key_record_length'}; pointers @pointers\n" if $DEBUG;
+	my ($noentries, @pointers) = unpack "vv$maxnumitem", $data;
+	
+	print "page $num, noentries $noentries, keylength $keylength; pointers @pointers\n" if $DEBUG;
 	
 	my $record_len = $indexfile->{'record_len'};
-	my ($keys, $values, $lefts) = ([], [], []);
-	for my $offset (@pointers)
-		{
-		my ($left, $recno, $key);
-		($left, $recno, $key) = unpack "\@$offset VVa$keylength", $data;
-		print "\@$offset VVa$keylength -> ($left, $recno, $key)\n" if $DEBUG;
-		push @$keys, $key;
-		push @$values, $recno;
 
-		push @$lefts, ($left / $record_len);
+	my ($keys, $values, $lefts) = ([], [], []);
+	for (my $i = 0; $i < $noentries; $i++)
+		{
+		my $offset = $pointers[$i];
+		my ($left, $recno, $key) = unpack "\@$offset VVa$keylength", $data;
+
+		push @$keys, $key;
+		push @$values, ($recno ? $recno : undef);
+		$left = ($left ? ($left / $record_len) : undef);
+		push @$lefts, $left;
+
+		if ($i == 0 and defined $left and (not defined $parent
+					or $num == $parent->{'lefts'}[-1]))
+			{ $noentries++; }
 		}
+
 	print "Page $num:\tkeys: @{[ map { s/\s+$//; $_; } @$keys]} -> values: @$values\n\tlefts: @$lefts\n" if $DEBUG;
 	my $self = bless { 'keys' => $keys, 'values' => $values,
 		'num' => $num, 'keylength' => $keylength,
-		'lefts' => $lefts }, __PACKAGE__;
+		'lefts' => $lefts, 'indexfile' => $indexfile }, __PACKAGE__;
 	$self;
 	}
 sub get_key_val_left
 	{
 	my ($self, $num) = @_;
-	my $printkey = $self->{'keys'}[$num];
 	{
 		local $^W = 0;
+		my $printkey = $self->{'keys'}[$num];
 		$printkey =~ s/\s+$//;
 		print "Getkeyval: $num: $printkey, $self->{'values'}[$num], $self->{'lefts'}[$num]\n"
-					if $DEBUG and $num <= $#{$self->{'keys'}};
+					if $DEBUG;
 	}
 	return ($self->{'keys'}[$num], $self->{'values'}[$num], $self->{'lefts'}[$num])
 				if $num <= $#{$self->{'keys'}};
