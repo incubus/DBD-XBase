@@ -12,7 +12,7 @@ What is this module for:
 	Module XBase provides access to XBase (dBase, Fox*) dbf files.
 	It also handles memo files (dbt, fpt) and to certain extend
 	index files (ndx, ntx, mdx, idx and cdx). The DBD::XBase is
-	a database driver for DBI and provides simple SQL interface to
+	a database driver for DBI and provides simple SQL interface for
 	reading and writing the database files. So this package offers
 	two ways of accessing your beloved data in dbf files: XBase.pm
 	and DBD::XBase. I recommend using DBD::XBase and only resort
@@ -38,8 +38,10 @@ How does the code look like:
 			!);
 
 	which is the same as would be with any other database.
+	Remember, this is only a simple parser, so no joins or
+	subselecects are supported.
 
-	If you want to use the base XBase.pm interface, I'd use code
+	If you want to use the base XBase.pm interface, you'd use code
 	like
 
 		use XBase;
@@ -66,7 +68,7 @@ Index support:
 
 
 Support, documentation:
-	This module is provided in a hope you might find it usefull.
+	This module is provided in a hope you might find it useful.
 	My intent is to support as many variations of formats as
 	possible, but I do not have dBase/Fox* and do not plan to
 	have, so send me examples of your data files if you feel your
@@ -76,7 +78,7 @@ Support, documentation:
 	Man pages for XBase, DBD::XBase, dbfdump, XBase::Index and
 	XBase::SDBM are included, examples of little scripts can also
 	be found in eg/ directory of the distribution. Read the DBI
-	man page for DBI specific issues.
+	man page for DBI specific issues, and the XBase::FAQ page.
 
 
 Installation:
@@ -95,7 +97,9 @@ Available:
 	http://www.fi.muni.cz/~adelton/perl/ and from your favorite
 	CPAN site in the authors/id/JANPAZ/ directory.
 
+
 Copyright: (c) 1997--2003 Jan Pazdziora, adelton@fi.muni.cz. All rights
 	reserved. This package is free software; you can redistribute
 	it and/or modify it under the same terms as Perl itself.
+
 

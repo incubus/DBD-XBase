@@ -20,7 +20,7 @@ use XBase::Base;		# will give us general methods
 use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
-$VERSION = '0.220';
+$VERSION = '0.233';
 $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 
 *errstr = \$XBase::Base::errstr;
@@ -273,6 +273,7 @@ sub read_header {
 			( $names, $types, $lengths, $decimals,
 			$hashnames, $#$names, $unpacks,
 			$readproc, $writeproc, $CLEARNULLS );
+
 
 	1;	# return true since everything went fine
 }
@@ -1385,11 +1386,11 @@ Thanks a lot.
 
 =head1 VERSION
 
-0.220
+0.233
 
 =head1 AUTHOR
 
-(c) 1997--2002 Jan Pazdziora, adelton@fi.muni.cz,
+(c) 1997--2003 Jan Pazdziora, adelton@fi.muni.cz,
 http://www.fi.muni.cz/~adelton/ at Faculty of Informatics, Masaryk
 University in Brno, Czech Republic
 

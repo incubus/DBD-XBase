@@ -65,3 +65,5 @@ t/rooms.cdx
 t/rooms.dbf
 t/test.dbf
 t/test.dbt
+t/types.dbf
+META.yml                                Module meta-data (added by MakeMaker)

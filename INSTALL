@@ -3,20 +3,16 @@
 		Installation of	XBase and DBD::XBase
 		------------------------------------
 
-To use the XBase.pm module, perl version 5.004 is required. (Please do
-not ask me to make these modules work under 5.003 or older version --
-upgrade instead.) To use the DBD::XBase driver, you need a DBI module
-version 1.0 or higher. (If you have older DBI and cannot upgrade for
-some reason, check the CPAN for DBD::XBase version < 0.090. Those are
-the last versions that do not require DBI 1.0.)
+To use the XBase.pm module, perl version 5.004 is required. To use
+the DBD::XBase driver, you need a DBI module version 1.0 or higher.
 
 Installation is the same as for any Perl module, so if you have some
 obscure platform, check instructions that came with perl for that
 platform -- I won't be able to help you because I probably do not use
 your platform.
 
-Download the DBD-XBase-x.xx.tar.gz, unpack it, change to the
-DBD-XBase-x.xx directory. Then do
+The generic way is: download the DBD-XBase-x.xxx.tar.gz, unpack it,
+change to the DBD-XBase-x.xxx directory. Then do
 
 	perl Makefile.PL
 	make
@@ -46,7 +42,7 @@ or
 
 If you do not have make or you cannot run it (do you really want to
 use Perl on that machine?), just copy the content of the
-DBD-XBase-x.xx/lib directory to wherever you want to have it. That
+DBD-XBase-x.xxx/lib directory to wherever you want to have it. That
 should work, even if it won't give you man pages and dbfdump/indexdump
 scripts.
 
@@ -54,7 +50,9 @@ If you use a platform supported by ActiveState and run ActiveState
 perl, you can use ppm to install the module. Please note that I have
 no way of influencing what version of XBase.pm/DBD::XBase ActiveState
 offers on their site -- contact them if you need newer version which
-is only on CPAN.
+is only on CPAN. Cygwin does a good job of providing make on Windows
+platform, so you can always install any needed version using the
+generic approach described above.
 
 If you have case insensitive filesystem, make sure you do not have an
 old module named Xbase.pm installed -- remove it prior to using
@@ -70,11 +68,11 @@ output of your installation messages and of
 
 	$ make test TEST_VERBOSE=1
 
-Each version of the module is tested on IRIX, Linux and Solaris
-before releasing but surely there might be situation where something
-is corrupted on other platforms. If you send me reasonable output and
-it is a bug of XBase.pm/DBD::XBase, these errors are typically fixed
-in a matter of hours (unless I'm gone for a vacation).
+Each version of the module is tested on multiple systems and multiple
+versions of perl before releasing but surely there might be situation
+where something is corrupted on other platforms. So please, send me
+reasonable output and it is a bug of XBase.pm/DBD::XBase, I'll try to
+get it fixed.
 
 If there are errors when actually using the module on your data,
 please check first that it's really a XBase/DBD::XBase problem (for
@@ -103,7 +101,8 @@ Available:
 	http://www.fi.muni.cz/~adelton/perl/ and from your favorite
 	CPAN site in the authors/id/JANPAZ/ directory.
 
-Copyright: (c) 1997--2001 Jan Pazdziora, adelton@fi.muni.cz. All rights
+Copyright: (c) 1997--2003 Jan Pazdziora, adelton@fi.muni.cz. All rights
 	reserved. This package is free software; you can redistribute
 	it and/or modify it under the same terms as Perl itself.
+
 

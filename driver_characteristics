@@ -131,10 +131,11 @@ The DATE type holds an eight character string in the format
 DBD::XBase doesn't check for validity of the values.
 
 The DATETIME and TIME types store (internally) a 4 byte integer day
-value and a 4 byte integer seconds value (that counts 1/1000's of a
-second).  DBD::XBase inputs and outputs these types using a floating
-point unix-style seconds-since-epoch value (possibly with decimal part).
-This might change in the future.
+value (Julian Day System) and a 4 byte integer seconds value (that
+counts 1/1000's of a second since midnight).  DBD::XBase inputs and
+outputs these types using a floating point unix-style
+seconds-since-epoch value (possibly with decimal part and possibly
+negative). This might change in the future.
 
 
      If only part of a date is specified, how does the rest default?
