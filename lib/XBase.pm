@@ -232,7 +232,7 @@ both about the Perl and XBase are welcome.
 
 =head1 VERSION
 
-0.0342
+0.0343
 
 =head1 AUTHOR
 
@@ -263,7 +263,7 @@ use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
 
-$VERSION = "0.0342";
+$VERSION = "0.0343";
 
 $errstr = "Use of \$XBase::errstr is depreciated, please use XBase->errstr() instead\n";
 
@@ -783,20 +783,23 @@ sub create
 		$name = "FIELD$i" unless defined $name;
 		my $type = $options{'field_types'}[$i];
 		$type = "C" unless defined $type;
+
 		my $length = $options{'field_lengths'}[$i];
-		if (not defined $length)
+		my $decimal = $options{'field_decimals'}[$i];
+
+		if (not defined $length)		# defaults
 			{
 			if ($type eq "C")	{ $length = 64; }
 			elsif ($type eq "D")	{ $length = 8; }
 			elsif ($type =~ /^[NF]$/)	{ $length = 8; }
-			elsif ($type =~ /^[MBGP]$/)	{ $length = 10; }
-			elsif ($type eq "L")	{ $length = 1; }
 			}
-		my $decimal = $options{'field_decimals'}[$i];
+						# force correct lengths
+		if ($type =~ /^[MBGP]$/)	{ $length = 10; $decimal = 0; }
+		elsif ($type eq "L")	{ $length = 1; $decimal = 0; }
+
 		if (not defined $decimal)
-			{
-			$decimal = 0;
-			}
+			{ $decimal = 0; }
+		
 		$record_len += $length;
 		if ($type eq "C")
 			{
