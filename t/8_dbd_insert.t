@@ -136,6 +136,25 @@ if ($result ne $expected_result)
 print "ok 9\n";
 
 $sth->finish();
+
+$command = 'insert into write(facility,roomname) values (?,?)';
+print "Preparing $command\n";
+$sth = $dbh->prepare($command) or do {
+	print $dbh->errstr();
+	print "not ok 10\n";
+	exit;
+};
+$sth->execute('krtek', 'jezek') or do {
+	print $sth->errstr();
+	print "not ok 11\n";
+	exit;
+};
+
+my @row = $dbh->selectrow_array("select roomname,facility from write where facility = 'krtek'");
+if ("@row" ne 'jezek krtek') {
+	print "Expected 'jezek krtek', got '@row'\nnot ok 12\n";
+}
+
 $dbh->disconnect();
 
 1;

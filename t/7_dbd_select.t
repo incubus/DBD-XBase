@@ -12,7 +12,7 @@ BEGIN {
 		print "ok 1\n";
 		exit;
 	}
-	print "1..44\n";
+	print "1..45\n";
 	print "DBI loaded\n";
 }
 
@@ -473,7 +473,22 @@ if ($result ne $expected_result) {
 }
 print "ok 44\n";
 
+$command = 'select test.msg from test where test.id = ?';
+print "selectrow_array $command with 3\n";
+my @data = $dbh->selectrow_array(q!
+	select test.msg from test where test.id = ?
+	!, {}, 3);
+$expected_result = '';
+while (<DATA>) {
+	last if /^__END_DATA__$/;
+	$expected_result .= $_;
+}
 
+
+if ("@data\n" ne $expected_result) {
+	print "Expected:\n${expected_result}Got:\n@{data}\nnot ";
+}
+print "ok 45\n";
 
 
 $sth->finish();
@@ -605,4 +620,6 @@ Audio Mix J
 Audio Transfer
 __END_DATA__
 3 Message no 3 This is a memo for record 3 0 19960102
+__END_DATA__
+Message no 3
 __END_DATA__

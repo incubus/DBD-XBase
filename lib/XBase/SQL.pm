@@ -8,7 +8,7 @@ package XBase::SQL;
 use strict;
 use vars qw( $VERSION %COMMANDS );
 
-$VERSION = '0.220';
+$VERSION = '0.232';
 
 # #################################
 # Type conversions for create table
@@ -76,8 +76,8 @@ my %TYPES = ( 'char' => 'C', 'varchar' => 'C',
 
 # table, field name, number, string
 
-	'TABLE' =>	'\\S+',
-	'FIELDNAME' =>	'[a-z_][a-z0-9_]*',
+	'TABLE' =>	'[^\s\(]+',
+	'FIELDNAME' =>	'[a-z_][a-z0-9_.]*',
 	'NUMBER' => q'-?\d*\.?\d+',
 	'STRING' => q! \\" STRINGDBL \\" | \\' STRINGSGL \\' !,
 	'STRINGDBL' => q' STRINGDBLPART ( \\\\. STRINGDBLPART ) * ',
@@ -223,6 +223,7 @@ my %STORE = (
 	'FIELDNAME' => sub {
 		my $self = shift;
 		my $field = uc ((get_strings(@_))[0]);
+		$field =~ s/^.*\.//;
 		push @{$self->{'usedfields'}}, $field;
 		$field;
 		},

@@ -1,6 +1,12 @@
 
 Revision history for Perl extension XBase and DBD::XBase.
 
+0.232 Thu Apr  3 17:47:39 CEST 2003
+	XBase::SQL: Fieldname can contain the table name (silently
+	dropped), suggested by Michael Semich, and table name now
+	matches [^\(\s]+ to allow paren immediately following it,
+	problem reported by belg4mit.
+
 0.231 Thu Oct 31 17:48:19 MET 2002
 	t/9_dbd_create.t: patched a test failure on Windows platform,
 	path by Yves Orton.
