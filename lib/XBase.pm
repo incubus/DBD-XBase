@@ -64,8 +64,12 @@ sub read_header
 	$self->read($header, 32) == 32 or do
 		{ __PACKAGE__->Error("Error reading header of $self->{'filename'}: $!\n"); return; };
 
-	@{$self}{ qw( version last_update num_rec header_len record_len ) }
-		= unpack 'Ca3Vvv', $header;	# parse the data
+	@{$self}{ qw( version last_update num_rec header_len record_len encrypted ) }
+		= unpack 'Ca3Vvv@15a1', $header;	# parse the data
+
+###	if (0 and $self->{'encrypted'} ne "\000")
+###			{ __PACKAGE__->Error("We don't support encrypted files, sorry.\n"); return; };
+
 	my $header_len = $self->{'header_len'};
 
 	my ($names, $types, $lengths, $decimals) = ( [], [], [], [] );
@@ -486,7 +490,6 @@ sub get_record_nf
 	{
 	my ($self, $num, @fieldnums) = @_;
 	my $data = $self->read_record($num) or return;
-
 	if (not @fieldnums)
 		{ @fieldnums = ( 0 .. $self->last_field ); }
 	my $unpack = join ' ', '@0a1', map {
@@ -498,6 +501,16 @@ sub get_record_nf
 	my @fns = (\&_read_deleted, map { (defined $_ and defined $rproc->[$_]) ? $rproc->[$_] : sub { undef; }; } @fieldnums);
 
 	my @out = unpack $unpack, $data;
+### 	if ($self->{'encrypted'} ne "\000") {
+### 		for my $data (@out) {
+### 			for (my $i = 0; $i < length($data); $i++) {
+### 				## my $num = unpack 'C', substr($data, $i, 1);
+### 				## substr($data, $i, 1) = 	pack 'C', (($num >> 3) | ($num << 5) ^ 020);
+### 				my $num = unpack 'C', substr($data, $i, 1);
+### 				substr($data, $i, 1) = 	pack 'C', (($num >> 1) | ($num << 7) ^ 052);
+### 				}
+### 			}
+### 		}
 
 	for (@out) { $_ = &{ shift @fns }($_); }
 
@@ -552,7 +565,18 @@ sub set_record
 
 	for (my $i = 0; $i <= $#$wproc; $i++)
 		{ $data[$i] = &{ $wproc->[$i] }($data[$i]); }
-	$self->write_record($num, ' ', @data);
+	unshift @data, ' ';
+
+### 	if ($self->{'encrypted'} ne "\000") {
+### 		for my $data (@data) {
+### 			for (my $i = 0; $i < length($data); $i++) {
+### 				my $num = unpack 'C', substr($data, $i, 1);
+### 				substr($data, $i, 1) = 	pack 'C', (($num << 3) | ($num >> 5) ^ 020);
+### 				}
+### 			}
+### 		}
+
+	$self->write_record($num, @data);
 	}
 
 # Write record, fields are specified as hash, unspecified are set to
