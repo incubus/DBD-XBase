@@ -1,0 +1,29 @@
+
+This is README file for the DBD::XBase package. Please note that this
+is a new module, so the doc need more polishing and it will be coming
+briefly. I only release this version (0.024) because quite a lot of
+people seemed interested in the module.
+
+Install: download the tar.gz, unpack it, change to the DBD-XBase-*
+directory. Then do
+
+	perl Makefile.PL
+	make
+	make install
+
+The man page XBase(3) is included.
+
+Briefly, what is this about? This module should replace the Xbase-1.07
+module, the main change are the added writing capabilities. The
+package that actualy deals with the data files, is XBase. DBD::XBase
+is intended DBD::* interface but it does not exist yet.
+
+There are no tests in this version and that is definitely to be
+considered a bug. It will be fixed but if you send me a nice scripts,
+I will be glad to put them into the t directory.
+
+And yes, this is alpha software. I will be glad to hear about you
+testing it and I will try to fix any bugs and add new features but
+please, test it on a backup copy of your data. The more tests we do
+now, the sooner we can feel the module is safe and usable.
+

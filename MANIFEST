@@ -1,6 +1,7 @@
 Changes
 MANIFEST
 Makefile.PL
+README
 Xbase.pm.notready
 XBase.pm
 dump.to.dbf
