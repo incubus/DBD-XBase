@@ -8,7 +8,7 @@ Revision history for Perl extension XBase and DBD::Xbase.
 	bug in XBase::SQL causing bad division results. The DBD::XBase
 	documentation revised.
 
-	t/5_dbd_select*: tests extended.
+	t/5_dbd_select* tests extended.
 
 0.147 Mon Aug 16 10:48:37 MET DST 1999
 	XBase::SQL and DBD::XBase: fixed broken handling of NAME
@@ -20,8 +20,6 @@ Revision history for Perl extension XBase and DBD::Xbase.
 
 	XBase::Index: fixed handling of indexes with 32-bit record
 	number -- patch by Jon Bloom.
-
-	XBase::Base: fixed typo _unlockex, pointed by Mike Sanders.
 
 0.145 Mon Jun 21 12:49:19 MET DST 1999
 	DBD::XBase: updated TYPE_INFO for BOOLEAN and BLOB.

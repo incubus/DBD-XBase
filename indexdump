@@ -7,6 +7,7 @@ use Getopt::Long;
 my %opts = ();
 my $type;
 my $startvalue;
+my $showtotal;
 GetOptions('debug:i' => sub { my $key = shift; my $val = shift;
 				$val = 1 if $val eq '0';
 				$XBase::Index::DEBUG = $val },
@@ -19,6 +20,7 @@ GetOptions('debug:i' => sub { my $key = shift; my $val = shift;
 				else { die "Unknown index type `$val'\n"; }
 		},
 	'start=s' => \$startvalue,
+	'n' => sub { $showtotal = 1; }
 	);
 $opts{'type'} = $type if defined $type;
 
@@ -42,13 +44,17 @@ else {
 
 ### $index->get_record(5);
 
+my $i = 0;
 while (my @data = $index->fetch())
 	{
 	$data[0] =~ s/\s+$//;
 	print "@data\n";
+	$i++;
 	}
 
 if ($index->errstr) { die $index->errstr; }
+
+print "Total records: $i\n" if $showtotal;
 
 __END__
 

@@ -480,7 +480,7 @@ sub execute
 			my $last = $xbase->last_record;
 			for (my $i = 0; $i <= $last; $i++)
 				{
-				if (not ($xbase->get_record_nf($i, 0))[0])
+				if (not (($xbase->get_record_nf($i, 0))[0]))
 					{
 					$xbase->delete_record($i);
 					$rows = 0 unless defined $rows;

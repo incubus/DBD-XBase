@@ -35,7 +35,7 @@ print "ok 3\n";
 my $result = '';
 print "Fetch all data\n";
 while (my @data = $cur->fetch)
-	{ $result .= "@data\n"; }
+	{ print "@data\n"; $result .= "@data\n"; }
 
 my $expected_result = '';
 my $line;
