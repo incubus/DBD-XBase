@@ -11,7 +11,7 @@ use vars qw( @ISA $DEBUG $VERSION $VERBOSE $BIGEND );
 use XBase::Base;
 @ISA = qw( XBase::Base );
 
-$VERSION = '0.200';
+$VERSION = '0.220';
 
 $DEBUG = 0;
 
@@ -494,17 +494,15 @@ sub read_header {
 	
 	$self->{'start_page'} = int($self->{'start_offset'} / $self->{'record_len'});
 	my $field_type;
-	if (defined $self->{'dbf'}) {
+	if (defined $opts{'type'}) {
+		$field_type = $opts{'type'};
+	} elsif (defined $self->{'dbf'}) {
 		$field_type = $self->{'dbf'}->field_type($key_string);
 		if (not defined $field_type) {
 			__PACKAGE__->Error("Couldn't find key string `$key_string' in dbf file, can't determine field type\n");
 			return;
 		}
-	}
-	elsif (defined $opts{'type'}) {
-		$field_type = $opts{'type'};
-	}
-	else {
+	} else {
 		__PACKAGE__->Error("Index type (char/numeric) unknown for $self\n");
 		return;
 	}
@@ -1794,11 +1792,11 @@ directory.
 
 =head1 VERSION
 
-0.200
+0.220
 
 =head1 AUTHOR
 
-(c) 1998--2001 Jan Pazdziora, adelton@fi.muni.cz
+(c) 1998--2002 Jan Pazdziora, adelton@fi.muni.cz
 
 =head1 SEE ALSO
 
