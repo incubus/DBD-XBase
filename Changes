@@ -1,6 +1,10 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
+0.
+
+	Added support for fpt memo files.
+
 0.039  Wed Dec 17 19:53:49 MET 1997
 
 	DBD::XBase supports select where and delete where.	

@@ -20,7 +20,7 @@ types and they specify B<read_record> and B<write_record> methods.
 
 =head1 VERSION
 
-0.034
+0.0392
 
 =head1 AUTHOR
 
@@ -46,7 +46,7 @@ use vars qw( $VERSION @ISA );
 @ISA = qw( XBase::Base );
 
 
-$VERSION = "0.034";
+$VERSION = "0.0392";
 
 sub read_header
 	{
@@ -57,27 +57,36 @@ sub read_header
 		{ Error "Error reading header of $self->{'filename'}\n";
 		return; };
 
-	my ($next_for_append, $block_size, $dbf_filename, $reserved)
-		= unpack "VVA8C", $header;
+	my ($next_for_append, $dummy, $block_size, $dbf_filename, $version);
+	if ($self->{'filename'} =~ /\.fpt$/i)
+		{
+		($next_for_append, $dummy, $block_size) = unpack "Nvv", $header;
+		}
+	else
+		{
+		($next_for_append, $block_size, $dbf_filename, $version)
+						= unpack "VVA8C", $header;
+		}
 
-	my $version = 3;
-	if ($reserved == 0)
+	if (not defined $version)
+		{
+		bless $self, "XBase::Memo::Fox";
+		$version = 5;
+		}
+	elsif ($version == 0)
 		{
 		bless $self, "XBase::Memo::dBaseIV";
 		$version = 4;
 		}
-	else		# $reserved == 3;
+	else		# $version == 3;
 		{
 		bless $self, "XBase::Memo::dBaseIII";
+		$version = 3;
+		$block_size = 512;
 		}
 
-	$block_size = 512 if $version == 3;
-	($dbf_filename = $self->{'filename'}) =~ s/\.db.$//i;
-
-	@{$self}{ qw( next_for_append header_len record_len dbf_filename
-		version ) }
-		= ( $next_for_append, 0, $block_size,
-		$dbf_filename, $version );
+	@{$self}{ qw( next_for_append header_len record_len version ) }
+		= ( $next_for_append, 0, $block_size, $version );
 	
 	1;
 	}
@@ -143,6 +152,7 @@ sub read_record
 sub write_record
 	{
 	my ($self, $num) = (shift, shift);
+	my $type = shift;
 	my $data = join "", @_, "\x1a\x1a";
 	if ($num < $self->last_record() and $num != -1)
 		{
@@ -197,10 +207,19 @@ sub read_record
 sub write_record
 	{
 	my ($self, $num) = (shift, shift);
+	my $type = shift;
 	my $data = join "", @_;
 	my $length = length $data;
-	$data = pack ("CCCCV", "\xff", "\xff", "\x08", 0, $length)
-			.  $data . "\x1a\x1a";
+
+	my $startfield = pack "CCCC", "\xff", "\xff", "\x08", 0;
+	if (ref $self =~ /Fox$/)
+		{
+		if ($type eq 'P')	{ $startfield = pack 'V', 0; }
+		elsif ($type eq 'M')	{ $startfield = pack 'V', 1; }
+		else			{ $startfield = pack 'V', 2; }
+		}
+	$data = $startfield . pack ('V', $length) . $data . "\x1a\x1a";
+
 	if ($num < $self->last_record() and $num != -1)
 		{
 		my $buffer = $self->read_record($num);
@@ -223,6 +242,16 @@ sub write_record
 	$self->SUPER::write_record($num, $data);
 	$num;
 	}
+
+
+# #######################################
+# FoxPro specific memo methods (fpt file)
+
+package XBase::Memo::Fox;
+
+use XBase::Base;
+use vars qw( @ISA );
+@ISA = qw( XBase::Memo::dBaseIV );
 
 1;
 
