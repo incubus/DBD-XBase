@@ -445,7 +445,7 @@ sub decode_version_info
 	elsif ($version == 0x83)	{ $vbits = 3; $memo = 0; $dbtflag = 1;}
 	else {
 		$vbits = $version & 0x07;
-		$dbtflag = ($version >> 8) & 1;
+		$dbtflag = ($version >> 7) & 1;
 		$memo = ($version >> 3) & 1;
 		$sqltable = ($version >> 4) & 0x07;
 		}
