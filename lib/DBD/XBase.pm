@@ -19,7 +19,7 @@ use Exporter;
 use vars qw( $VERSION @ISA @EXPORT $err $errstr $drh $sqlstate );
 			# a couple of global variables that may come handy
 
-$VERSION = '0.190';
+$VERSION = '0.210';
 
 $err = 0;
 $errstr = '';
@@ -214,6 +214,8 @@ my %TYPE_INFO_TYPES = map { ( $TYPE_INFO_ALL[$_][0] => $_ ) } ( 1 .. $#TYPE_INFO
 my %REVTYPES = qw( C char N numeric F float L boolean D date M blob T time );
 my %REVSQLTYPES = map { ( $_ => $TYPE_INFO_ALL[  $TYPE_INFO_TYPES{ uc $REVTYPES{$_} } ][1] ) } keys %REVTYPES;
 
+### use Data::Dumper; print STDERR Dumper \@TYPE_INFO_ALL, \%TYPE_INFO_TYPES, \%REVTYPES, \%REVSQLTYPES;
+
 sub type_info_all {
 	my $dbh = shift;
 	my $result = [ @TYPE_INFO_ALL ];
@@ -388,7 +390,7 @@ sub execute {
 
 	# we expand selectall to list of fields
 	if (defined $parsed_sql->{'selectall'}) {
-		$parsed_sql->{'selectfields'} = [ $xbase->field_names ];
+		$parsed_sql->{'selectnames'} = [ $xbase->field_names ];
 		push @{$parsed_sql->{'usedfields'}}, $xbase->field_names;
 		$parsed_sql->{'selectfieldscount'} = scalar $xbase->field_names;
 	}
@@ -565,22 +567,20 @@ sub FETCH {
 	if ($attrib eq 'NAME') {
 		if (defined $sth->{'xbase_nondata_name'}) {
 			return $sth->{'xbase_nondata_name'};
-		} elsif (defined $parsed_sql->{'selectall'}) {
-			return [ $sth->{'Database'}->{'xbase_tables'}->{$parsed_sql->{'table'}[0]}->field_names ];
 		}
 		return [ @{$parsed_sql->{'selectnames'}} ];
 	} elsif ($attrib eq 'NULLABLE') {
-		return [ (1) x scalar(@{$parsed_sql->{'fields'}}) ];
+		return [ (1) x scalar(@{$parsed_sql->{'selectnames'}}) ];
 	} elsif ($attrib eq 'TYPE') {
-		return [ map { $REVSQLTYPES{$_} }
-			map { $sth->{'Database'}->{'xbase_tables'}->{$parsed_sql->{'table'}[0]}->field_type($_) }
-				@{$parsed_sql->{'fields'}} ];
+		return [ map { ( $REVSQLTYPES{$_} or undef ) }
+			map { ( $sth->{'Database'}->{'xbase_tables'}->{$parsed_sql->{'table'}[0]}->field_type($_)  or undef ) }
+				@{$parsed_sql->{'selectnames'}} ];
 	} elsif ($attrib eq 'PRECISION') {
 		return [ map { $sth->{'Database'}->{'xbase_tables'}->{$parsed_sql->{'table'}[0]}->field_length($_) }
-			@{$parsed_sql->{'fields'}} ];
+			@{$parsed_sql->{'selectnames'}} ];
 	} elsif ($attrib eq 'SCALE') {
 		return [ map { $sth->{'Database'}->{'xbase_tables'}->{$parsed_sql->{'table'}[0]}->field_decimal($_) }
-			@{$parsed_sql->{'fields'}} ];
+			@{$parsed_sql->{'selectnames'}} ];
 	} elsif ($attrib eq 'ChopBlanks') {
 		return $parsed_sql->{'ChopBlanks'};
 	} else {

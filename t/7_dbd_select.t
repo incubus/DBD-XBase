@@ -72,11 +72,11 @@ print "Got empty list\n" unless @line;
 print "not " if scalar(@line) != 0;
 print "ok 7\n";
 
-my $names;
-print "Check the NAME attribute\n";
-$names = $sth->{'NAME'};
-if ("@$names" ne 'ID MSG') {
-	print "Got @$names\nnot ";
+my $attrib;
+print "Check attributes NAME, TYPE, PRECISION\n";
+$attrib = "[@{$sth->{'NAME'}}] [@{$sth->{'TYPE'}}] [@{$sth->{'PRECISION'}}]";
+if ($attrib ne '[ID MSG] [2 1] [5 254]') {
+	print "Got $attrib\nnot ";
 }
 print "ok 8\n";
 
@@ -122,10 +122,10 @@ if ($result ne $expected_result) {
 }
 print "ok 11\n";
 
-print "Check the NAME attribute\n";
-$names = $sth->{'NAME'};
-if ("@$names" ne 'ROOMNAME FACILITY') {
-	print "Got @$names\nnot ";
+print "Check attributes NAME, TYPE, PRECISION\n";
+$attrib = "[@{$sth->{'NAME'}}] [@{$sth->{'TYPE'}}] [@{$sth->{'PRECISION'}}]";
+if ($attrib ne '[ROOMNAME FACILITY] [1 1] [10 10]') {
+	print "Got $attrib\nnot ";
 }
 print "ok 12\n";
 
@@ -302,10 +302,10 @@ if ($result ne $expected_result) {
 }
 print "ok 27\n";
 
-print "Check the NAME attribute\n";
-$names = $sth->{'NAME'};
-if ("@$names" ne 'FACILITY ROOMNAME') {
-	print "Got @$names\nnot ";
+print "Check attributes NAME, TYPE, PRECISION\n";
+$attrib = "[@{$sth->{'NAME'}}] [@{$sth->{'TYPE'}}] [@{$sth->{'PRECISION'}}]";
+if ($attrib ne '[FACILITY ROOMNAME] [1 1] [10 10]') {
+	print "Got $attrib\nnot ";
 }
 print "ok 28\n";
 
