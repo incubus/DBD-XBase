@@ -19,7 +19,7 @@ use XBase::Base;	# will give us general methods
 use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
-$VERSION = 0.0597;
+$VERSION = 0.0598;
 $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 
 *errstr = \$XBase::Base::errstr;
@@ -676,6 +676,12 @@ the record number.
 
 =back
 
+If you need to deal with the whole content of the dbf file, there is
+a method B<get_all_records>. It returns a reference to array
+containing array of values for each record. Only not deleted records
+are returned and so the C<_DELETED> flag is not included in the record
+data. As a parameter, pass list of fields to return.
+
 =head2 Writing the data
 
 All three writing methods always undelete the record. On success they
@@ -803,7 +809,7 @@ welcome.
 
 =head1 VERSION
 
-0.0597
+0.0598
 
 =head1 AUTHOR
 

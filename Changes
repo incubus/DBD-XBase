@@ -1,6 +1,19 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
+0.0598 Tue Mar 10 22:40:00 MET 1998
+	Fixed bug when finding a name for the memo file in XBase; in
+	dBaseIII memo field we will only check for one \x1a; typo in
+	init_memo fixed -- patches by Martin Jost.
+
+0.0597 Tue Mar  3 23:40:56 MET 1998
+	Code revision and check. Error handling fixed, locking added.
+	Rewritten rproc and wproc.
+	
+	Added read_all_records. Minor typos and bugs fixed.
+
+	Test suite extended.
+
 0.0583 Thu Feb 12 00:08:07 MET 1998
 	Bug fix for floating fields, patch by Carlos Augusto de
 	Almeida.
