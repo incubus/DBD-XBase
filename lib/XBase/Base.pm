@@ -76,7 +76,7 @@ in the file.
 
 =head1 VERSION
 
-0.03
+0.034
 
 =head1 AUTHOR
 
@@ -105,7 +105,7 @@ use Exporter;
 # ##############
 # General things
 
-$VERSION = "0.03";
+$VERSION = "0.034";
 
 # Sets the debug level
 $DEBUG = 0;
@@ -196,6 +196,21 @@ sub close
 	$self->{'fh'}->close();
 	delete @{$self}{'opened', 'fh'};
 	1;
+	}
+# Drop (unlink) the file
+sub drop
+	{
+	NullError();
+	my $self = shift;
+	my $filename = $self;
+	if (ref $self)
+		{
+		$filename = $self->{'filename'};
+		$self->close() if ($self->{'opened'});
+		}
+	unlink $filename or
+		do { Error "Error unlinking file $filename: $!\n"; return; };
+	1;	
 	}
 # Create new file
 sub create_file
