@@ -20,7 +20,7 @@ use XBase::Base;		# will give us general methods
 use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
-$VERSION = '0.160';
+$VERSION = '0.161';
 $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 
 *errstr = \$XBase::Base::errstr;
@@ -114,7 +114,7 @@ sub read_header
 			$rproc = sub { my $value = shift;
 				($value =~ /\d/) ? $value + 0 : undef; };
 			$wproc = sub { my $value = shift;
-				if (defined $value) { sprintf '%*.*f', $length, $decimal, ($value + 0); }
+				if (defined $value) { substr(sprintf('%*.*f', $length, $decimal, ($value + 0)), -$length); }
                                 else { ' ' x $length; } };
 			}
 		elsif ($type eq 'I')		# Fox integer
@@ -1309,7 +1309,7 @@ Thanks a lot.
 
 =head1 VERSION
 
-0.160
+0.161
 
 =head1 AUTHOR
 

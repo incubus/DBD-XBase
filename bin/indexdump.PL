@@ -36,8 +36,8 @@ GetOptions('debug:i' => sub { my $key = shift; my $val = shift;
 				else { die "Unknown index type `$val'\n"; }
 		},
 	'start=s' => \$startvalue,
-	'tag=s' => { $opts{'tag'} = $_[1]; }
-	'n' => sub { $showtotal = 1; }
+	### 'tag=s' => sub { $opts{'tag'} = $_[1]; },
+	'n' => sub { $showtotal = 1; },
 	);
 $opts{'type'} = $type if defined $type;
 

@@ -15,7 +15,7 @@ $VERSION = '0.160';
 
 $DEBUG = 0;
 
-$VERBOSE = 1 unless defined $VERBOSE;
+$VERBOSE = 0 unless defined $VERBOSE;
 
 # Open appropriate index file and create object according to suffix
 sub new
@@ -24,13 +24,13 @@ sub new
 	my @opts = @_;
 print "XBase::Index::new($class, $file, @_)\n" if $XBase::Index::VERBOSE;
 	if (ref $class) { @opts = ('dbf', $class, @opts); }
-	my ($ext) = ($file =~ /\.(...)$/i);
+	my ($ext) = ($file =~ /\.(...)$/);
 	$ext = lc $ext;
 
 	my $object = eval "new XBase::$ext \$file, \@opts";
 	return $object if defined $object;
 
-	__PACKAGE__->Error("Error loading index: unknown extension\n");
+	__PACKAGE__->Error("Error loading index: unknown extension\n") if $@;
 	return;
 	}
 
@@ -126,7 +126,7 @@ sub fetch
 			$val = undef;
 			next;
 			}
-		# if we're luck and got the value, return it	
+		# if we're lucky and got the value, return it	
 		if (defined $val)
 			{
 			return ($key, $val);
@@ -222,7 +222,7 @@ sub prepare_select_eq
 			# behind the correct value
 			if (not defined $key)
 				{ last; }
-			if ($numdate ? $key >= $eq : $key ge $eq)
+			if ($numdate == 1 ? $key >= $eq : $key ge $eq)
 				{ last; }
 			$row++;
 			}
@@ -694,7 +694,7 @@ sub read_header
 	{
 	my $self = shift;
 	my %opts = @_;
-	my $expr_name = $opts{'expr'};
+	my $expr_name = $opts{'tag'};
 
 	my $header;
 	$self->{'dbf'} = $opts{'dbf'};
@@ -736,14 +736,12 @@ sub read_header
 			key_type_1 res key_length max_no_keys_per_page
 			second_key_type key_record_length res unique) }
 				 = unpack 'VVca1vvvvva3c', $header;
-		$self->seek_to($tag->{'root_page_ptr'} * 512) or do
-			{ __PACKAGE__->Error($self->errstr); return; };
 		}
 
 ## use Data::Dumper;
 ## print Dumper $self;
 
-	if (defined $self->{'tags'}{$expr_name})
+	if (defined $expr_name and defined $self->{'tags'}{$expr_name})
 		{
 		$self->{'active'} = $self->{'tags'}{$expr_name};
 		$self->{'start_page'} = $self->{'active'}{'start_page'};
@@ -876,22 +874,27 @@ sub read_header
 ## 	unpack("H*", $header), "\n";
 ## 	}
 
-	$self->prepare_select;
-	while (my ($tag) = $self->fetch) {
-		push @{$self->{'tags'}}, $tag;
+	if (not defined $self->{'tag'}) {	# top level
+		$self->prepare_select;
+		while (my ($tag) = $self->fetch) {
+			push @{$self->{'tags'}}, $tag;
+			}
 		}
-	
+### use Data::Dumper; print Dumper \%opts;
+
 	if (defined $opts{'tag'}) {
-		my $subidx = bless { %$self }, ref $self;
-
 		$self->prepare_select_eq($opts{'tag'});
-		my $value = $self->fetch;
+		my ($foundkey, $value) = $self->fetch;
 
+		if (not defined $foundkey or $opts{'tag'} ne $foundkey) {
+			__PACKAGE__->Error("No tag $opts{'tag'} found in index file $self->{'filename'}.\n"); return; };
+
+		my $subidx = bless { %$self }, ref $self;
 		print "Adjusting start_page value by $value for $opts{'tag'}\n" if $DEBUG;
 		$subidx->{'fh'}->seek($value, 0);
-		$subidx->read_header;
 		$subidx->{'adjusted_offset'} = $value;
 		$subidx->{'tag'} = $opts{'tag'};
+		$subidx->read_header;
 
 		my $key_string = $subidx->{'key_string'};
 		my $field_type;
@@ -910,6 +913,10 @@ sub read_header
 			return;
 			}
 		$subidx->{'key_type'} = ($field_type =~ /^[NDIF]$/ ? 1 : 0);
+		if ($field_type eq 'D') {
+			$subidx->{'key_type'} = 2;
+			require Time::JulianDay;
+			}
 
 		for (keys %$self) { delete $self->{$_} }
 		for (keys %$subidx) { $self->{$_} = $subidx->{$_} }
@@ -992,11 +999,11 @@ sub new
 			substr($data, -$getlength) = '' if $getlength;
 			$prevkeyval = $key;
 
+### print "Numdate $numdate\n";
 			if ($numdate)
 				{		# some decoding for numbers
 ### print " *** In: ", unpack("H*", $key), "\n";
 				if (0x80 & unpack('C', $key)) {
-				### if ("\200" & substr($key, 0, 1)) {
 					substr($key, 0, 1) &= "\177";
 					}
 				else { $key = ~$key; }
@@ -1006,6 +1013,10 @@ sub new
 					}
 				else {
 					$key = unpack 'N', $key;
+					}
+				if ($numdate == 2 and $key) {	# date
+					$key = sprintf "%04d%02d%02d",
+						Time::JulianDay::inverse_julian_day($key);
 					}
 				}
 			else {
@@ -1017,7 +1028,6 @@ sub new
 			push @$values, $recno;
 			}
 		}
-
 	else {
 		for (my $i = 0; $i < $noentries; $i++) {
 			my $offset = 12 + $i * ($keylength + 8);
@@ -1040,6 +1050,10 @@ sub new
 				else {
 					$key = unpack 'N', $key;
 					}
+				if ($numdate == 2 and $key) {	# date
+					$key = sprintf "%04d%02d%02d",
+						Time::JulianDay::inverse_julian_day($key);
+					}
 				}
 			else {
 				$key =~ s/\000+$//;
@@ -1050,6 +1064,7 @@ sub new
 			$lefts = [] unless defined $lefts;
 			push @$lefts, $page / 512;
 			}
+		$opts{'last_key_is_just_overflow'} = 1;
 		}
 
 	my $self = bless { 'keys' => $keys, 'values' => $values,
@@ -1057,7 +1072,8 @@ sub new
 		'lefts' => $lefts, 'indexfile' => $indexfile,
 		'attributes' => $attributes,
 		'left_brother' => $left_brother,
-		'right_brother' => $right_brother, %opts }, __PACKAGE__;
+		'right_brother' => $right_brother, %opts,
+		}, __PACKAGE__;
 
 	my $outdata = $self->prepare_scalar_for_write;
 	if (0 and $outdata ne $origdata) {

@@ -287,7 +287,7 @@ my %STORE = (
 	'WHEREEXPR' => sub { my $self = shift;
 		my $expr = join ' ', get_strings(@_);
 		### print STDERR "Evalling: $expr\n";
-		use Data::Dumper;
+		### use Data::Dumper;
 		my $fn = eval '
 			sub { 
 			### print Dumper @_;
@@ -389,7 +389,7 @@ sub parse
 		$self->store_results(\@result, \%STORE);
 		if (defined $self->{'whereerror'})
 			{ $self->{'errstr'} = "Some deeper problem: eval failed: $self->{'whereerror'}"; }
-		use Data::Dumper; print STDERR "Parsed $string to\n", Dumper $self if $ENV{'SQL_DUMPER'};
+		### use Data::Dumper; print STDERR "Parsed $string to\n", Dumper $self if $ENV{'SQL_DUMPER'};
 		}
 	$self;
 	}
