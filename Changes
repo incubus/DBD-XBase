@@ -10,6 +10,9 @@ Revision history for Perl extension XBase and DBD::Xbase.
 
 	t/5_dbd_select*: tests extended.
 
+	dbfdump: Accepts --SQL modifier to --info, prints structure
+	of the table as a create table SQL.
+
 0.147 Mon Aug 16 10:48:37 MET DST 1999
 	XBase::SQL and DBD::XBase: fixed broken handling of NAME
 	attribute, introduced in 0.145 by an attempt to support
