@@ -119,16 +119,10 @@ sub get_record_offset
 	my ($header_len, $record_len) = ($self->{'header_len'},
 						$self->{'record_len'});
 	unless (defined $header_len and defined $record_len)
-		{
-		$self->Error("Header and record lengths not known in get_record_offset\n");
-		return;
-		}
+		{ $self->Error("Header and record lengths not known in get_record_offset\n"); return; }
 	unless (defined $num)
-		{
-		$self->Error("Number of the record must be specified in get_record_offset\n");
-		return;
-		}
-	return $header_len + $num * $record_len;	
+		{ $self->Error("Number of the record must be specified in get_record_offset\n"); return; }
+	return $header_len + $num * $record_len;
 	}
 # Will get ready to write record of specified number
 sub seek_to_record
@@ -182,11 +176,16 @@ sub read_from
 	unless (defined $offset)
 		{ $self->Error("Offset to read from must be specified\n"); return; }
 	$self->seek_to($offset) or return;
+	my $length = $in_length;
+	$length = -$length if $length < 0;
 	my $buffer;
-	defined($self->{'fh'}->read($buffer, $in_length)) or return;
+	my $read = $self->{'fh'}->read($buffer, $length);
+	return if not defined $read or ($in_length > 0 and $read != $in_length);
 	$buffer;
 	}
-# Write the record of given number
+
+
+# Write the given record
 sub write_record
 	{
 	my ($self, $num) = (shift, shift);
@@ -195,8 +194,7 @@ sub write_record
 	unless (defined $ret) { return; }
 	( $num == 0 ) ? '0E0' : $num;
 	}
-
-# Write to offset
+# Write data directly to offset
 sub write_to
 	{
 	my ($self, $offset) = (shift, shift);

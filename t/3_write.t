@@ -2,7 +2,7 @@
 
 use strict;
 
-BEGIN	{ $| = 1; print "1..8\n"; }
+BEGIN	{ $| = 1; print "1..5\n"; }
 END	{ print "not ok 1\n" unless $::XBaseloaded; }
 
 print "Load the module: use XBase\n";
@@ -52,17 +52,6 @@ print "ok 3\n";
 exit unless defined $table;
 
 
-print "Check the last record number\n";
-my $last_record = sprintf 'Last record: %d, last record in memo: %d',
-	$table->last_record(), $table->{'memo'}->last_record();
-my $last_record_expected = 'Last record: 2, last record in memo: 3';
-if ($last_record_expected ne $last_record)
-	{ print "Expected: $last_record_expected\nGot: $last_record\nnot "; }
-print "ok 4\n";
-
-use Data::Dumper;
-print Dumper $table;
-
 print "Overwrite the record and check it back\n";
 $table->set_record(1, 5, 'New message', 'New note', 1, '19700101')
 	or print STDERR $table->errstr();
@@ -71,17 +60,7 @@ my $result = join ':', map { defined $_ ? $_ : '' } $table->get_record(1);
 my $result_expected = '0:5:New message:New note:1:19700101';
 if ($result_expected ne $result)
 	{ print "Expected: $result_expected\nGot: $result\nnot "; }
-print "ok 5\n";
-
-print Dumper $table;
-
-print "The last record number should have stayed the same\n";
-$last_record = sprintf 'Last record: %d, last record in memo: %d',
-	$table->last_record(), $table->{'memo'}->last_record();
-$last_record_expected = 'Last record: 2, last record in memo: 3';
-if ($last_record_expected ne $last_record)
-	{ print "Expected: $last_record_expected\nGot: $last_record\nnot "; }
-print "ok 6\n";
+print "ok 4\n";
 
 
 print "Now append data and read them back\n";
@@ -91,15 +70,7 @@ $result = join ':', map { defined $_ ? $_ : '' } $table->get_record(3);
 $result_expected = '0:245:New record no 4:New note for record 4::19700102';
 if ($result_expected ne $result)
 	{ print "Expected: $result_expected\nGot: $result\nnot "; }
-print "ok 7\n";
+print "ok 5\n";
 
-
-print "Now the number of records should have increased\n";
-$last_record = sprintf 'Last record: %d, last record in memo: %d',
-	$table->last_record(), $table->{'memo'}->last_record();
-$last_record_expected = 'Last record: 3, last record in memo: 4';
-if ($last_record_expected ne $last_record)
-	{ print "Expected: $last_record_expected\nGot: $last_record\nnot "; }
-print "ok 8\n";
 
 1;

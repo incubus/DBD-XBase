@@ -1,3 +1,4 @@
+# #######################################################
 
 =head1 NAME
 
@@ -5,14 +6,10 @@ XBase - Perl module for reading and writing the dbf files
 
 =cut
 
-# ########
-use 5.004;		# Yes, 5.004 and everything should be fine
-
-# #############################
-# Here starts the XBase package
-
+# ############
 package XBase;
 
+use 5.004;		# Yes, 5.004 and everything should be fine
 use strict;
 use XBase::Base;	# will give us general methods
 
@@ -22,26 +19,24 @@ use XBase::Base;	# will give us general methods
 use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
-
-$VERSION = '0.0594';
+$VERSION = '0.0595';
+$CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 
 *errstr = \$XBase::Base::errstr;
 
-# If set, will cut off the spaces and nulls from ends of character fields
-$CLEARNULLS = 1;
 
-# ########################
-# Constructor, open, close
+# #########################################
+# Open, read_header, init_memo_field, close
 
-# Open the specified file or try to append .dbf suffix.
+# Open the specified file or try to append the .dbf suffix.
 sub open
 	{
 	my ($self, $filename) = @_;
-	$self->SUPER::open($filename) and return 1;
 	if (not $filename =~ /\.dbf$/i and
 		( $self->SUPER::open($filename . '.DBF') or
-			$self->SUPER::open($filename . '.dbf')))
-				{ return 1; }
+				$self->SUPER::open($filename . '.dbf')))
+			{ return 1; }
+	$self->NullError();
 	$self->SUPER::open($filename) and return 1;
 	return;
 	}
@@ -59,9 +54,9 @@ sub read_header
 		= unpack 'Ca3Vvv', $header;	# parse the data
 
 	my ($names, $types, $lengths, $decimals) = ( [], [], [], [] );
-	my $unpacks = [ ];
-	my $readproc = [ ];
+	my ($unpacks, $readproc, $writeproc) = ( [], [], [] );
 	my $lastoffset = 1;
+	
 	while (tell($fh) < $header_len - 1)	# will read the field desc's
 		{
 		my $field_def;
@@ -83,11 +78,23 @@ sub read_header
 			# fixup for char length > 256
 			$length += 256 * $decimal; $decimal = 0;
 			push @$readproc, \&_read_char;
+			push @$writeproc, sub { my $value = shift;
+				sprintf '%-*.*s', $length, $length,
+					(defined $value ? $value : ''); };
 			}
 		elsif ($type eq 'L')
-			{ push @$readproc, \&_read_boolean; }
+			{
+			push @$readproc, \&_read_boolean;
+			push @$writeproc, sub { my $value = shift;
+				sprintf '%-*.*s', $length, $length,
+					(defined $value ? ( $value ? 'Y' : 'N') : '? '); };
+			}
 		elsif ($type =~ /^[NFD]$/)
-			{ push @$readproc, \&_read_number; }
+			{
+			push @$readproc, \&_read_number;
+			push @$writeproc, sub { sprintf '%*.*f',
+					$length, $decimal, (shift() + 0); };
+			}
 		elsif ($type =~ /^[MGBP]$/)
 			{
 			my $memo = $self->{'memo'};
@@ -96,8 +103,12 @@ sub read_header
 			push @$readproc, sub {
 				my $value = shift;
 				return undef unless $value =~ /\d/;
-				$memo->read_record($value);
+				$memo->read_record($value) if defined $memo;
 				};
+			push @$writeproc, sub {
+				my $value = $memo->write_record(-1, $type, shift) if defined $memo;
+				sprintf '%*.*s', $length, $length,
+					(defined $value ? $value : ''); };
 			}
 
 		push @$names, $name;
@@ -115,11 +126,11 @@ sub read_header
 	@{$self}{ qw( version last_update num_rec header_len record_len
 		field_names field_types field_lengths field_decimals
 		hash_names last_field field_unpacks
-		field_rproc ) } =
+		field_rproc field_wproc ) } =
 			( $version, $last_update, $num_rec, $header_len,
 			$record_len, $names, $types, $lengths, $decimals,
 			$hashnames, $#$names, $unpacks,
-			$readproc );
+			$readproc, $writeproc );
 
 	1;	# return true since everything went fine
 	}
@@ -190,6 +201,8 @@ sub field_decimal
 	($self->field_decimals)[$num];
 	}
 sub version { shift->{'version'}; }
+
+
 
 # #############################
 # Header, field and record info
@@ -347,8 +360,10 @@ sub set_record
 	{
 	my ($self, $num) = (shift, shift);
 	$self->NullError();
-	my @data = $self->process_list_on_write($num, @_,
-				(undef) x ($self->last_field - $#_));
+	my $wproc = $self->{'field_wproc'};
+	my ($i, @data);
+	for ($i = 0; $i <= $#$wproc; $i++)
+		{ $data[$i] = &{ $wproc->[$i] }(shift); }
 	$self->write_record($num, ' ', @data);
 	}
 
@@ -388,12 +403,6 @@ sub write_record
 	$self->update_last_change or return;
 	$ret;
 	}
-sub _new_set_record
-	{
-	my ($self, $num) = (shift, shift);
-	$self->NullError();
-	
-	}
 
 # Delete and undelete record
 sub delete_record
@@ -409,78 +418,6 @@ sub undelete_record
 	$self->NullError();
 	$self->write_record($num, " ");
 	1;
-	}
-
-# Convert Perl values to those in dbf
-sub process_list_on_write
-	{
-	my ($self, $rec_num) = (shift, shift);
-
-	my @types = @{$self->{'field_types'}};
-	my @lengths = @{$self->{'field_lengths'}};
-	my @decimals = @{$self->{'field_decimals'}};
-
-	my @data = ();
-	my $num;
-	my $value;
-	for $num (0 .. $self->last_field())
-		{
-		my ($type, $length, $decimal) = ($types[$num],
-				$lengths[$num], $decimals[$num]);
-		
-		$value = shift;
-		if ($type eq 'C')
-			{
-			$value .= "";
-			$value = sprintf "%-$length.${length}s", $value;
-			}
-		elsif ($type eq 'L')
-			{
-			if (not defined $value)	{ $value = "?"; }
-			elsif ($value == 1)	{ $value = "Y"; }
-			elsif ($value == 0)	{ $value = "N"; }
-			else			{ $value = "?"; }
-			$value = sprintf "%-$length.${length}s", $value;
-			}
-		elsif ($type =~ /^[NFD]$/)
-			{
-			$value += 0;
-			$value = sprintf "%$length.${decimal}f", $value;
-			}
-		elsif ($type =~ /^[MGBP]$/)
-			{
-			if (defined $self->{'memo'})
-				{
-				my $memo_index;
-				# we need to figure out, where in memo file
-				# to store the data
-				if ($rec_num <= $self->last_record())
-					{
-					$memo_index = ($self->read_record($rec_num))[$num + 1];
-					}
-				$memo_index = -1 if not defined $memo_index or $memo_index =~ /^ +$/;
-				
-				# we suggest but memo object may
-				# choose another location	
-			
-				$memo_index = $self->{'memo'}
-					->write_record($memo_index,
-							$type, $value);
-				$value = $memo_index + 0;
-				}
-			else
-				{ $value = ""; }
-			$value = sprintf "%"."$length.$length"."s", $value;
-			}
-		else
-			{
-			$value .= "";
-			$value = sprintf "%-$length.${decimal}s", $value;
-			}
-		}
-	continue
-		{ $data[$num] = $value; }
-	@data;
 	}
 
 # Update the last change date
@@ -626,7 +563,7 @@ B<Warning> for now: XBase doesn't support any index files at present!
 That means if you change your dbf, your idx/mdx (if you have any) will
 not match. You will need to regenerate them using other tools --
 probably those that later make use of them. If you do not have any
-indexes, do not vorry about them.
+indexes, do not worry about them.
 
 The following methods are supported by XBase module:
 
@@ -663,12 +600,12 @@ strings (C, N, L, D). If you set some value as undefined, create will
 make it into some reasonable default.
 
 The new file mustn't exist yet -- XBase will not allow you to
-overwrite existing table. Use B<drop> to delete it first (or unlink).
+overwrite existing table. Use B<drop> (or unlink) to delete it first.
 
 =item drop
 
-This method closes the table and deletes it on disk (including dbt
-file, if there is any).
+This method closes the table and deletes it on disk (including
+associated memo file, if there is any).
 
 =item last_record
 
@@ -846,7 +783,7 @@ welcome.
 
 =head1 VERSION
 
-0.059
+0.0595
 
 =head1 AUTHOR
 

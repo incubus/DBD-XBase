@@ -60,11 +60,11 @@ sub read_header
 sub write_record
 	{
 	my ($self, $num) = (shift, shift);
-	my $length = length(join "", @_);
+	my $length = length(join '', @_);
 	my $record_len = $self->{'record_len'};
 	my $num_of_blocks = int (($length + $record_len - 1) / $record_len);
 	$self->SUPER::write_record($num, @_);
-	if ($num > $self->last_record())
+	if ($num < 0 or $num > $self->last_record())
 		{
 		$self->SUPER::write_to(0, pack "V", $num + $num_of_blocks);
 		$self->{'next_for_append'} = $num + $num_of_blocks;
@@ -119,7 +119,7 @@ sub write_record
 	my ($self, $num) = (shift, shift);
 	my $type = shift;
 	my $data = join "", @_, "\x1a\x1a";
-	if ($num < $self->last_record() and $num != -1)
+	if ($num > 0 and $num < $self->last_record())
 		{
 		my $buffer = $self->read_record($num);
 		if (defined $buffer)
@@ -135,9 +135,7 @@ sub write_record
 			}
 		}
 	else
-		{
-		$num = $self->last_record() + 1;
-		}
+		{ $num = $self->last_record() + 1; }
 	$self->SUPER::write_record($num, $data);
 	$num;
 	}
@@ -155,11 +153,11 @@ sub read_record
 	{
 	my ($self, $num) = @_;
 	my $result = '';
-	my $last = $self->last_record();
+	my $last = $self->last_record;
 
-	my $buffer = $self->SUPER::read_record($num, -1);
+	my $buffer = $self->SUPER::read_record($num, -1));
 	if (not defined $buffer) { return; }
-	my ($unused_id, $length) = unpack "VV", $buffer;
+	my ($unused_id, $length) = unpack 'VV', $buffer;
 	my $block_size = $self->{'record_len'};
 	if ($length < $block_size - 8)
 		{ return substr $buffer, 8, $length; }
