@@ -50,21 +50,28 @@ sub read_header
 		{ Error "Error reading header of $self->{'filename'}\n";
 		return; };
 
-	my ($root_page1, $root_page2, $free_list, $version, $key_len,
-		$index_opts, $index_sign, $reserved1, $sort_order,
-		$total_exp_len, $for_exp_len, $reserved2, $key_exp_len)
-		= unpack "nnNNvCCA486vvvvv", $header;
+	my ($root_page1, $root_page2, $free_list, $total_no_pages,
+		$key_len, $index_opts, $index_sign, $reserved1,
+		$sort_order, $total_exp_len, $for_exp_len,
+		$reserved2, $key_exp_len)
+			= unpack "nnNNvCCA486vvvvv", $header;
 
 	my $root_page = $root_page1 | ($root_page2 << 16);
 
-	@{$self}{ qw( root_page free_list version key_len index_opts
+	@{$self}{ qw( root_page free_list total_no_pages key_len index_opts
 		index_sign sort_order total_exp_len for_exp_len
 		key_exp_len ) }
-			= ($root_page, $free_list, $version, $key_len,
+			= ($root_page, $free_list, $total_no_pages, $key_len,
 			$index_opts, $index_sign, $sort_order,
 			$total_exp_len, $for_exp_len, $key_exp_len);
 
 	1;
+	}
+
+sub dump_records
+	{
+	my $self = shift;
+
 	}
 
 1;
