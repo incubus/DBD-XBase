@@ -278,7 +278,19 @@ sub new
 	$errstr = $XBase::Base::errstr unless $result;
 	$result;
 	}
-
+sub open
+	{
+	my $self = shift;
+	if (not defined $self->{'opened'} or not $self->{'opened'})
+		{
+		if (@_ and not defined $self->{'filename'})
+			{ $self->{'filename'} = shift; }
+		my $filename = $self->{'filename'};
+		if ((not -f $filename) and $filename !~ /\.dbf$/i)
+			{ $self->{'filename'} = $filename . '.dbf'; }
+		}
+	$self->SUPER::open(@_);
+	}
 # We have to provide way to fill up the object upon open
 sub read_header
 	{
