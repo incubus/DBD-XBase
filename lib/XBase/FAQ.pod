@@ -196,6 +196,17 @@ is also much more resource intensive, if you just need to read the
 file record by record and convert it to HTML page or do similary
 simple operation with it.
 
+=item How do I pack the dbf file, after the records were deleted?
+
+B<XBase.pm> doesn't support this directly. You'd probably want to
+create new table, copy the data and rename back. Patches are always
+welcome.
+
+=item Foxpro doesn't see all fields in dbf created with B<XBase.pm>.
+
+Put 'version' => 3 options in to the create call -- that way we say
+that the dbf file is dBaseIII style.
+
 =back
 
 =cut

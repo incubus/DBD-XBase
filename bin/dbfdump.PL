@@ -16,6 +16,8 @@ print OUT <<'EOBODY';
 
 use XBase;
 use Getopt::Long;
+use strict;
+$^W = 1;
 
 my $stdin = 0;
 
@@ -25,7 +27,8 @@ if (defined $ARGV[$#ARGV] and $ARGV[$#ARGV] eq '-')
 my %options;
 Getopt::Long::GetOptions( \%options,
 	'help', 'version', 'info', 'rs=s', 'fs=s', 'undef=s', 'fields=s',
-	'nomemo', 'memofile=s', 'memosep=s', 'table'
+	'nomemo', 'memofile=s', 'memosep=s', 'table',
+	'SQL',
 	) or exit;
 
 if (defined $options{'version'})
@@ -71,7 +74,45 @@ for $file (@ARGV)
 		next;
 		}
 	if (defined $options{'info'})
-		{ print $table->header_info; }
+		{
+		if (not defined $options{'SQL'}) {
+			print $table->header_info;
+			}
+		else {
+			my $name = $file;
+			$name =~ s!^.*/|\.dbf$!!ig;
+			print "create table $name (\n";
+			my @names = $table->field_names;
+			my %conv = qw!
+				C varchar
+				N numeric
+				F numeric
+				L boolean
+				M blob
+				D date
+				T time
+				!;
+			my @types = map { $conv{$_} } $table->field_types;
+			my @lengths = $table->field_lengths;
+			my @decimals = $table->field_decimals;
+			for (my $i = 0; $i < @names; $i++) {
+				print "\t$names[$i] $types[$i]";
+				if ($types[$i] eq 'blob') {
+					$lengths[$i] = $decimals[$i] = undef;
+					}
+				if ($lengths[$i] or $decimals[$i]) {
+					print "($lengths[$i]";
+					print ", $decimals[$i]" if $decimals[$i];
+					print ")";
+					}
+				if (defined $names[$i+1]) {
+					print ',';
+					}
+				print "\n";
+				}
+			print ")\n";
+			}
+		}
 	else
 		{ $table->dump_records(%options); }
 	$table->close;
@@ -100,8 +141,9 @@ where options are
 
 	--nomemo	do not try to read the memo (dbt/fpt) file
 	--info		print info about the file and fields
+		with additional --SQL parameter, outputs the SQL create table
 	--version	print version of the XBase library
-	--table		output in nice table format (only available is
+	--table		output in nice table format (only available when
 		Data::ShowTable is installed, overrides rs and fs)
 
 =head1 SYNOPSIS

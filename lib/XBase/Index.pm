@@ -7,19 +7,22 @@ XBase::Index - base class for the index files for dbf
 
 package XBase::Index;
 use strict;
-use vars qw( @ISA $DEBUG $VERSION );
+use vars qw( @ISA $DEBUG $VERSION $VERBOSE );
 use XBase::Base;
 @ISA = qw( XBase::Base );
 
-$VERSION = '0.159';
+$VERSION = '0.160';
 
 $DEBUG = 0;
+
+$VERBOSE = 1 unless defined $VERBOSE;
 
 # Open appropriate index file and create object according to suffix
 sub new
 	{
 	my ($class, $file) = (shift, shift);
 	my @opts = @_;
+print "XBase::Index::new($class, $file, @_)\n" if $XBase::Index::VERBOSE;
 	if (ref $class) { @opts = ('dbf', $class, @opts); }
 	my ($ext) = ($file =~ /\.(...)$/i);
 	$ext = lc $ext;
@@ -154,6 +157,12 @@ sub fetch
 	return;	
 	}
 
+# Get list of tags in the indexfile (an indexfile may not have any)
+sub tags {
+	my $self = shift;
+	@{$self->{'tags'}} if defined $self->{'tags'};
+	}
+
 # Method allowing to refetch the active values (key, val) without
 # rolling forward
 sub fetch_current {
@@ -270,7 +279,7 @@ sub num_keys
 
 sub delete {
 	my ($self, $key, $value) = @_;
-	print "XBase::Index::delete($key, $value) called\n";
+	print "XBase::Index::delete($key, $value) called ($self->{'tag'} -> $self->{'key_string'}/$self->{'for_string'})\n" if $XBase::Index::VERBOSE;
 	$self->prepare_select_eq($key, $value) or return;
 	my ($foundkey, $foundvalue) = $self->fetch_current;
 
@@ -279,12 +288,12 @@ sub delete {
 		$self->delete_current;
 		return 1;
 		}
-	print STDERR "$key/$value is not in the index (wanted to delete)\n";
+	print "$key/$value is not in the index (wanted to delete)\n" if $XBase::Index::VERBOSE;
 	undef;
 	}
 sub insert {
 	my ($self, $key, $value) = @_;
-	print "XBase::Index::insert($key, $value) called\n";
+	print "XBase::Index::insert($key, $value) called\n" if $XBase::Index::VERBOSE;
 
 	$self->prepare_select_eq($key, $value) or return;
 	my ($foundkey, $foundvalue) = $self->fetch_current;
@@ -300,7 +309,7 @@ sub insert {
 
 sub delete_current {
 	my $self = shift;
-	print STDERR "Delete_current called\n";
+	print "Delete_current called\n" if $XBase::Index::VERBOSE;
 	my $level = $self->{'level'};
 	my $page = $self->{'pages'}[$level];
 	my $row = $self->{'rows'}[$level];
@@ -323,7 +332,7 @@ sub delete_current {
 
 sub insert_before_current {
 	my ($self, $key, $value) = @_;
-	print STDERR "Insert_current called ($key $value)\n";
+	print "Insert_current called ($key $value)\n" if $XBase::Index::VERBOSE;
 	my $level = $self->{'level'};
 	my $page = $self->{'pages'}[$level];
 	my $row = $self->{'rows'}[$level];
@@ -860,17 +869,18 @@ sub read_header
 	$self->{'header_len'} = 0;
 	$self->{'key_type'} = 0;
 
-=comment
+## my $out = $self->prepare_write_header;
+## if ($out ne $header) {
+## 	print STDERR "I won't be able to write the header back\n",
+## 	unpack("H*", $out), "\n ++\n",
+## 	unpack("H*", $header), "\n";
+## 	}
 
-my $out = $self->prepare_write_header;
-if ($out ne $header) {
-	print STDERR "I won't be able to write the header back\n",
-			unpack("H*", $out), "\n ++\n",
-			unpack("H*", $header), "\n";
-	}
-
-=cut
-
+	$self->prepare_select;
+	while (my ($tag) = $self->fetch) {
+		push @{$self->{'tags'}}, $tag;
+		}
+	
 	if (defined $opts{'tag'}) {
 		my $subidx = bless { %$self }, ref $self;
 
@@ -881,6 +891,7 @@ if ($out ne $header) {
 		$subidx->{'fh'}->seek($value, 0);
 		$subidx->read_header;
 		$subidx->{'adjusted_offset'} = $value;
+		$subidx->{'tag'} = $opts{'tag'};
 
 		my $key_string = $subidx->{'key_string'};
 		my $field_type;
@@ -1670,11 +1681,11 @@ directory.
 
 =head1 VERSION
 
-0.141
+0.160
 
 =head1 AUTHOR
 
-(c) 1998--1999 Jan Pazdziora, adelton@fi.muni.cz
+(c) 1998--2000 Jan Pazdziora, adelton@fi.muni.cz
 
 =head1 SEE ALSO
 

@@ -1,4 +1,6 @@
 
+use 5.004;
+
 eval 'use DBI';
 if ($@ ne '') {
 	print <<EOF;
@@ -28,10 +30,11 @@ WriteMakefile(
 	'AUTHOR'	=> 'Jan Pazdziora (adelton@fi.muni.cz)',
 	'ABSTRACT'	=> 'Reads and writes XBase (dbf) files, includes DBI support',
 		) : ()),
-	'PL_FILES'	=> { 'bin/dbfdump.PL' => 'bin/dbfdump' },
-	'EXE_FILES'	=> [ 'bin/dbfdump' ],
+	'PL_FILES'	=> { 'bin/dbfdump.PL' => 'bin/dbfdump',
+				'bin/indexdump.PL' => 'bin/indexdump' },
+	'EXE_FILES'	=> [ 'bin/dbfdump', ' bin/indexdump' ],
         'dist'		=> { COMPRESS => 'gzip -9f', SUFFIX => 'gz',
 		POSTOP => 'mv $(DISTNAME)-$(VERSION).tar.gz ../' },
-	'clean'		=> { FILES => 'bin/dbfdump t/newtable.dbf t/newtable.dbt t/write.dbf t/write.dbt'},	
+	'clean'		=> { FILES => 'bin/dbfdump bin/indexdump t/newtable.dbf t/newtable.dbt t/write.dbf t/write.dbt t/rooms1.dbf t/rooms1.cdx '},	
 	);
 

@@ -20,7 +20,7 @@ use XBase::Base;		# will give us general methods
 use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
-$VERSION = '0.159';
+$VERSION = '0.160';
 $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 
 *errstr = \$XBase::Base::errstr;
@@ -197,6 +197,10 @@ sub read_header
 				return pack 'VV', $day, $time;	
 				}
 			}
+		elsif ($type eq '0') {    # SNa : field "_NULLFLAGS"
+			$rproc = $wproc = sub { '' };
+			}
+
 		$name =~ s/[\000 ].*$//s;
 		$name = uc $name;		# no locale yet
 		push @$names, $name;
@@ -511,12 +515,27 @@ sub get_all_records
 # Record is always undeleted
 sub set_record
 	{
-	my ($self, $num) = (shift, shift);
+	my ($self, $num, @data) = @_;
 	$self->NullError();
 	my $wproc = $self->{'field_wproc'};
-	my ($i, @data);
-	for ($i = 0; $i <= $#$wproc; $i++)
-		{ $data[$i] = &{ $wproc->[$i] }(shift); }
+
+	if (defined $self->{'attached_index_columns'}) {
+		my @nfs = keys %{$self->{'attached_index_columns'}};
+		my ($del, @old_data) = $self->get_record_nf($num, @nfs);
+
+		local $^W = 0;
+		for my $nf (@nfs) {
+			if ($old_data[$nf] ne $data[$nf]) {
+				for my $idx (@{$self->{'attached_index_columns'}{$nf}}) {
+					$idx->delete($old_data[$nf], $num + 1);
+					$idx->insert($data[$nf], $num + 1);
+					}
+				}
+			}
+		}
+
+	for (my $i = 0; $i <= $#$wproc; $i++)
+		{ $data[$i] = &{ $wproc->[$i] }($data[$i]); }
 	$self->write_record($num, ' ', @data);
 	}
 
@@ -562,6 +581,16 @@ sub delete_record
 	{
 	my ($self, $num) = @_;
 	$self->NullError();
+	if (defined $self->{'attached_index_columns'}) {
+		my @nfs = keys %{$self->{'attached_index_columns'}};
+		my ($del, @old_data) = $self->get_record_nf($num, @nfs);
+
+		for my $nf (@nfs) {
+			for my $idx (@{$self->{'attached_index_columns'}{$nf}}) {
+				$idx->delete($old_data[$nf], $num + 1);
+				}
+			}
+		}
 	$self->write_record($num, "*");
 	1;
 	}
@@ -570,6 +599,17 @@ sub undelete_record
 	my ($self, $num) = @_;
 	$self->NullError();
 	$self->write_record($num, " ");
+
+	if (defined $self->{'attached_index_columns'}) {
+		my @nfs = keys %{$self->{'attached_index_columns'}};
+		my ($del, @new_data) = $self->get_record_nf($num, @nfs);
+
+		for my $nf (@nfs) {
+			for my $idx (@{$self->{'attached_index_columns'}{$nf}}) {
+				$idx->insert($new_data[$nf], $num + 1);
+				}
+			}
+		}
 	1;
 	}
 
@@ -728,6 +768,51 @@ sub unlock
 	my $self = shift;
 	$self->{'memo'}->unlock() if defined $self->{'memo'};
 	$self->SUPER::unlock;
+	}
+
+#
+# Attaching index file
+#
+
+sub attach_index {
+	my ($self, $indexfile) = @_;
+	require XBase::Index;
+
+	my $index = $self->XBase::Index::new($indexfile) or do {
+		print STDERR XBase->errstr, "\n";
+		$self->Error(XBase->errstr);
+		return;
+		};
+print "Got index $index\n" if $XBase::Index::VERBOSE;
+	my @tags = $index->tags;
+	my @indexes;
+	if (@tags) {
+		for my $tag (@tags) {
+			my $index = $self->XBase::Index::new($indexfile,
+					'tag' => $tag)
+				or do {
+					print STDERR XBase->errstr, "\n";
+					$self->Error(XBase->errstr);
+					return;
+					};
+			push @indexes, $index;	
+			}
+		}
+	else {
+		@indexes = ( $index );
+		}
+	for my $idx (@indexes) {
+		my $key = $idx->{'key_string'};
+		my $num = $self->field_name_to_num($key);
+
+		print "Got key string $key -> $num\n" if $XBase::Index::VERBOSE;
+		
+		$self->{'attached_index'} = []
+				unless defined $self->{'attached_index'};
+		push @{$self->{'attached_index'}}, $idx;
+		push @{$self->{'attached_index_columns'}{$num}}, $idx;
+		}
+	1;
 	}
 
 #
@@ -1224,11 +1309,11 @@ Thanks a lot.
 
 =head1 VERSION
 
-0.155
+0.160
 
 =head1 AUTHOR
 
-(c) 1997--1999 Jan Pazdziora, adelton@fi.muni.cz,
+(c) 1997--2000 Jan Pazdziora, adelton@fi.muni.cz,
 http://www.fi.muni.cz/~adelton/ at Faculty of Informatics, Masaryk
 University in Brno, Czech Republic
 

@@ -769,7 +769,7 @@ sub likematch
 
 	my $regexp = $string->value;
 	$regexp =~ s/(\\\\[%_]|.)/ ($1 eq '%') ? '.*' : ($1 eq '_') ? '.' : "\Q$1" /seg;
-	$field->value =~ /^$regexp$/i;
+	$field->value =~ /^$regexp$/si;
 	}
 
 1;

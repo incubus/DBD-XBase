@@ -242,6 +242,10 @@ sub type_info
 	@result;
 	}
 
+sub DESTROY {
+	# To avoid autoloaded DESTROY
+	}
+
 
 # #####################
 # The statement package
@@ -703,7 +707,7 @@ values in the C<where> expression, use C<id is null> and C<id is
 not null>, not C<id == null>.
 
 Please note that you can only select from one table, joins are not
-supported and are not planned to be supported. if you need them, get
+supported and are not planned to be supported. If you need them, get
 a real RDBMS (or send me a patch).
 
 In the arithmetic expressions you can use a couple of SQL functions --
@@ -797,6 +801,10 @@ University in Brno, Czech Republic
 =head1 SEE ALSO
 
 perl(1); DBI(3), XBase(3); dbish(1)
+
+Translation into Japanese (older version)
+at http://member.nifty.ne.jp/hippo2000/perltips/DBD/XBase.htm
+by Kawai Takanori.
 
 =cut
 

@@ -1,7 +1,30 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
+0.160 Sat Feb 12 20:03:56 MET 2000
+
+	XBase::Index: cdx now supports the delete, insert and
+	write_header methods for updating the index file. Handling
+	of negative integers fixed, as well as trailing nulls.
+
+	XBase: preliminary support for attach_index. Code for
+	making the module happy with _NULLFLAGS/0 type (we do not
+	interpret this at the moment, we just correctly ignore)
+	provided by Sebastien Nameche.
+
+	XBase::SQL: like operator now matches multiline strings as
+	well, problem reported by Petr Nalevka.
+
+	DBD::XBase: stump DBD::XBase::db::DESTROY added, to silence DBI,
+	patch by Gregory McCann.
+
+0.1551 Sat Jan  9 19:21:16 CET 2000
+
+	dbfdump: Accepts --SQL modifier to --info, prints structure
+	of the table as a create table SQL.
+
 0.155 Sun Nov  7 15:43:59 CET 1999
+
 	XBase::SQL and DBD::XBase: arbitraty arithmetic expression
 	possible in the select list. NAME attribute works fine for them.
 	SQL functions length, *trim, concat and substr supported. Fixed
@@ -11,6 +34,7 @@ Revision history for Perl extension XBase and DBD::Xbase.
 	t/5_dbd_select* tests extended.
 
 0.147 Mon Aug 16 10:48:37 MET DST 1999
+
 	XBase::SQL and DBD::XBase: fixed broken handling of NAME
 	attribute, introduced in 0.145 by an attempt to support
 	arbitrary expressions in the selected part. So I rolled back
@@ -21,20 +45,26 @@ Revision history for Perl extension XBase and DBD::Xbase.
 	XBase::Index: fixed handling of indexes with 32-bit record
 	number -- patch by Jon Bloom.
 
+	XBase::Base: fixed typo _unlockex, pointed by Mike Sanders.
+
 0.145 Mon Jun 21 12:49:19 MET DST 1999
+
 	DBD::XBase: updated TYPE_INFO for BOOLEAN and BLOB.
 
 	t/5_dbd_select.t: added tests for the named bind params.
 
 0.144 Fri May 14 07:50:23 CEST 1999
+
 	XBase::SQL, DBD::XBase: added support for named bind parameters;
 	added comments.
 
 0.141 Thu Apr 29 23:17:25 CEST 1999
+
 	XBase::Index: added code for multiple page cdx and fix for big
 	endian. Added code for negative ntx numeric values.
 
 0.140 Thu Apr 29 10:50:58 MET DST 1999
+
 	XBase: the -1 memo records handle the 4 byte fields as well,
 	patch by Zbigniew Malinowski.
 
@@ -46,6 +76,7 @@ Revision history for Perl extension XBase and DBD::Xbase.
 	DBD::XBase: added the time type, aptch by Nikolai Saoukh.
 
 0.132 Sun Apr 18 17:35:10 MET DST 1999
+
 	XBase::Base: dealing of openoptions fixed, problem spotted by
 	Zbigniew Malinowski.
 
@@ -63,6 +94,7 @@ Revision history for Perl extension XBase and DBD::Xbase.
 	Created new XBase::FAQ.pod.
 
 0.131 Sun Apr 18  8:47:12 MET DST 1999
+
 	XBase: memo records marked -1 are returned empty now,
 	spotted by Zbigniew Malinowski.
 
@@ -73,12 +105,14 @@ Revision history for Perl extension XBase and DBD::Xbase.
 	Alan Grover.
 
 0.130 Sat Feb 27 18:09:04 MET 1999
+
 	DBD::XBase: fixed handling of the rows method.
 
 	Added driver_characteristics.pod to list characteristics of
 	DBD::XBase according to the draft by Tim Bunce.
 
 0.129 Fri Feb 26 22:02:12 MET 1999
+
 	XBase.pm: added support for datetime fields T, testing data
 	provided by William McKee. Fix for ignorememo.
 
@@ -90,6 +124,7 @@ Revision history for Perl extension XBase and DBD::Xbase.
 	O_BINARY is only loaded on evil systems now.
 	
 0.127 Mon Feb 22 10:56:23 MET 1999
+
 	XBase::Base: opening readonly files fixed, patch by Petr
 	Machacek.
 	
@@ -103,12 +138,14 @@ Revision history for Perl extension XBase and DBD::Xbase.
 	Ilya Chelpanov.
 
 0.121 Thu Jan 21 20:07:04 MET 1999
+
 	XBase::Memo: fixed a typo in measuring the next_for_append,
 	pointed out by Dan Albertsson.
 
 	t/2_write.t: added afox5.dbf/FPT and a Fox* test.
 
 0.120 Wed Jan 13 13:24:15 MET 1999 
+
 	XBase.pm: added XBase::Cursor::rewind, names,
 	prepare_select_nf. Added readonly option. Added option 'table'
 	for dump -- using Data::ShowTable.
@@ -128,14 +165,17 @@ Revision history for Perl extension XBase and DBD::Xbase.
 	Kobes.
 
 0.115 Wed Jan  6 17:02:28 MET 1999
+
 	XBase::Memo: tries to find out which format (\x1a versus
 	\x1a\x1a) to use for dBaseIII memo files. It also writes back
 	this separator.
 
 0.110 Sun Dec 20 21:29:05 MET 1998
+
 	XBase::SQL: added LIKE clause to WHERE part of SQL commands. 
 
 0.105 Sun Dec 20 17:09:43 MET 1998
+
 	XBase::Base: added workaround for systems that not only write
 	to files something else than they are told to, but also damage
 	the files by merely opening it.
@@ -152,6 +192,7 @@ Revision history for Perl extension XBase and DBD::Xbase.
 	t/*_dbd_*.t: forcing use of DBI version at least 1.0.
 
 0.100 Mon Dec  7 11:00:23 MET 1998
+
 	DBD::XBase: capitalized AND/OR in SQL commands now work,
 	method rows implemented, reported by cybertoast. Updated to
 	use _set_fbav. Unpolished support to *info* methods.
@@ -446,7 +487,7 @@ Revision history for Perl extension XBase and DBD::Xbase.
 
 ---
 
-Note: Versions tagged (*****) were major updates and code chnages.
+Note: Versions tagged (*****) were major updates and code changes.
 
 I have been using the Xbase(3) module by Pratap Pereira for quite
 a time to read the dbf files, but it had no writing capabilities, it
