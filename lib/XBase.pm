@@ -23,9 +23,9 @@ use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
 
-$VERSION = '0.059';
+$VERSION = '0.0591';
 
-$errstr = "Use of \$XBase::errstr is depreciated, please use XBase->errstr() instead\n";
+*errstr = \$XBase::Base::errstr;
 
 # If set, will cut off the spaces and nulls from ends of character fields
 $CLEARNULLS = 1;
@@ -42,51 +42,50 @@ sub open
 		( $self->SUPER::open($filename . '.DBF') or
 			$self->SUPER::open($filename . '.dbf')))
 				{ return 1; }
+	$self->SUPER::open($filename) and return 1;
 	return;
 	}
 # We have to provide way to fill up the object upon open
 sub read_header
 	{
 	my $self = shift;
-	my ($filename, $fh) = @{$self}{ 'filename', 'fh' };
+	my $fh = $self->{'fh'};
 
-	my $header;					# read the header
+	my $header;				# read the header
 	$fh->read($header, 32) == 32 or do
-		{ Error "Error reading header of $filename\n"; return; };
+		{ __PACKAGE__->Error("Error reading header of $self->{'filename'}: $!\n"); return; };
 
 	my ($version, $last_update, $num_rec, $header_len, $record_len)
-		= unpack 'Ca3Vvv', $header;		# parse the data
+		= unpack 'Ca3Vvv', $header;	# parse the data
 
 	my ($names, $types, $lengths, $decimals) = ( [], [], [], [] );
+	my $offsets = [ 1 ];
 
-					# will read the field descriptions
-	while (tell($fh) < $header_len - 1)
+	while (tell($fh) < $header_len - 1)	# will read the field desc's
 		{
-		my $field_def;		# read the field description
+		my $field_def;
 		my $read = $fh->read($field_def, 32);
 		last if substr($field_def, 0, 1) eq "\r";
-				# we have found the terminator
+						# we have found the terminator
 		
 		if ($read != 32)	
-			{
-			Error "Error reading field description\n";
-			return;
-			};
+			{ __PACKAGE__->Error("Error reading field description: $!\n"); return; };
 
 		my ($name, $type, $length, $decimal)
-			= unpack 'A11a@16CC', $field_def;
+			= unpack 'A11a1 @16CC', $field_def;
 
 		$name =~ s/[\000 ].*$//s;
-		$name = uc $name;
+		$name = uc $name;		# no locale yet
 
-		if ($type eq "C")
+		if ($type eq 'C')		# fixup for char length > 256
 			{ $length += 256 * $decimal; $decimal = 0; }
-				# fixup for char length > 256
 
 		push @$names, $name;
 		push @$types, $type;
 		push @$lengths, $length;
 		push @$decimals, $decimal;
+		my $lastoffset = $offsets->[$#$offsets];
+		push @$offsets, $length + $lastoffset
 		}		# store the information
 
 	my $hashnames;		# create name-to-num_of_field hash
@@ -98,17 +97,17 @@ sub read_header
 			# now it's the time to store the values to the object
 	@{$self}{ qw( version last_update num_rec header_len record_len
 		field_names field_types field_lengths field_decimals
-		hash_names unpack_template last_field ) } =
+		hash_names unpack_template last_field field_offsets ) } =
 			( $version, $last_update, $num_rec, $header_len,
 			$record_len, $names, $types, $lengths, $decimals,
-			$hashnames, $template, $#$names );
+			$hashnames, $template, $#$names, $offsets );
 
 	if (grep { /^[MGBP]$/ } @$types)
 		{ $self->{'memo'} = $self->init_memo_field(); }
 
 	1;	# return true since everything went fine
 	}
-
+# When there is a memo field in dbf, try to open the memo file
 sub init_memo_field
 	{
 	my $self = shift;
@@ -117,7 +116,7 @@ sub init_memo_field
 
 	my $memoname = $self->{'filename'};
 	$memoname =~ s/\.DBF?$/.DBT/;	$memoname =~ s/(\.dbf)?$/.dbt/;
-	my $memo = return XBase::Memo->new($memoname, $self->{'version'});
+	my $memo = XBase::Memo->new($memoname, $self->{'version'});
 	if (not defined $memo)
 		{
 		$memoname = $self->{'filename'};
@@ -126,7 +125,7 @@ sub init_memo_field
 		}
 	$memo;
 	}
-
+# Close the file (and memo)
 sub close
 	{
 	my $self = shift;
@@ -137,10 +136,7 @@ sub close
 
 # ###############
 # Little decoding
-
-# Returns the number of the last record
 sub last_record		{ shift->{'num_rec'} - 1; }
-# And the same for fields
 sub last_field		{ shift->{'last_field'}; }
 
 # List of field names, types, lengths and decimals
@@ -177,6 +173,7 @@ sub field_decimal
 	return unless defined $num;
 	($self->field_decimals)[$num];
 	}
+sub version { shift->{'version'}; }
 
 # #############################
 # Header, field and record info
@@ -187,8 +184,8 @@ sub get_header_info
 	{
 	my $self = shift;
 	my $hexversion = sprintf "0x%02x", $self->{'version'};
-	my $longversion = $self->decode_version_info();
-	my $printdate = $self->decode_last_change($self->{'last_update'});
+	my $longversion = $self->get_version_info();
+	my $printdate = $self->get_last_change;
 	my $numfields = $self->last_field() + 1;
 	my $result = sprintf <<"EOF";
 Filename:	$self->{'filename'}
@@ -202,7 +199,7 @@ Field info:
 Num	Name		Type	Len	Decimal
 EOF
 	return join "", $result, map { $self->get_field_info($_) }
-					(0 .. $self->last_field());
+					(0 .. $self->last_field);
 	}
 
 # Returns info about field in dbf file
@@ -215,25 +212,17 @@ sub get_field_info
 	}
 
 # Returns last_change item in printable string
-sub decode_last_change
+sub get_last_change
 	{
-	shift if ref $_[0];
-	my ($year, $mon, $day) = unpack "C3", shift;
+	my $self = shift;
+	my $date = $self;
+	if (ref $self) { $date = $self->{'last_update'}; }
+	my ($year, $mon, $day) = unpack "C3", $date;
 	$year += 1900;
 	return "$year/$mon/$day";
 	}
 
-# Prints the records as comma separated fields
-sub dump_records
-	{
-	my $self = shift;
-	my $num;
-	for $num (0 .. $self->last_record())
-		{ print join(':', map { defined $_ ? $_ : ''; }
-				$self->get_record($num, @_)), "\n"; }
-	1;
-	}
-sub decode_version_info
+sub get_version_info
 	{
 	my $version = shift;
 	$version = $version->{'version'} if ref $version;
@@ -249,14 +238,23 @@ sub decode_version_info
 	
 	my $result = "ver. $vbits";
 	if ($memo)
-		{ $result .= " with memo file"; }
+		{ $result .= ' with memo file'; }
 	elsif ($dbtflag)
-		{ $result .= " with DBT file"; }
-	$result .= " containing SQL table" if $sqltable;
+		{ $result .= ' with DBT file'; }
+	$result .= ' containing SQL table' if $sqltable;
 	$result;
 	}
-sub version { shift->{'version'}; }
 
+# Prints the records as comma separated fields
+sub dump_records
+	{
+	my $self = shift;
+	my $num;
+	for $num (0 .. $self->last_record)
+		{ print join(':', map { defined $_ ? $_ : ''; }
+				$self->get_record($num, @_)), "\n"; }
+	1;
+	}
 
 # ###################
 # Reading the records
@@ -273,6 +271,7 @@ sub get_record
 	$self->NullError();
 
 	my @data = $self->read_record($num);
+### print STDERR "Get data: @data\n";
 				# SUPER will uncache/unpack for us
 	return unless @data;
 
@@ -283,8 +282,8 @@ sub get_record
 		return $data[0], map {
 			if (not defined $self->{'hash_names'}{$_})
 				{
-				Warning "Field named '$_' does not seem to exist\n";
-				return unless FIXPROBLEMS;
+				#### Warning "Field named '$_' does not seem to exist\n";
+				#### return unless FIXPROBLEMS;
 				undef;
 				}
 			else
@@ -293,7 +292,11 @@ sub get_record
 		}
 	return @data;
 	}
+sub get_record_nf
+	{
+	my ($self, $num, @fieldnums) = @_;
 
+	}
 sub get_record_as_hash
 	{
 	my ($self, $num) = @_;
@@ -303,6 +306,21 @@ sub get_record_as_hash
 	@{$hash}{ '_DELETED', $self->field_names() } = @list;
 	return %$hash if wantarray;
 	$hash;
+	}
+
+sub _read_char
+	{ my ($self, $value) = @_; $value =~ s/\s+$// if $CLEARNULLS; $value; }
+sub _read_boolean
+	{
+	my ($self, $value) = @_;
+	if ($value =~ /^[YyTt]$/) { return 1; }
+	if ($value =~ /^[NnFf]$/) { return 0; }
+	undef;
+	}
+sub _read_number
+	{
+	my ($self, $value) = @_;
+	return undef unless $value =~ /\d/;
 	}
 
 sub process_list_on_read
@@ -318,7 +336,7 @@ sub process_list_on_read
 			{
 			if ($value eq '*')      { $data[$num] = 1; }
 			elsif ($value eq ' ')	{ $data[$num] = 0; }
-			else { Warning "Unknown deleted flag '$value' found\n";}
+			### else { Warning "Unknown deleted flag '$value' found\n";}
 			next;
 			}
 		my $type = $self->{'field_types'}[$num - 1];
@@ -363,9 +381,7 @@ sub set_record
 	$self->NullError();
 	my @data = $self->process_list_on_write($num, @_,
 				(undef) x ($self->last_field - $#_));
-	$self->write_record($num, " ", @data);
-	$num = "0E0" unless $num;
-	$num;
+	$self->write_record($num, ' ', @data);
 	}
 
 # Write record, fields are specified as hash, unspecified are set to
@@ -404,7 +420,7 @@ sub update_record_hash
 sub write_record
 	{
 	my ($self, $num) = (shift, shift);
-	$self->SUPER::write_record($num, @_);
+	my $ret = $self->SUPER::write_record($num, @_) or return;
 
 	if ($num > $self->last_record())
 		{
@@ -412,7 +428,7 @@ sub write_record
 		$self->update_last_record($num) or return;
 		}
 	$self->update_last_change() or return;
-	1;
+	$ret;
 	}
 
 # Delete and undelete record
@@ -511,7 +527,7 @@ sub process_list_on_write
 sub update_last_change
 	{
 	my $self = shift;
-	return if defined $self->{'updated_today'};
+	return 1 if defined $self->{'updated_today'};
 	my ($y, $m, $d) = (localtime)[5, 4, 3]; $m++;
 	$self->write_to(1, pack "C3", ($y, $m, $d)) or return;
 	$self->{'updated_today'} = 1;
@@ -528,7 +544,7 @@ sub update_last_record
 # Creating new dbf file
 sub create
 	{
-	NullError();
+	XBase->NullError();
 	my $class = shift;
 	my %options = @_;
 	if (ref $class)
@@ -545,7 +561,7 @@ sub create
 		{
 		if (not defined $options{$key})
 			{
-			Error "Tag $key must be specified when creating new table\n";
+			__PACKAGE__->Error("Tag $key must be specified when creating new table\n");
 			return;
 			}
 		}

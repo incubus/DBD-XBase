@@ -54,8 +54,7 @@ sub read_header
 
 	my $header;
 	$self->{'fh'}->read($header, 512) == 512 or do
-		{ Error "Error reading header of $self->{'filename'}\n";
-		return; };
+		{ $self->Error("Error reading header of $self->{'filename'}: $!\n"); return; };
 
 	my ($next_for_append, $block_size, $version);
 	if ($self->{'filename'} =~ /\.fpt$/i)
@@ -198,7 +197,7 @@ sub read_record
 	my $rest_length = $length - ($block_size - 8);
 	my $rest_data = $self->SUPER::read_record($num + 1, $rest_length);
 	if (not defined $rest_data) { return; }
-	return $buffer . $rest_data;
+	return substr($buffer, 8, length($buffer) - 8) . $rest_data;
 	}
 
 sub write_record

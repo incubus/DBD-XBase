@@ -10,143 +10,103 @@ package XBase::Base;
 use strict;
 use IO::File;
 
-use vars qw( $VERSION $DEBUG $errstr $FIXERRORS @EXPORT @EXPORT_OK
-	@ISA $FIXPROBLEMS );
-
-use Exporter;
-@ISA = qw(Exporter);
-
-@EXPORT = qw( DEBUG FIXPROBLEMS Error Warning NullError );
+use vars qw( $VERSION $DEBUG $errstr );
 
 # ##############
 # General things
 
-$VERSION = "0.045";
+$VERSION = "0.0591";
 
 # Sets the debug level
 $DEBUG = 0;
 sub DEBUG () { $DEBUG };
 
-# FIXPROBLEMS can be set to make XBase to try to work with (read)
-# even partially dameged file. Such actions are logged via Warning
-$FIXPROBLEMS = 1;
-sub FIXPROBLEMS () { $FIXPROBLEMS }
-
-# Holds the text of the error, if there was one
+# Holds the text of the global error, if there was one
 $errstr = '';
-sub errstr ()	{ (ref $_[0] ? $_[0]->{'errstr'} : $errstr); }
+sub errstr ()	{ ( ref $_[0] ? $_[0]->{'errstr'} : $errstr ); }
 
-# Issues warning to STDERR if there is debug level set, but does Error
-# if not FIXPROBLEMS
-sub Warning (@)
-	{
-	if (not FIXPROBLEMS) { Error(@_); return; }
-	shift if ref $_[0];
-	print STDERR "Warning: ", @_ if DEBUG;
-	}
-# Prints error on STDERR if there is debug level set and sets $errstr
+# Prints error on STDERR if there is debug level set and sets errstr
 sub Error (@)
 	{
-	my $self;
-	$self = shift if ref $_[0];
-	### print STDERR @_ if DEBUG;
-	(defined $self ? $self->{'errstr'} : $errstr) .= join '', @_;
+	my $self = shift;
+	( ref $self ? $self->{'errstr'} : $errstr ) = join '', @_;
 	}
-# Nulls the $errstr, should be used in methods called from the mail
-# program
+
+# Nulls the errstr
 sub NullError
-	{ if (ref $_[0]) { $_[0]->{'errstr'} = ''; } else { $errstr = ''; } }
+	{ shift->Error(''); }
 
-
+# ##########
 # Contructor. If it is passed a name of the file, it opens it and
 # calls method read_header to load the internal data structures
 sub new
 	{
-	NullError();
+	__PACKAGE__->NullError();
 	my $class = shift;
-	my $new = {};
-	bless $new, $class;
-	if (@_)	{ $new->open(@_) and return $new; return; }
+	my $new = bless {}, $class;
+	if (@_ and not $new->open(@_)) { return; }
 	return $new;
 	}
 # Open the specified file. Uses the read_header to load the header data
 sub open
 	{
-	NullError();
+	__PACKAGE__->NullError();
 	my ($self, $filename) = @_;
 	if (defined $self->{'fh'}) { $self->close(); }
 
 	my $fh = new IO::File;
 	my $rw;
-	if ($fh->open($filename, 'r+'))
-		{ $rw = 1; }
-	elsif ($fh->open($filename, 'r'))
-		{ $rw = 0; }
-	else
-		{ Error "Error opening file $filename: $!\n"; return; }
-	
-	binmode($fh);		# f..k Windoze
+	if ($fh->open($filename, 'r+'))		{ $rw = 1; }
+	elsif ($fh->open($filename, 'r'))	{ $rw = 0; }
+	else { __PACKAGE__->Error("Error opening file $filename: $!\n"); return; }
+	binmode($fh);
+	@{$self}{ qw( fh filename rw ) } = ($fh, $filename, $rw);
 
-	if (not $self->can('read_header'))
-		{ Error "Method read_header not defined for $self\n"; return; }
-	
-	@{$self}{ 'fh', 'filename', 'rw' } = ($fh, $filename, $rw);
-	
-	if (not $self->read_header(@_))		# read_header should be
-		{ return; }			# defined in the derived class
-
-	1;
+		# read_header should be defined in the derived class
+	$self->read_header();
 	}
 # Closes the file
 sub close
 	{
 	my $self = shift;
 	$self->NullError();
-	if (not defined $self->{'opened'})
+	if (not defined $self->{'fh'})
 		{ $self->Error("Can't close file that is not opened\n"); return; }
 	$self->{'fh'}->close();
-	delete @{$self}{'opened', 'fh'};
+	delete $self->{'fh'};
 	1;
 	}
 # Drop (unlink) the file
 sub drop
 	{
 	my $self = shift;
-	my $filename = $self;
 	$self->NullError();
-	if (ref $self)
+	if (defined $self->{'filename'})
 		{
-		$filename = $self->{'filename'};
-		$self->close() if defined $self->{'opened'};
+		my $filename = $self->{'filename'};
+		$self->close() if defined $self->{'fh'};
+		if (not unlink $filename)
+			{ $self->Error("Error unlinking file $filename: $!\n"); return; };
 		}
-	unlink $filename or
-		do { $self->Error("Error unlinking file $filename: $!\n"); return; };
 	1;	
 	}
 # Create new file
 sub create_file
 	{
 	my $self = shift;
-	my ($name, $perms) = @_;
-	if (not defined $name)
-		{
-		Error "Name has to be specified when creating new table\n";
-		return;
-		}
-	if (-f $name)
-		{
-		Error "File '$name' already exists\n";
-		return;
-		}
+	my ($filename, $perms) = @_;
+	if (not defined $filename)
+		{ __PACKAGE__->Error("Name has to be specified when creating new file\n"); return; }
+	if (-f $filename)
+		{ __PACKAGE__->Error("File '$filename' already exists\n"); return; }
+
+	$perms = 0644 unless defined $perms;
 	my $fh = new IO::File;
-	$fh->open($name, "w+", $perms) and do
-		{
-		@{$self}{ qw( fh filename perms writable opened ) }
-			= ( $fh, $name, $perms, 1, 1 );
-		binmode($fh);		# f..k Windoze	
-		return $self;
-		};
-	return;
+	unless ($fh->open($filename, "w+", $perms))
+		{ return; }
+	binmode($fh);
+	@{$self}{ qw( fh filename rw ) } = ($fh, $filename, 1);
+	return $self;
 	}
 
 # Computes the correct offset, asumes that header_len and record_len
@@ -155,14 +115,14 @@ sub create_file
 # zero
 sub get_record_offset
 	{
-	my $self = shift;
-	my ($header_len, $record_len) = @{$self}{ qw( header_len record_len ) };
+	my ($self, $num) = @_;
+	my ($header_len, $record_len) = ($self->{'header_len'},
+						$self->{'record_len'});
 	unless (defined $header_len and defined $record_len)
 		{
 		$self->Error("Header and record lengths not known in get_record_offset\n");
 		return;
 		}
-	my $num = shift;
 	unless (defined $num)
 		{
 		$self->Error("Number of the record must be specified in get_record_offset\n");
@@ -182,54 +142,38 @@ sub seek_to_record
 sub seek_to
 	{
 	my ($self, $offset) = @_;
-	return 1 if defined $self->{'tell'} and $self->{'tell'} == $offset;
 
-	my $filename = $self->{'filename'};
+	unless (defined $self->{'fh'})
+		{ $self->Error("Cannot seek on unopened file\n"); return; }
 
-			# the file should really be opened and writable
-	if (not defined $self->{'opened'})
-		{ $self->Error("The file $filename is not opened\n"); return; }
-	### if (not $self->{'writable'})
-	###	{ $self->Error("The file $filename is not writable\n"); return; }
-
-	delete $self->{'tell'};	# we cancel the tell position
-
-	$self->{'fh'}->seek($offset, 0)	# seek to the offset
-		or do { $self->Error("Error seeking to offset $offset on $filename: $!\n");
-		return;
-		};
+	unless ($self->{'fh'}->seek($offset, 0))	# seek to the offset
+		{ $self->Error("Error seeking to offset $offset on $self->{'filename'}: $!\n"); return; };
 	1;
 	}
 
 # Read the record of given number; when defined unpack_template, unpack
-# into list.
+# into list. The second parameter is the length of the record to read.
+# If can be undefined, meaning read the whole record, and it can be
+# -1, meaning read at most the whole record
 sub read_record
 	{
 	my ($self, $num, $in_length) = @_;
 
-	if (not defined $num)
-		{ $self->Error("Record number to read must be specified\n"); return; }
+	unless (defined $num)
+		{ $self->Error("Record number to read must be specified for read record\n"); return; }
 	if ($num > $self->last_record())
 		{ $self->Error("Can't read record $num, there is not so many of them\n"); return; }
 
-	my ($fh, $record_len, $header_len) =
-			@{$self}{ qw( fh record_len header_len) };
+	$self->seek_to_record($num) or return;
 
-	my $offset = $header_len + $num * $record_len;
-	$fh->seek($offset, 0) or do
-		{ $self->Error("Error seeking to offset $offset on file $self->{'filename'}\n"); return; };
-	
-	$in_length = $record_len unless defined $in_length;
+	$in_length = $self->{'record_len'} unless defined $in_length;
 	
 	my $buffer;
-	my $actually_read = $fh->read($buffer, ($in_length == -1 ?
-						$record_len : $in_length));
+	my $actually_read = $self->{'fh'}->read($buffer,
+		($in_length == -1 ?  $self->{'record_len'} : $in_length));
 	
-	if ($actually_read != $in_length and $in_length != -1)
-		{
-		$self->Warning("Error reading the whole record num $num\n");
-		return unless FIXPROBLEMS;
-		};
+	if ($in_length != -1 and $actually_read != $in_length)
+		{ $self->Error("Error reading the whole record num $num\n"); return; };
 	
 	if (defined $self->{'unpack_template'})
 		{ return unpack $self->{'unpack_template'}, $buffer; }
@@ -241,36 +185,24 @@ sub read_record
 sub write_record
 	{
 	my ($self, $num) = (shift, shift);
-	if (not $self->{'writable'})
-		{ $self->Error("The file $self->{'filename'} is not writable\n"); return; }
-	if (not defined $num)
-		{ $self->Error("Record number to write must be specified\n"); return; }
-	if (defined $self->{'cached_num'} and $num == $self->{'cached_num'})
-		{ delete $self->{'cached_num'}; }
-	$self->seek_to_record($num) or return;
-	delete $self->{'tell'};
-
-	local ($,, $\) = ("", "");
-	my $fh = $self->{'fh'};
-	$fh->print(@_) or
-		do { $self->Error("Error writing record $num: $!\n"); return; } ;
-	( $num == 0 ) ? "0E0" : $num;
+	my $offset = $self->get_record_offset($num);
+	my $ret = $self->write_to($offset, @_);
+	unless (defined $ret) { return; }
+	( $num == 0 ) ? '0E0' : $num;
 	}
 
 # Write to offset
 sub write_to
 	{
 	my ($self, $offset) = (shift, shift);
-	if (not $self->{'writable'})
+	if (not $self->{'rw'})
 		{ $self->Error("The file $self->{'filename'} is not writable\n"); return; }
 	$self->seek_to($offset) or return;
-	delete $self->{'tell'};
 	
-	local ($,, $\) = ("", "");
-	my $fh = $self->{'fh'};
-	$fh->print(@_) or
+	local ($,, $\) = ('', '');
+	$self->{'fh'}->print(@_) or
 		do { $self->Error("Error writing at offset $offset: $!\n"); return; } ;
-	( $offset == 0 ) ? "0E0" : $offset;
+	( $offset == 0 ) ? '0E0' : $offset;
 	}
 
 1;
@@ -286,9 +218,7 @@ Used indirectly, via XBase or XBase::Memo.
 This module provides catch-all I/O methods for other XBase classes,
 should be used by people creating additional XBase classes/methods.
 The methods return nothing (undef) or error and the error message can
-be retrieved using the B<errstr> method. If the $XBase::Base::DEBUG
-variable is true, they also print the message on stderr, so the
-caller doesn't need to do this, just die or ignore the problem.
+be retrieved using the B<errstr> method.
 
 Methods are:
 
@@ -309,25 +239,21 @@ derived class, there is no default.
 
 Closes the file, doesn't destroy the object.
 
-=item get_record_offset
+=item drop
 
-The argument is the number of the record, if returns the number
+Unlinks the file.
 
-	$header_len + $number * $record_len
+=back
 
-using values from the object. Please note, that I use the term record
-here, even if in memo files the name block and in indexes page is more
-common. It's because I tried to unify the methods. Maybe it's
-a nonsense and we will drop this idea in the next version ;-)
+The methods assume that the file has got header of length header_len
+bytes (possibly 0) and then records of length record_len. These two
+values should be set by the read_header method.
 
-=item seek_to_record
+=over 4
 
-Seeks to record of given number.
+=item seek_to_record, seek_to
 
-=item seek_to
-
-Seeks to given position. It undefs the tell value in the object, since
-it assumes the users that will do print afterwards would not update it.
+Seeks to record of given number or to absolute position.
 
 =item read_record
 
@@ -335,22 +261,21 @@ Reads specified record from get_record_offset position. You can give
 second parameter saying length (in bytes) you want to read. The
 default is record_len. If the required length is -1, it will read
 record_len but will not complain if the file is shorter. Whis is nice
-on the end of memo file.
+at the end of the file.
 
-The method caches last record read. Also, when key unpack_template
-is specified in the object, it unpacks the string read and returns
-list of resulting values.
+When the unpack_template value is specified in the object, read_record
+unpacks the string read and returns list of resulting values.
 
 =item write_record, write_to
 
 Writes data to specified record position or to the absolute position
-in the file.
+in the file. The data is not padded to record_len, just written out.
 
 =back
 
 =head1 VERSION
 
-0.045
+0.059
 
 =head1 AUTHOR
 
@@ -360,4 +285,3 @@ in the file.
 
 perl(1), XBase(3)
 
-=cut

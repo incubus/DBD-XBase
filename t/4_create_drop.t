@@ -64,10 +64,10 @@ print "ok 6\n";
 print "Now, fill two records\n";
 
 $table->set_record(0, 'Michal', 'Michal seems to be a nice guy',
-		24513, 186.45, 1) or print $table->errstr(), "not ";
+		24513, 186.45, 1) or print $table->errstr(), 'not ';
 print "ok 7\n";
 $table->set_record(1, 'Martin', 'Martin is fine, too', 89, 13, 0)
-		or print $table->errstr(), "not ";
+		or print $table->errstr(), 'not ';
 print "ok 8\n";
 
 print "Check the header of the newly created table\n";

@@ -62,7 +62,8 @@ print "ok 4\n";
 
 
 print "Overwrite the record and check it back\n";
-$table->set_record(1, 5, 'New message', 'New note', 1, '19700101');
+$table->set_record(1, 5, 'New message', 'New note', 1, '19700101')
+	or print STDERR $table->errstr();
 $table->get_record(0);		# Force emptying caches
 my $result = join ':', map { defined $_ ? $_ : '' } $table->get_record(1);
 my $result_expected = '0:5:New message:New note:1:19700101';
