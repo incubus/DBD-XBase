@@ -18,7 +18,7 @@ $XBase::Base::DEBUG = 1;        # We want to see any problems
 
 print "Create the new XBase object, load the data from table test.dbf\n";
 my $table = new XBase("$dir/test.dbf");
-print "not " unless defined $table;
+print XBase->errstr(), 'not ' unless defined $table;
 print "ok 2\n";
 
 exit unless defined $table;     # It doesn't make sense to continue here ;-)

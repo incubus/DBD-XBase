@@ -10,14 +10,14 @@ package XBase::SQL;
 use strict;
 use vars qw( $VERSION $DEBUG %COMMANDS );
 
-$VERSION = '0.058';
+$VERSION = '0.061';
 $DEBUG = 0;
 
 # ##################
 # Regexp definitions
 
 
-my %TYPES = ( 'char' => 'C', 'num' => 'N', 'numeric' => 'N',
+my %TYPES = ( 'char' => 'C', 'num' => 'N', 'numeric' => 'N', 'int' => 'N',
 		'boolean' => 'L', 'blob' => 'M', 'memo' => 'M',
 		'float' => 'F', 'date' => 'D' );
 
@@ -60,7 +60,7 @@ my %TYPES = ( 'char' => 'C', 'num' => 'N', 'numeric' => 'N',
 	'COLUMNDEF' => 'FIELDNAME FIELDTYPE',
 	'FIELDTYPE' => 'TYPECHAR | TYPENUM | TYPEBOOLEAN | TYPEMEMO | TYPEDATE',
 	'TYPECHAR' => q'char ( \( TYPELENGTH \) ) ?',
-	'TYPENUM' => q'( num | numeric | float ) ( \( TYPELENGTH ( , TYPEDEC ) ? \) ) ?',
+	'TYPENUM' => q'( num | numeric | float | int ) ( \( TYPELENGTH ( , TYPEDEC ) ? \) ) ?',
 	'TYPEBOOLEAN' => q'boolean | logical',
 	'TYPEMEMO' => q'memo | blob',
 	'TYPEDATE' => q'date',
@@ -141,6 +141,7 @@ my %ERRORS = (
 	"\\'" => 'Single quote',
 	'STRING' => 'String',
 	'SELECTFIELDS' => 'Columns to select',
+	'FIELDTYPE' => 'Field type',
 	);
 
 sub parse

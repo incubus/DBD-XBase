@@ -1,7 +1,22 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
+0.061 working
+
+	Fixed writing undefined values in numeric fields.
+	Fixed dealing with uppercase extensions.
+
+	XBase::SQL fixed to support 'int' found by Chris Winters.
+
+	Offset in the record headers in dbf now set properly, patch by
+	Dave Frascone.
+
+	Added ignorememo option, opening a dbf that needs dbt but
+	doesn't have it yields an error now without this flag, request
+	by Martin Jost.
+
 0.060 Fri Mar 20 10:20:45 MET 1998
+
 	Added method prepare_select and XBase::Cursor to implement
 	long selects. Method dump_records now prints directly,
 	doesn't use get_all_records.
@@ -13,17 +28,20 @@ Revision history for Perl extension XBase and DBD::Xbase.
 	discussion with Sergey Lukashevich.
 	
 0.0599 Wed Mar 11 22:58:45 MET 1998
+
 	Option to specify the memo file in call to XBase::new added.
 
 	Dump_records made customizable.
 
 0.0598 Tue Mar 10 22:40:00 MET 1998
+
 	Fixed bug when finding a name for the memo file in XBase; in
 	dBaseIII memo field we will only check for one \x1a to allow
 	as many formats possible, we still write two of them; typo in
 	init_memo fixed -- patches by Martin Jost.
 
-0.0597 Tue Mar  3 23:40:56 MET 1998
+0.0597 Tue Mar  3 23:40:56 MET 1998		(*****)
+
 	Major code revision and check:
 	
 	Error handling fixed, locking added. Rewritten process_* to
@@ -34,10 +52,12 @@ Revision history for Perl extension XBase and DBD::Xbase.
 	Test suite extended.
 
 0.0584 Mon Mar  2 10:04:00 MET 1998
+
 	Fix of XBase::Memo::dBaseIV::read_record for memo fields
 	longer than record length by Jochen Friedrich.
 
-0.0583 Thu Feb 12 00:08:07 MET 1998
+0.0583 Thu Feb 12 00:08:07 MET 1998		(*****)
+
 	Bug fix for floating fields, patch by Carlos Augusto de
 	Almeida.
 
@@ -61,7 +81,7 @@ Revision history for Perl extension XBase and DBD::Xbase.
 	The error handling reviewed, most of the error messages are
 	now local to the object ($table->errstr()).
 
-0.039  Wed Dec 17 19:53:49 MET 1997
+0.039  Wed Dec 17 19:53:49 MET 1997		(*****)
 
 	DBD::XBase supports select where and delete where.	
 
@@ -106,7 +126,7 @@ Revision history for Perl extension XBase and DBD::Xbase.
 	Fixed bug in docs about write_record. Changed format of
 	get_field_info to include field number. Fixed bug with decimals.
 
-0.03 Mon Oct 27 23:23:17 MET 1997
+0.03 Mon Oct 27 23:23:17 MET 1997		(*****)
 
 	Minor bug fixes. XBase::create added. Tests extended. Module
 	released on CPAN.
@@ -123,4 +143,8 @@ Revision history for Perl extension XBase and DBD::Xbase.
 	The original release. Includes XBase that reads dbf and dbt
 	and writes dbf (but not dbt ;-) Put on CPAN mainly for other
 	people to test and comment on it.
+
+
+Note: Versions with (*****) tag were major updates and included code
+and/or internal methods rewrite.
 

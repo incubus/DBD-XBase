@@ -19,7 +19,7 @@ use XBase::Base;	# will give us general methods
 use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
-$VERSION = '0.060';
+$VERSION = '0.0608';
 $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 
 *errstr = \$XBase::Base::errstr;
@@ -102,25 +102,33 @@ sub read_header
 			{
 			$rproc = sub { my $value = shift;
 				($value =~ /\d/) ? $value + 0 : undef; };
-			$wproc = sub { sprintf '%*.*f',
-					$length, $decimal, (shift() + 0); };
+			$wproc = sub { my $value = shift;
+				if (defined $value) { sprintf '%*.*f', $length, $decimal, ($value + 0); }
+                                else { ' ' x $length; } };
 			}
 		elsif ($type =~ /^[MGBP]$/)	# memo fields
 			{
 			my $memo = $self->{'memo'};
-			$memo = $self->{'memo'} = $self->init_memo_field()
-							unless defined $memo;
-			$rproc = sub {
-				my $value = shift;
-				return undef unless $value =~ /\d/;
-				$memo->read_record($value) if defined $memo;
-				};
-			$wproc = sub {
-				my $value = $memo->write_record(-1, $type, shift) if defined $memo;
-				sprintf '%*.*s', $length, $length,
-					(defined $value ? $value : ''); };
+			if (not defined $memo and not $self->{'openoptions'}{'ignorememo'})
+				{ $memo = $self->{'memo'} = $self->init_memo_field() or return; }
+			if (defined $memo)
+				{
+				$rproc = sub {
+					my $value = shift;
+					return undef unless $value =~ /\d/;
+					$memo->read_record($value) if defined $memo;
+					};
+				$wproc = sub {
+					my $value = $memo->write_record(-1, $type, shift) if defined $memo;
+					sprintf '%*.*s', $length, $length,
+						(defined $value ? $value : ''); };
+				}
+			else
+				{
+				$rproc = sub { undef; };
+				$wproc = sub { ' ' x $length; };
+				}
 			}
-
 		$name =~ s/[\000 ].*$//s;
 		$name = uc $name;		# no locale yet
 		push @$names, $name;
@@ -155,16 +163,15 @@ sub init_memo_field
 	if (defined $self->{'openoptions'}{'memofile'})
 		{ return XBase::Memo->new($self->{'openoptions'}{'memofile'}); }
 	
+	my $memo;
 	my $memoname = $self->{'filename'};
-	$memoname =~ s/\.DBF$/.DBT/;	$memoname =~ s/(\.dbf)?$/.dbt/;
-	my $memo = XBase::Memo->new($memoname, $self->{'version'});
-	if (not defined $memo)
-		{
-		$memoname = $self->{'filename'};
-		$memoname =~ s/\.DBF$/.FPT/;	$memoname =~ s/(\.dbf)?$/.fpt/;
-		$memo = XBase::Memo->new($memoname, $self->{'version'});
-		}
-	$memo;
+	$memoname =~ s/\.DBF$/.FPT/ or $memoname =~ s/(\.dbf)?$/.fpt/;
+	$memo = XBase::Memo->new($memoname, $self->{'version'}) and return $memo;
+	
+	$memoname = $self->{'filename'};
+	$memoname =~ s/\.DBF$/.DBT/ or $memoname =~ s/(\.dbf)?$/.dbt/;
+	$memo = XBase::Memo->new($memoname, $self->{'version'}) and return $memo;
+	return;
 	}
 # Close the file (and memo)
 sub close
@@ -510,12 +517,13 @@ sub create
 			{ $decimal = 0; }
 		
 		$record_len += $length;
+		my $offset = $record_len;
 		if ($type eq "C")
 			{
 			$decimal = int($length / 256);
 			$length %= 256;
 			}
-		$header .= pack 'a11a1VCCvCvCa7C', $name, $type, 0,
+		$header .= pack 'a11a1VCCvCvCa7C', $name, $type, $offset,
 				$length, $decimal, 0, 0, 0, 0, '', 0;
 		}
 	$header .= "\x0d";
@@ -534,7 +542,7 @@ sub create
 		{
 		require XBase::Memo;
 		my $dbtname = $options{'name'};
-		$dbtname =~ s/(\.dbf)?$/.dbt/i;
+		$dbtname =~ s/\.DBF$/.DBT/ or $dbtname =~ s/(\.dbf)?$/.dbt/;
 		my $dbttmp = XBase::Memo->new();
 		$dbttmp->create('name' => $dbtname,
 			'version' => $options{'version'}) or return;
@@ -647,14 +655,16 @@ The following methods are supported by XBase module:
 
 =item new
 
-Creates the XBase object, one parameter should be the name of existing
-dbf file (table, in fact). A suffix .dbf will be appended if needed.
-This method creates and initializes new object, will also check for memo
-file, if needed.
+Creates the XBase object, loads the info form the dbf file. The first
+parameter should be the name of existing dbf file (table, in fact) to
+read. A suffix .dbf will be appended if needed. This method creates and
+initializes new object, will also check for memo file, if needed.
 
 The parameters can also be specified in the form of hash: values for
-B<name> is then the name of the table and optionally memofile is the name
-of the memo file.
+B<name> is then the name of the table, other flags supported are
+B<memofile> to specify non standard name for the associated memo file
+and B<ignorememo> to ignore memo file at all. The second is usefull if
+you've lost the dbt file somewhere and you do not need it.
 
 =item close
 
@@ -882,7 +892,7 @@ welcome.
 
 =head1 VERSION
 
-0.060
+0.061
 
 =head1 AUTHOR
 
