@@ -1,6 +1,17 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
+0.147 Mon Aug 16 10:48:37 MET DST 1999
+	XBase::SQL and DBD::XBase: fixed broken handling of NAME
+	attribute, introduced in 0.145 by an attempt to support
+	arbitrary expressions in the selected part. So I backed up
+	that change and it's (again) only possible to select * or
+	select list of field names -- problem reported by adelton,
+	William McKee and Martin Treusch
+
+	XBase::Index: fixed handling of indexes with 32-bit record
+	number -- patch by Jon Bloom.
+
 0.145 Mon Jun 21 12:49:19 MET DST 1999
 	DBD::XBase: updated TYPE_INFO for BOOLEAN and BLOB.
 

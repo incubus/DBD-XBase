@@ -19,7 +19,7 @@ use Exporter;
 use vars qw( $VERSION @ISA @EXPORT $err $errstr $drh $sqlstate );
 			# a couple of global variables that may come handy
 
-$VERSION = '0.145';
+$VERSION = '0.147';
 
 $err = 0;
 $errstr = '';
@@ -402,6 +402,7 @@ sub execute
 	# the way, the usedfields is filled correctly for select * here
 	if (not $sth->FETCH('NUM_OF_FIELDS')) {
 		if (defined $parsed_sql->{'selectall'}) {
+			$parsed_sql->{'fields'} = [ $xbase->field_names ];
 			$sth->STORE('NUM_OF_FIELDS', scalar $xbase->field_names);
 			push @{$parsed_sql->{'usedfields'}}, $xbase->field_names;
 			}
@@ -761,7 +762,7 @@ Example:
 
 =head1 VERSION
 
-0.145
+0.147
 
 =head1 AUTHOR
 

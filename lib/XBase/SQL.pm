@@ -8,7 +8,7 @@ package XBase::SQL;
 use strict;
 use vars qw( $VERSION %COMMANDS );
 
-$VERSION = '0.145';
+$VERSION = '0.147';
 
 # #################################
 # Type conversions for create table
@@ -38,7 +38,7 @@ my %TYPES = ( 'char' => 'C', 'varchar' => 'C',
 # select fields
 
 	'SELECTFIELDS' =>	'SELECTFIELD ( , SELECTFIELD ) *',
-	'SELECTFIELD' =>	'ARITHMETIC',
+	'SELECTFIELD' =>	'FIELDNAME',
 	'SELECTALL' =>	q'\*',
 
 # insert definitions
@@ -140,15 +140,19 @@ my %STORE = (
 		$self->{'selectfn'} = sub { my ($TABLE, $VALUES, $BIND) = @_; map { XBase::SQL::Expr->field($_, $TABLE, $VALUES)->value } $TABLE->field_names; };
 		undef;
 		},
+	'SELECTFIELD' => 'fields',
 	'SELECTFIELDS' => sub {
 		my $self = shift;
-		$self->{'selectfields'} = join '', get_strings(@_);
-		my $select_fn = 'sub { my ($TABLE, $VALUES, $BIND) = @_; map { $_->value() } (' . $self->{'selectfields'} . ')}';
+		my $exprfields = join ', ', map {
+			qq!XBase::SQL::Expr->field('\Q$_\E', \$TABLE, \$VALUES)!
+			} @{$self->{'fields'}};
+
+		my $select_fn = 'sub { my ($TABLE, $VALUES, $BIND) = @_; map { $_->value() } (' . $exprfields . ')}';
 		### print STDERR "Evalling select_fn: $select_fn\n";
 		my $fn = eval $select_fn;
 		if ($@) { $self->{'selecterror'} = $@; }
 		else { $self->{'selectfn'} = $fn; }
-		$self->{'selectfieldscount'} = scalar(get_strings(@_)+1) / 2;
+		$self->{'selectfieldscount'} = scalar(@{$self->{'fields'}});
 		undef;
 		},
 	
@@ -298,6 +302,7 @@ my %STORE = (
 # successfull, we call store_results
 sub parse
 	{
+	$^W = 0;
 	my ($class, $string) = @_;
 	my $self = bless {}, $class;
 

@@ -820,7 +820,12 @@ sub new
 			my $numeric_one_item = unpack 'V', $one_item; print "one_item: 0x", unpack('H*', $one_item), " ($numeric_one_item)\n" if $DEBUG > 3;
 
 			my $recno = $numeric_one_item & $recno_mask;
-			$numeric_one_item >>= $recno_count;
+			my $bytes_of_recno = int($recno_count / 8);
+			$one_item = substr($one_item, $bytes_of_recno);
+
+			$numeric_one_item = unpack 'V', $one_item;
+			$numeric_one_item >>= $recno_count - (8 * $bytes_of_recno);
+			
 			my $dupl = $numeric_one_item & $duplicate_count_mask;
 			$numeric_one_item >>= $duplicate_count;
 			my $trail = $numeric_one_item & $trailing_count_mask;
