@@ -47,8 +47,7 @@ sub data_sources
 
 package DBD::XBase::dr;
 use strict;
-use vars qw( $imp_data_size );
-$imp_data_size = 0;
+$DBD::XBase::dr::imp_data_size = 0;
 
 sub connect
 	{
@@ -71,8 +70,7 @@ sub data_sources
 
 package DBD::XBase::db;
 use strict;
-use vars qw( $imp_data_size );
-$imp_data_size = 0;
+$DBD::XBase::db::imp_data_size = 0;
 
 sub prepare
 	{
@@ -82,8 +80,7 @@ sub prepare
 	### use Data::Dumper; print Dumper $parsed_sql;
 	if (defined $parsed_sql->{'errstr'})
 		{
-		DBI::set_err($dbh, 2,
-			'Error in SQL parse: ' . $parsed_sql->{'errstr'});
+		DBI::set_err($dbh, 2, 'Error in SQL parse: ' . $parsed_sql->{'errstr'});
 		return;
 		}
 
@@ -212,8 +209,7 @@ sub type_info
 
 package DBD::XBase::st;
 use strict;
-use vars qw( $imp_data_size );
-$imp_data_size = 0;
+$DBD::XBase::st::imp_data_size = 0;
 
 sub bind_param
 	{

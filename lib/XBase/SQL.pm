@@ -123,11 +123,11 @@ my %ERRORS = (
 # ########################################
 # Simplifying conversions during the match
 my %SIMPLIFY = (
-	'STRINGDBL' => sub { join '', get_strings(@_); },
-	'STRINGSGL' => sub { join '', get_strings(@_); },
+	'STRINGDBL' => sub { join '', '"', get_strings(@_), '"'; },
+	'STRINGSGL' => sub { join '', '\'', get_strings(@_), '\''; },
 	'STRING' => sub { my $e = (get_strings(@_))[1];
 			## $e =~ s/([\\'])/\\$1/g;
-			"XBase::SQL::Expr->string('$e')"; },
+			"XBase::SQL::Expr->string($e)"; },
 	'NUMBER' => sub { my $e = (get_strings(@_))[0];
 				"XBase::SQL::Expr->number($e)"; },
 	'EXPFIELDNAME' => sub { my $e = (get_strings(@_))[0];
@@ -202,6 +202,7 @@ my %STORE = (
 	'TABLE' => 'table',
 
 	'WHEREEXPR' => sub { my ($self, $expr) = @_;
+		### print STDERR "Evalling: $expr\n";
 		my $fn = eval 'sub { my ($TABLE, $VALUES, $BIND, $startbind) = @_; ' . $expr . '; }';
 		if ($@) { $self->{'whereerror'} = $@; }
 		else { $self->{'wherefn'} = $fn; }
@@ -239,6 +240,8 @@ sub parse
 		# take the results and store them to $self
 		### use Data::Dumper; print STDERR Dumper @result;
 		$self->store_results(\@result, \%STORE);
+		if (defined $self->{'whereerror'})
+			{ $self->{'errstr'} = "Some deeper problem: eval failed: $self->{'whereerror'}"; }
 		### print STDERR Dumper $self;
 		}
 	$self;

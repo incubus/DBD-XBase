@@ -4,7 +4,7 @@ use strict;
 
 BEGIN	{
 	$| = 1;
-	eval 'use DBI';
+	eval 'use DBI 1.00';
 	if ($@ ne '')
 		{
 		print "1..0\n";

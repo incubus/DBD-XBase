@@ -21,8 +21,8 @@ if ($result ne $expected)
 	{ print "Got\n$result\nExpected\n$expected\nwhich is not OK\nnot "; }
 print "ok 1\n";
 
-print "Running cat rooms.dbf | dbfdump -- -\n";
-$result = `cat $dir/t/rooms.dbf | $^X $libs $dbfdump -- -`;
+print "Running dbfdump -- - < $dir/t/rooms.dbf\n";
+$result = `$^X $libs $dbfdump -- - < $dir/t/rooms.dbf`;
 
 if ($result ne $expected)
 	{ print "Got\n$result\nwhich is not OK\nnot "; }

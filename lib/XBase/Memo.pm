@@ -12,7 +12,7 @@ use XBase::Base;
 
 use vars qw( $VERSION @ISA );
 @ISA = qw( XBase::Base );
-$VERSION = '0.100';
+$VERSION = '0.102';
 
 # Read header is called from open to fill the object structures
 sub read_header
@@ -28,6 +28,7 @@ sub read_header
 	if ($self->{'filename'} =~ /\.fpt$/i)
 		{
 		($next_for_append, $block_size) = unpack 'N@6n', $header;
+		$next_for_append--;
 		$version = 5;
 		bless $self, 'XBase::Memo::Fox';
 		}
@@ -70,7 +71,10 @@ sub write_record
 	$self->SUPER::write_record($num, @_);
 	if ($num < 0 or $num > $self->last_record())
 		{
-		$self->SUPER::write_to(0, pack "V", $num + $num_of_blocks);
+		my $packed = pack "V", $num + $num_of_blocks;
+		if (ref $self eq 'XBase::Memo::Fox')
+			{ $packed = pack "N", $num + $num_of_blocks + 1; }
+		$self->SUPER::write_to(0, $packed);
 		$self->{'next_for_append'} = $num + $num_of_blocks;
 		}
 	$num;
@@ -219,6 +223,8 @@ sub write_record
 		}
 	else
 		{ $num = $self->last_record() + 1; }
+	my $fill = $self->{'record_len'} - (( length $data ) % $self->{'record_len'});
+	$data .= "\000" x $fill;
 	$self->SUPER::write_record($num, $data);
 	$num;
 	}
@@ -254,7 +260,7 @@ specify their specific B<read_record> and B<write_record> methods.
 
 =head1 VERSION
 
-0.100
+0.102
 
 =head1 AUTHOR
 

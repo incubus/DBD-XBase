@@ -9,10 +9,15 @@ package XBase::Base;
 
 use strict;
 use IO::File;
+use Fcntl qw( O_RDWR O_BINARY O_RDONLY );
+BEGIN {
+	eval { my $a = O_BINARY; };
+	if ($@) { local $^W = 0; eval ' sub O_BINARY { 0 } ' }
+	}
 
 use vars qw( $VERSION $DEBUG $errstr );
 
-$VERSION = '0.0632';
+$VERSION = '0.102';
 
 # Sets the debug level
 $DEBUG = 0;
@@ -64,8 +69,8 @@ sub open
 		}
 	else
 		{
-		if ($fh->open($filename, 'r+'))		{ $rw = 1; }
-		elsif ($fh->open($filename, 'r'))	{ $rw = 0; }
+		if ($fh->open($filename, O_RDWR|O_BINARY))	{ $rw = 1; }
+		elsif ($fh->open($filename, O_RDONLY|O_BINARY))	{ $rw = 0; }
 		else { __PACKAGE__->Error("Error opening file $filename: $!\n"); return; }
 		}
 
@@ -345,7 +350,7 @@ No more description -- check the source code if you need to know more.
 
 =head1 VERSION
 
-0.0632
+0.102
 
 =head1 AUTHOR
 
