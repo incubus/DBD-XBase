@@ -1,6 +1,10 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
+0.0583 Thu Feb 12 00:08:07 MET 1998
+	Bug fix for floating fields, patch by Carlos Augusto de
+	Almeida.
+
 0.058 Mon Feb  9 19:15:03 MET 1998
 
 	XBase::SQL rewritten, DBD::XBase now supports select, delete,
@@ -16,8 +20,7 @@ Revision history for Perl extension XBase and DBD::Xbase.
 	Olsak. Added binmode for the OSes that write to disk something
 	else that they are told to, reported by Robert Bauer. Removed
 	the test that caused read to fail on read-only files, reported
-	by Stewart Russell. Fixed bug on reading floating values,
-	spotted by Carlos Augusto de Almeida.
+	by Stewart Russell.
 
 	The error handling reviewed, most of the error messages are
 	now local to the object ($table->errstr()).

@@ -23,7 +23,7 @@ use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
 
-$VERSION = '0.0582';
+$VERSION = '0.0583';
 
 $errstr = "Use of \$XBase::errstr is depreciated, please use XBase->errstr() instead\n";
 
@@ -347,9 +347,7 @@ sub process_list_on_read
 			next unless $value =~ /\d/;
 			my $len = $self->{'field_lengths'}[$num - 1];
 			my $dec = $self->{'field_decimals'}[$num - 1];
-                        if ($dec and index($value, '.') == -1) 
-				{ substr($value, -$dec, 0) = '.'; }
-			$data[$num] = $value + 0;
+			$data[$num] = (sprintf "%-$len.${dec}f", $value + 0) + 0;
 			}
 		elsif ($type =~ /^[MGBP]$/)
 			{
@@ -467,7 +465,7 @@ sub process_list_on_write
 		if ($type eq 'C')
 			{
 			$value .= "";
-			$value = sprintf "%-"."$length.$length"."s", $value;
+			$value = sprintf "%-$length.${length}s", $value;
 			}
 		elsif ($type eq 'L')
 			{
@@ -475,19 +473,12 @@ sub process_list_on_write
 			elsif ($value == 1)	{ $value = "Y"; }
 			elsif ($value == 0)	{ $value = "N"; }
 			else			{ $value = "?"; }
-			$value = sprintf "%-"."$length.$length"."s", $value;
+			$value = sprintf "%-$length.${length}s", $value;
 			}
 		elsif ($type =~ /^[NFD]$/)
 			{
 			$value += 0;
-			if ($decimal)
-				{
-				$length++;
-				$value = sprintf "%$length.${decimal}f", $value;
-				$value =~ s/[.,]//;
-				}
-			else
-				{ $value = sprintf "%$length.0f", $value; }
+			$value = sprintf "%$length.${decimal}f", $value;
 			}
 		elsif ($type =~ /^[MGBP]$/)
 			{
@@ -888,7 +879,7 @@ welcome.
 
 =head1 VERSION
 
-0.0582
+0.0583
 
 =head1 AUTHOR
 
