@@ -20,7 +20,7 @@ use XBase::Base;		# will give us general methods
 use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
-$VERSION = '0.129';
+$VERSION = '0.130';
 $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 
 *errstr = \$XBase::Base::errstr;
@@ -1168,12 +1168,24 @@ information about the file and about the fields.
 Module XBase::Base(3) defines some basic functions that are inherited
 by both XBase and XBase::Memo(3) module.
 
-=head1 MEMO, INDEX, LOCKS
+=head1 DATA TYPES
+
+The character fields are returned "as is". No charset or other
+translation is done. The numbers are converted to Perl numbers. The
+date fields are returned as 8 character string of the 'YYYYMMDD' form
+and when inserting the date, you again have to provide it in this
+form. No checking for the validity of the date is done. The datetime
+field is returned in the number of seconds since 1970/1/1, possibly
+with decimal part (since it allows precision up to 1/1000 s). To get
+the fields, use the gmtime (or similar) Perl function.
 
 If there is a memo field in the dbf file, the module tries to open
-file with the same name but extension dbt or fpt. It uses module
+file with the same name but extension dbt, fpt or smt. It uses module
 XBase::Memo(3) for this. It reads and writes this memo field
-transparently (you do not know about it).
+transparently (you do not know about it) and returns the data as
+single scalar.
+
+=head1 INDEX, LOCKS
 
 B<New:> There is a small read only support available for ndx and ntx
 index files. Please see the eg/use_index file in the distribution for
@@ -1195,7 +1207,7 @@ Thanks a lot.
 
 =head1 VERSION
 
-0.129
+0.130
 
 =head1 AUTHOR
 

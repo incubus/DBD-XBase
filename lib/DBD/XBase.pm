@@ -19,7 +19,7 @@ use vars qw( $VERSION @ISA @EXPORT $err $errstr $drh $sqlstate );
 
 require Exporter;
 
-$VERSION = '0.129';
+$VERSION = '0.130';
 
 $err = 0;
 $errstr = '';
@@ -162,6 +162,7 @@ sub disconnect
 		$xbase->close;
 		delete $dbh->{'xbase_tables'}{$xbase};
 		}
+	1;
 	}
 
 sub table_info
@@ -183,7 +184,7 @@ my @TYPE_INFO_ALL = (
 	[ 'NUMERIC', DBI::SQL_FLOAT, 0, '', '', 'number of digits', 1, 0, 2, 0, 0, 0, undef, 0, undef ],
 	[ 'BOOLEAN', DBI::SQL_BINARY, 0, '', '', 'number of digits', 1, 0, 2, 0, 0, 0, undef, 0, undef ],
 	[ 'DATE', DBI::SQL_DATE, 0, '', '', 'number of digits', 1, 0, 2, 0, 0, 0, undef, 0, undef ],
-	[ 'BLOB', DBI::SQL_LONGVARBINARY, 0, '', '', 'number of digits', 1, 0, 2, 0, 0, 0, undef, 0, undef ],
+	[ 'BLOB', DBI::SQL_LONGVARBINARY, 0, '', '', 'number of bytes', 1, 0, 2, 0, 0, 0, undef, 0, undef ],
 	);
 
 my %TYPE_INFO_TYPES = map { ( $TYPE_INFO_ALL[$_][0] => $_ ) } ( 1 .. $#TYPE_INFO_ALL );
@@ -324,7 +325,7 @@ sub execute
 	my $wherefn = $parsed_sql->{'wherefn'};
 	my @fields = @{$parsed_sql->{'fields'}} if defined $parsed_sql->{'fields'};
 	### use Data::Dumper; print STDERR Dumper $parsed_sql;
-	my $rows = 0;
+	my $rows;
 
 	if ($command eq 'select')
 		{
@@ -379,6 +380,7 @@ sub execute
 				if (not ($xbase->get_record_nf($i, 0))[0])
 					{
 					$xbase->delete_record($i);
+					$rows = 0 unless defined $rows;
 					$rows++;
 					}
 				}
@@ -390,6 +392,7 @@ sub execute
 				{
 				next unless &{$wherefn}($xbase, $values, $param, 0);
 				$xbase->delete_record($cursor->last_fetched);
+				$rows = 0 unless defined $rows;
 				$rows++;
 				}
 			}
@@ -404,6 +407,7 @@ sub execute
 			my %newval;
 			@newval{ @fields } = &{$parsed_sql->{'updatefn'}}($xbase, $values, $param, 0);
 			$xbase->update_record_hash($cursor->last_fetched, %newval);
+			$rows = 0 unless defined $rows;
 			$rows++;
 			}
 		}
@@ -412,8 +416,8 @@ sub execute
 		$xbase->drop;
 		$rows = -1;
 		}
-	$sth->{'xbase_rows'} = $rows;
-	return $rows ? $rows : '0E0';
+	$sth->{'xbase_rows'} = $rows if defined $rows;
+	return defined $rows ? ( $rows ? $rows : '0E0' ) : -1;
 	}
 sub fetch
 	{
@@ -624,7 +628,7 @@ Example:
 
 =head1 VERSION
 
-0.129
+0.130
 
 =head1 AUTHOR
 
