@@ -81,6 +81,7 @@ sub connect
 
 	if (not -d $dsn)
 		{
+		$DBD::XBase::err = 1;
 		$DBD::XBase::errstr = "Directory $dsn doesn't exist";
 		return undef;
 		}
@@ -102,7 +103,11 @@ sub prepare
 	my ($dbh, $statement, @attribs)= @_;
 	my $parsed_sql = DBD::XBase::db::_parse_SQL($statement);
 	if (not ref $parsed_sql)
-		{ $dbh->event("ERROR", 1, "Error: $parsed_sql\n"); return undef; }
+		{
+		${$dbh->{Err}} = 2;
+		${$dbh->{Errstr}} = "Error: $parsed_sql\n";
+		return;
+		}
 	my $sth = DBI::_new_sth($dbh, {
 		'Statement'	=> $statement,
 		'dbh'		=> $dbh,
@@ -179,7 +184,11 @@ sub execute
 			$table = new XBase($filename);
 
 			if (not defined $table)
-				{ $sth->event("ERROR", 2, $XBase::errstr); return; }
+				{
+				${$sth->{Err}} = 3;
+				${$sth->{Errstr}} = $XBase::errstr;
+				return;
+				}
 			$dbh->{'xbase_tables'}->{$from} = $table;
 			}
 		$sth->{'xbase_current_record'} = 0;
