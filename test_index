@@ -1,0 +1,35 @@
+#!/usr/bin/perl -w 
+
+use strict;
+use XBase::Index;
+
+### $XBase::Index::DEBUG = 1;
+
+
+# AUDIO 4608
+# FACILITY 3072
+# FILM 9216
+# MAIN 7680
+# ROOMNAME 1536
+
+my $file = shift;
+my @opts = ();
+if (@ARGV) { @opts = ( 'tag' => shift ); }
+my $index = new XBase::Index $file, @opts
+					or die XBase::Index->errstr;
+### use Data::Dumper; print Dumper $index;
+
+$index->prepare_select or die $index->errstr;
+
+### $index->get_record(5);
+
+while (my @data = $index->fetch())
+	{
+	$data[0] =~ s/\s+$//;
+	print "@data\n";
+	}
+
+if ($index->errstr) { die $index->errstr; }
+
+__END__
+

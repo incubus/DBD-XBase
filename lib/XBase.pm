@@ -20,7 +20,7 @@ use XBase::Base;		# will give us general methods
 use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
-$VERSION = '0.130';
+$VERSION = '0.132';
 $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 
 *errstr = \$XBase::Base::errstr;
@@ -753,11 +753,17 @@ sub prepare_select_nf
 sub prepare_select_with_index
 	{
 	my ($self, $file) = ( shift, shift );
+	my @tagopts = ();
+	if (ref $file eq 'ARRAY') {		### this is suboptimal
+				### interface but should suffice for the moment
+		@tagopts = ( 'tag' => $file->[1]);
+		$file = $file->[0];
+		}
 	my $fieldnames = [ @_ ];
 	if (not @_) { $fieldnames = [ $self->field_names ] };
 	my $fieldnums = [ map { $self->field_name_to_num($_); } @$fieldnames ];
 	require XBase::Index;
-	my $index = new XBase::Index $file or
+	my $index = new XBase::Index $file, 'dbf' => $self, @tagopts or
 		do { $self->Error(XBase->errstr); return; };
 	$index->prepare_select or
 		do { $self->Error($index->errstr); return; };
@@ -803,6 +809,12 @@ sub names
 	{ shift->[3]; }
 sub rewind
 	{ shift->[1] = undef; '0E0'; }
+
+sub attach_index {
+	my $self = shift;
+	require XBase::Index;
+
+	}
 
 package XBase::IndexCursor;
 use vars qw( @ISA );
@@ -1207,7 +1219,7 @@ Thanks a lot.
 
 =head1 VERSION
 
-0.130
+0.132
 
 =head1 AUTHOR
 
