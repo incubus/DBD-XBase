@@ -379,6 +379,8 @@ sub last_field		{ shift->{'last_field'}; }
 sub field_names		{ @{shift->{'field_names'}}; }
 # And list of field types
 sub field_types		{ @{shift->{'field_types'}}; }
+sub field_lengths     { @{shift->{'field_lengths'}}; }
+sub field_decimals    { @{shift->{'field_decimals'}}; }
 
 
 # #############################
