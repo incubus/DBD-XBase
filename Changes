@@ -1,10 +1,14 @@
 
 Revision history for Perl extension XBase and DBD::XBase.
 
+0.231 Thu Oct 31 17:48:19 MET 2002
+	t/9_dbd_create.t: patched a test failure on Windows platform,
+	path by Yves Orton.
+
 0.230 Wed Oct  9 11:05:28 MET DST 2002
 	DBD::XBase: added docs about xbase_ignorememo.
 
-	DBD::XBase: Fixed dropping table so that the driver forgets
+	DBD::XBase: fixed dropping table so that the driver forgets
 	the table, patch by Mike P. Mikhailov.
 
 0.220 Mon Sep  2 12:26:34 MET DST 2002

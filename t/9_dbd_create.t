@@ -90,6 +90,7 @@ print "Check the header of the newly created table\n";
 my $header = $table->get_header_info();
 $header =~ s!^Last change:\t.*$!Last change:\txxxx/xx/xx!m;
 $header =~ s!^Filename:\tt/!Filename:\t!;
+$table->close;
 
 my $goodheader = join '', <DATA>;
 if ($header ne $goodheader) {
