@@ -372,7 +372,7 @@ sub close
 	{
 	my $self = shift;
 	if (defined $self->{'memo'})
-		{ $self->{'memo'}->close(); }
+		{ $self->{'memo'}->close(); delete $self->{'memo'}; }
 	$self->SUPER::close();
 	}
 
