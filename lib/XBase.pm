@@ -20,7 +20,7 @@ use XBase::Base;		# will give us general methods
 use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
-$VERSION = '0.172';
+$VERSION = '0.173';
 $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 
 *errstr = \$XBase::Base::errstr;
@@ -637,7 +637,7 @@ sub update_last_change
 	{
 	my $self = shift;
 	return 1 if defined $self->{'updated_today'};
-	my ($y, $m, $d) = (localtime)[5, 4, 3]; $m++;
+	my ($y, $m, $d) = (localtime)[5, 4, 3]; $m++; $y -= 100 if $y >= 100;
 	$self->write_to(1, pack "C3", ($y, $m, $d)) or return;
 	$self->{'updated_today'} = 1;
 	}
