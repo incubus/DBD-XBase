@@ -27,7 +27,14 @@ t/6_dbd_delete.t
 t/7_dbd_update.t
 t/8_dbd_insert.t
 t/9_dbd_create.t
+t/ndx-char.dbf
+t/ndx-char.ndx
+t/ndx-date.dbf
+t/ndx-date.ndx
+t/ndx-num.dbf
+t/ndx-num.ndx
 t/rooms.cdx
 t/rooms.dbf
 t/test.dbf
 t/test.dbt
+t/x_ndx.test

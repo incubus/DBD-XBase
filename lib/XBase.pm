@@ -19,7 +19,7 @@ use XBase::Base;	# will give us general methods
 use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
-$VERSION = '0.063';
+$VERSION = '0.0631';
 $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 
 *errstr = \$XBase::Base::errstr;
@@ -928,7 +928,7 @@ welcome.
 
 =head1 VERSION
 
-0.063
+0.0631
 
 =head1 AUTHOR
 

@@ -1,6 +1,11 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
+0.0631 Fri May 22 22:24:02 CEST 1998
+
+	Fixed handling big endian in numeric fields in ndx, fixe
+	problem with key/record	length.
+
 0.063 Sun May 17 21:46:08 CEST 1998
 
 	Added first support for ndx index files. From XBase module

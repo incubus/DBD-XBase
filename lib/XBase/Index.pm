@@ -7,11 +7,13 @@ XBase::Index - base class for the index files for dbf
 
 package XBase::Index;
 use strict;
-use vars qw( @ISA $VERSION );
+use vars qw( @ISA $VERSION $DEBUG );
 use XBase::Base;
 @ISA = qw( XBase::Base );
 
-$VERSION = '0.063';
+$DEBUG = 0;
+
+$VERSION = '0.0631';
 
 sub read_header
 	{
@@ -21,7 +23,7 @@ sub read_header
 		{ __PACKAGE__->Error("Error reading header of $self->{'filename'}: $!\n"); return; };
 	@{$self}{ qw( start_page total_pages key_length keys_per_page
 		key_type key_record_length unique key_string ) }
-		= unpack 'VV @12vvvV @23c a*', $header;
+		= unpack 'VV @12vvvv @23c a*', $header;
 	
 	$self->{'key_string'} =~ s/[\000 ].*$//s;
 	$self->{'record_len'} = 512;
@@ -114,23 +116,33 @@ sub get_record
 
 package XBase::IndexPage;
 use strict;
+use vars qw( $DEBUG );
+
+$DEBUG = 0;
 
 sub new
 	{
 	my ($indexfile, $num) = @_;
 	my $data = $indexfile->read_record($num) or return;
 	my $noentries = unpack 'V', $data;
-	if ($num == $indexfile->{'start_page'}) { $noentries++; }
+	print "Page $num " if $DEBUG;
+	if ($num == $indexfile->{'start_page'}) { $noentries++; print "(actually rootpage) " if $DEBUG; }
 	my $keylength = $indexfile->{'key_length'};
+	print "noentries $noentries, keylength $keylength, keyreclen $indexfile->{'key_record_length'}\n" if $DEBUG;
 	my $offset = 4;
 	my ($keys, $values) = ([], []);
 	my $numdate = $indexfile->{'key_type'};
+	my $bigend = substr(pack( "d", 1), 0, 2) eq '?ð';
 	for (my $i = 0; $i < $noentries; $i++)
 		{
 		my ($lower, $recno, $key);
-		my $unpack = $numdate ? 'd': "a$keylength";
-		($lower, $recno, $key) = unpack "\@$offset VV$unpack", $data;
-		### print "\@$offset VV$unpack -> ($lower, $recno, $key)\n";
+		($lower, $recno, $key) = unpack "\@$offset VVa$keylength", $data;
+		if ($numdate)
+			{
+			$key = reverse $key if $bigend;
+			$key = unpack "d", $key;
+			}
+		print "\@$offset VVa$keylength -> ($lower, $recno, $key)\n" if $DEBUG;
 		push @$keys, $key;
 		if ($lower != 0) { $recno = -$lower; }
 		push @$values, $recno;
@@ -189,7 +201,7 @@ in the distribution directory for more information.
 
 =head1 VERSION
 
-0.063
+0.0631
 
 =head1 AUTHOR
 
