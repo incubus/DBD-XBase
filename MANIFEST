@@ -4,6 +4,7 @@ Makefile.PL
 README
 ToDo
 eg/copy_table
+eg/create_table
 eg/dump_table
 lib/DBD/XBase.pm
 lib/XBase.pm

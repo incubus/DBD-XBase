@@ -224,7 +224,7 @@ dBase nor Fox*, so there are probably pieces missing.
 
 =head1 VERSION
 
-0.034
+0.0341
 
 =head1 AUTHOR
 
@@ -259,7 +259,7 @@ use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
 
-$VERSION = "0.034";
+$VERSION = "0.0341";
 
 $errstr = '';	# only after new, otherwise use method $table->errstr;
 
@@ -746,10 +746,10 @@ sub create
 	{
 	NullError();
 	my $class = shift;
-	my %options = ();
+	my %options = @_;
 	if (ref $class)
-		{ %options = ( %$class, @_ ); $class = ref $class; }
-		
+		{ %options = ( %$class, %options ); $class = ref $class; }
+
 	my $version = $options{'version'};
 	$version = 3 unless defined $version;
 
