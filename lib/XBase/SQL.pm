@@ -2,6 +2,7 @@
 # ####################
 # Parsing SQL commands
 
+package XBase::SQL::Expr;
 package XBase::SQL;
 
 ### BEGIN { eval { use locale; }; }
@@ -23,11 +24,11 @@ my $FIELDTYPE = join('|', '(', keys %TYPES, ')') .
 
 %COMMANDS = (
 	'COMMANDS' => 	' SELECT | INSERT | DELETE | UPDATE | CREATE ',
-	'SELECT' =>	' select SELECTFIELDS from TABLE WHERE ? ORDER ? ',
-	'INSERT' =>	q' insert into TABLE ( values | INSERTFIELDS values )
+	'SELECT' =>	' select SELECTFIELDS from TABLE WHERE ? ',
+	'INSERT' =>	q' insert into TABLE INSERTFIELDS ? values
 						\( INSERTCONSTANTS \) ',
-	'DELETE' =>	' delete from TABLE ( where BOOLEAN ) ? ',
-	'UPDATE' =>	' update TABLE SETCOLUMNS ( where BOOLEAN ) ? ',
+	'DELETE' =>	' delete from TABLE WHERE ? ',
+	'UPDATE' =>	' update TABLE set SETCOLUMNS WHERE ? ',
 	'CREATE' =>	q' create table TABLE \( COLUMNDEF \) ',
 
 	'TABLE' =>	q'\w+',
@@ -50,38 +51,53 @@ my $FIELDTYPE = join('|', '(', keys %TYPES, ')') .
 	'ORDER' => [ qw{ order by FIELDNAME } ],
 	'INSERTCONSTANTS' => [ qw{ CONSTANT ( }, ',', qw{ INSERTCONSTANTS ) * } ],
 	'CONSTANT' => [ qw{ NUMBER | STRING } ],
-	'INSERTFIELDS' =>	'FIELDNAME ( , FIELDNAME ) *',
-	);
-
-my %OLD_STORE = (
-	'TABLE' => 'table',
-	'FIELDNAME' => sub { push @{shift->{'selectfields'}}, @_; },
-	'WHERE' => sub { my $self = shift; $self->{'whereexpression'} =
-		$self->{'expression'}; delete $self->{'expression'}; },
-	'and' => sub { push @{ shift->{'expression'} }; },
-	'>=' => sub { push @{ shift->{'expression'} }; },
-	'<=' => sub { push @{ shift->{'expression'} }; },
+	'INSERTFIELDS' =>	'\( FIELDNAME ( , FIELDNAME ) * \)',
+	
+	'SETCOLUMNS' => 'SETCOLUMN ( , SETCOLUMN ) *',
+	'SETCOLUMN' => 'FIELDNAME = ARITHMETIC',
 	);
 
 my %STORE = (
 	'SELECT' => sub { shift->{'command'} = 'select'; },
-	'SELECT SELECTALL' => 'selectall',
-	'SELECT SELECTFIELDS FIELDNAME' => 'selectfields',
+	'SELECTALL' => 'selectall',
+	'SELECTFIELDS FIELDNAME' => 'selectfields',
 	'SELECT TABLE' => 'table',
-	'SELECT ORDER FIELDNAME' => 'orderfield',
+
+	'INSERT' => sub { shift->{'command'} = 'insert'; },
 	'INSERT TABLE' => 'inserttable',
-	'INSERT INSERTCONSTANTS CONSTANT' => 'insertvalues',
-	'INSERT INSERTFIELDS FIELDNAME' => 'insertfields',
+	'INSERTCONSTANTS CONSTANT' => sub { push @{shift->{'insertvalues'}},
+		(shift) . '->value()'; },
+	'INSERTFIELDS FIELDNAME' => 'insertfields',
+
+	'DELETE' => sub { shift->{'command'} = 'delete'; },
+	'DELETE TABLE' => 'table',
+
+	'INSERT' => sub { shift->{'command'} = 'insert'; },
+	'INSERT TABLE' => 'table',
+
+	'UPDATE' => sub { shift->{'command'} = 'update'; },
+	'UPDATE TABLE' => 'table',
+	'UPDATE SETCOLUMN FIELDNAME' => 'updatefields',
+	'UPDATE SETCOLUMN ARITHMETIC' => sub { my ($self, @expr) = @_;
+		my $line = "sub { my (\$TABLE, \$HASH) = \@_; my \$e = XBase::SQL::Expr->other( @expr ); \$e->value(); }";
+		print "Evaling $line\n";
+		my $fn = eval $line;
+		if ($@) { push @{$self->{'updaterror'}}, $@; }
+		else { push @{$self->{'updaterror'}}, undef;
+			push @{$self->{'updatevalues'}}, $fn; }},
+
 	'WHEREEXPR' => sub { my ($self, $expr) = @_;
-		print "Evaling $expr\n";
-		my $fn = eval "sub { my (\$TABLE, \$HASH) = @_; $expr; }";
+		### print "Evaling $expr\n";
+		my $fn = eval "sub { my (\$TABLE, \$HASH) = \@_; $expr; }";
 		if ($@) { $self->{'whereerror'} = $@; }
-		else { $self->{'wherefn'} = $fn; } },
+		else { $self->{'wherefn'} = $fn; }
+		},
 	);
 
 my %SIMPLIFY = (
 	'STRING' => sub { my $e = (get_strings(@_))[1];
-					"XBase::SQL::Expr->string('\Q$e\E')"; },
+				$e =~ s/'/\\'/g;
+					"XBase::SQL::Expr->string('$e')"; },
 	'NUMBER' => sub { my $e = (get_strings(@_))[0];
 					"XBase::SQL::Expr->number('\Q$e\E')"; },
 	'EXPFIELDNAME' => sub { my $e = (get_strings(@_))[0];
@@ -90,8 +106,7 @@ my %SIMPLIFY = (
 	'WHEREEXPR' => sub { join ' ', get_strings(@_); },
 	'RELOP' => sub { my $e = (get_strings(@_))[0];
 			if ($e eq '=') { $e = '=='; }
-			elsif ($e eq '<>') { $e = '!=';}
-					$e; },
+			elsif ($e eq '<>') { $e = '!=';} $e; },
 	);
 
 my %ERRORS = (
@@ -110,16 +125,6 @@ my %ERRORS = (
 	'SELECTFIELDS' => 'Columns to select',
 	);
 
-my %NEWCOMMANDS = (
-	'COMMANDS' => qw( LESS | GREATER ),
-	'LESS' => qw( FIELD < NUMBER ),
-	'GREATER' => qw( FIELD > NUMBER ),
-	'FIELD' => q'\w+',
-	'NUMBER' => q'-?\d*\.?\d+',
-	);
-
-use Data::Dumper;
-
 sub parse
 	{
 	my ($class, $string) = @_;
@@ -134,15 +139,13 @@ sub parse
 		{
 		substr($srest, 40) = '...' if length $srest > 44;
 		$self->{'errstr'} = "$errstr near `$srest'";
-		print "$self->{'errstr'}\n";
+		### print "$self->{'errstr'}\n";
 		}
 	else
 		{
-		print_result(\@result);
+		### print_result(\@result);
 		$self->store_results(\@result, \%STORE);
 		}
-	### print Dumper $self;
-	### print Dumper \@result;
 	$self;
 	}
 sub store_results
@@ -158,10 +161,10 @@ sub store_results
 		my ($tag, $value);
 		while (($tag, $value) = each %$store)
 			{
-			next if index($tag, $regexp) != 0;
+			my $oldtag = $tag;
+			next unless $tag =~ s/^\Q$regexp\E($|\s+)//;
 
-			delete $nstore{$tag};
-			$tag =~ s/^\w+\s*//s;
+			delete $nstore{$oldtag};
 			if ($tag eq '')
 				{
 				my @result;
@@ -228,7 +231,6 @@ sub match
 		my $c = $COMMANDS{$regexps[0]};
 		@regexps = expand( ( ref $c ) ? @$c :
 					grep { $_ ne '' } split /\s+/, $c);
-		### print Dumper $title, \@regexps;
 		}
 
 	my $modif;
@@ -373,8 +375,6 @@ sub field
 	my $type = $table->field_type($field);
 	if ($type eq 'N')	{ $self->{'number'} = 1; }
 	else			{ $self->{'string'} = 1; }
-use Data::Dumper;
-print Dumper $self;
 	$self;
 	}
 sub string
@@ -391,7 +391,12 @@ sub number
 	$self->{'number'} = 1;
 	$self;
 	}
-
+sub other
+	{
+	my $class = shift;
+	my $other = shift;
+	$other;
+	}
 #
 # Function working on Expr objects
 #

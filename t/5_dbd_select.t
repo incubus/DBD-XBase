@@ -13,7 +13,7 @@ BEGIN	{
 		print "ok 1\n";
 		exit;
 		}
-	print "1..5\n";
+	print "1..10\n";
 	print "DBI loaded\n";
 	}
 
@@ -36,8 +36,7 @@ my $dbh = DBI->connect("dbi:XBase:$dir") or do
 	};
 print "ok 2\n";
 
-my $command = "select facility,roomname from rooms where
-				facility = 'Audio' or roomname > 'B'";
+my $command = "select ID, MSG from test";
 print "Prepare command '$command'\n";
 my $sth = $dbh->prepare($command) or do
 	{
@@ -56,10 +55,53 @@ $sth->execute() or do
 	};
 print "ok 4\n";
 
+print "And get two lines\n";
+
+my @line;
+
+@line = $sth->fetchrow_array();
+my $result = join ":", @line;
+print "Got: $result\n";
+print "not " if $result ne "1:Record no 1";
+print "ok 5\n";
+
+@line = $sth->fetchrow_array();
+$result = join ":", @line;
+print "Got: $result\n";
+print "not " if $result ne "3:Message no 3";
+print "ok 6\n";
+
+@line = $sth->fetchrow_array();
+print "Got empty list\n" unless @line;
+print "not " if scalar(@line) != 0;
+print "ok 7\n";
+
+$sth->finish();
+
+
+$command = "select facility,roomname from rooms where
+				facility = 'Audio' or roomname > 'B'";
+print "Prepare command '$command'\n";
+$sth = $dbh->prepare($command) or do
+	{
+	print $dbh->errstr();
+	print "not ok 8\n";
+	exit;
+	};
+print "ok 8\n";
+
+print "Execute it\n";
+$sth->execute() or do
+	{
+	print $sth->errstr();
+	print "not ok 9\n";
+	exit;
+	};
+print "ok 9\n";
+
 print "And now get the result\n";
 
-my $result = '';
-my @line;
+$result = '';
 while (@line = $sth->fetchrow_array())
 	{ $result .= "@line\n"; }
 
@@ -72,7 +114,7 @@ if ($result ne $expected_result)
 	print "Got:\n$result";
 	print "not ";
 	}
-print "ok 5\n";
+print "ok 10\n";
 
 $sth->finish();
 $dbh->disconnect();

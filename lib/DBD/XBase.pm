@@ -125,7 +125,7 @@ sub prepare
 	my ($dbh, $statement, @attribs)= @_;
 
 	my $parsed_sql = parse XBase::SQL($statement);
-	use Data::Dumper; print Dumper $parsed_sql;
+	### use Data::Dumper; print Dumper $parsed_sql;
 	if (defined $parsed_sql->{'errstr'})
 		{
 		${$dbh->{'Err'}} = 2;
@@ -242,6 +242,45 @@ sub execute
 			return;
 			}
 		$dbh->{'xbase_tables'}->{$table} = $xbase;	
+		}
+	elsif ($command eq 'update')
+		{
+		my $recno = 0;
+		my $last = $xbase->last_record();
+		my $fn = $parsed_sql->{'wherefn'};
+		my @fields = @{$parsed_sql->{'updatefields'}};
+		for ($recno = 0; $recno <= $last; $recno++)
+			{
+			my $values = $xbase->get_record_as_hash($recno);
+			next if $values->{'_DELETED'} != 0;
+			next if defined $fn and not &{$fn}($xbase, $values);
+			
+			my %newval;
+			@newval{ @fields } = map { &{$_}($xbase, $values) }
+				@{$parsed_sql->{'updatevalues'}};
+
+			$xbase->update_record_hash($recno, %newval);
+			}
+		return 1;
+		}
+	elsif ($command eq 'insert')
+		{
+		my $recno = 0;
+		my $last = $xbase->last_record();
+		my @values = @{$parsed_sql->{'insertvalues'}};
+		
+		if (defined $parsed_sql->{'insertfields'})
+			{
+			my @fields = @{$parsed_sql->{'insertfields'}};
+			my %newval;
+			@newval{ @fields } = map { eval $_; } @values;
+			$xbase->update_record_hash($last + 1, \%newval);
+			}
+		else
+			{
+			$xbase->set_record($last + 1, map { eval $_; } @values);
+			}
+		return 1;
 		}
 	1;
 	}
