@@ -19,7 +19,7 @@ use Exporter;
 use vars qw( $VERSION @ISA @EXPORT $err $errstr $drh $sqlstate );
 			# a couple of global variables that may come handy
 
-$VERSION = '0.176';
+$VERSION = '0.190';
 
 $err = 0;
 $errstr = '';
@@ -405,22 +405,22 @@ sub execute {
 
 	
 	# select with order by clause will be done using "substatement"
-	if ($command eq 'select' and defined $parsed_sql->{'orderfield'}) {
-		my $orderfield = ${$parsed_sql->{'orderfield'}}[0];
+	if ($command eq 'select' and defined $parsed_sql->{'orderfields'}) {
+		my @orderfields = @{$parsed_sql->{'orderfields'}};
 
 		# make a copy of the $parsed_sql hash, but delete the
-		# orderfield value
+		# orderfields value
 		my $subparsed_sql = { %$parsed_sql };
-		delete $subparsed_sql->{'orderfield'};
+		delete $subparsed_sql->{'orderfields'};
 		delete $subparsed_sql->{'selectall'};
 
 		my $selectfn = $parsed_sql->{'selectfn'};
 		$subparsed_sql->{'selectfn'} = sub {
 			my ($TABLE, $VALUES, $BINDS) = @_;
-			return XBase::SQL::Expr->field($orderfield, $TABLE, $VALUES)->value, &{$selectfn}($TABLE, $VALUES, $BINDS);
+			return map({ XBase::SQL::Expr->field($_, $TABLE, $VALUES)->value } @orderfields), &{$selectfn}($TABLE, $VALUES, $BINDS);
 		};
 ### use Data::Dumper; print STDERR Dumper $subparsed_sql;
-		$subparsed_sql->{'selectfieldscount'}++;
+		$subparsed_sql->{'selectfieldscount'} += scalar(@orderfields);
 
 		# make new $sth
 		my $substh = DBI::_new_sth($dbh, {
@@ -437,27 +437,29 @@ sub execute {
 		$substh->execute;
 ### use Data::Dumper; print STDERR Dumper $substh->{'xbase_parsed_sql'};
 		my $data = $substh->fetchall_arrayref;
-		my $type = $xbase->field_type($orderfield);
-		my $sortfn;
 
-		# this is how we'll sort the rows
-		if (not defined $parsed_sql->{'orderdesc'}) {
-			if ($type =~ /^[CML]$/) {
-				$sortfn = sub { $_[0] cmp $_[1] }
+		my $sortfn = '';
+		for (my $i = 0; $i < @orderfields; $i++) {
+			$sortfn .= ' or ' if $i > 0;
+			if ($xbase->field_type($orderfields[$i]) =~ /^[CML]$/) {
+				if (lc($parsed_sql->{'orderdescs'}[$i]) eq 'desc') {
+					$sortfn .= "\$_[1]->[$i] cmp \$_[0]->[$i]";
+				} else {
+					$sortfn .= "\$_[0]->[$i] cmp \$_[1]->[$i]";
+				}
 			} else {
-				$sortfn = sub { $_[0] <=> $_[1] }
-			}
-		} else {
-			if ($type =~ /^[CML]$/) {
-				$sortfn = sub { $_[1] cmp $_[0] }
-			} else {
-				$sortfn = sub { $_[1] <=> $_[0] }
+				if (lc($parsed_sql->{'orderdescs'}[$i]) eq 'desc') {
+					$sortfn .= "\$_[1]->[$i] <=> \$_[0]->[$i]";
+				} else {
+					$sortfn .= "\$_[0]->[$i] <=> \$_[1]->[$i]";
+				}
 			}
 		}
+		my $fn = eval "sub { $sortfn }";
 		# sort them and store in xbase_lines
 		$sth->{'xbase_lines'} =
-			[ map { shift @$_; [ @$_ ] }
-				sort { &{$sortfn}($a->[0], $b->[0]) } @$data ];
+			[ map { [ @{$_}[scalar(@orderfields) .. scalar(@$_) - 1 ] ] }
+				sort { &{$fn}($a, $b) } @$data ];
 	} elsif ($command eq 'select') {
 		$sth->{'xbase_cursor'} = $cursor;
 	} elsif ($command eq 'delete') {
@@ -751,7 +753,7 @@ Example:
 
 =head1 VERSION
 
-0.176
+0.190
 
 =head1 AUTHOR
 

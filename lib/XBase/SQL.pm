@@ -8,7 +8,7 @@ package XBase::SQL;
 use strict;
 use vars qw( $VERSION %COMMANDS );
 
-$VERSION = '0.162';
+$VERSION = '0.190';
 
 # #################################
 # Type conversions for create table
@@ -115,8 +115,9 @@ my %TYPES = ( 'char' => 'C', 'varchar' => 'C',
 	'FUNCTION23' =>	' ( substr | substring ) \( ARITHMETIC , ARITHMETIC ( , ARITHMETIC ) ? \) ',
 	'FUNCTIONANY' =>	' concat \( ARITHMETICLIST \) ',
 
-	'ORDERBY' => 'order by ORDERFIELDNAME ( asc | ORDERDESC ) ?',
-	'ORDERDESC' => 'desc',
+	'ORDERBY' => 'order by ORDERFIELDNAME ORDERDESC ?
+				( , ORDERFIELDNAME ORDERDESC ? ) *',
+	'ORDERDESC' => 'asc | desc',
 	'ORDERFIELDNAME' => 'FIELDNAME',
 	);
 
@@ -254,8 +255,8 @@ my %STORE = (
 		"XBase::SQL::Expr->function('$fn', \$TABLE, \$VALUES, @params)";
 		},
 
-	'ORDERFIELDNAME' => 'orderfield',
-	'ORDERDESC' => 'orderdesc',
+	'ORDERFIELDNAME' => 'orderfields',
+	'ORDERDESC' => 'orderdescs',
 	
 	'STRINGDBL' => sub {
 		my $self = shift;

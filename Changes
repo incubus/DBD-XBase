@@ -1,8 +1,9 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
+	DBD::XBase: order by with more fields supported.
+
 0.177 Thu May 10 17:19:07 MET DST 2001
-	Mon Mar 19 18:51:39 MET 2001
 	XBase: retry with nolongchars if the char lengths do not match
 	the record length.
 

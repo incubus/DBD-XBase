@@ -12,7 +12,7 @@ BEGIN {
 		print "ok 1\n";
 		exit;
 	}
-	print "1..38\n";
+	print "1..41\n";
 	print "DBI loaded\n";
 }
 
@@ -404,6 +404,46 @@ if ($result ne $expected_result) {
 }
 print "ok 38\n";
 
+$command = "select facility,roomname from rooms where roomname > ? or facility = ? order by facility DESC, roomname";
+print "Prepare command\t`$command'\n";
+$sth = $dbh->prepare($command) or do {
+	print $dbh->errstr();
+	print "not ok 39\n";
+	exit;
+};
+print "ok 39\n";
+
+print "Execute it with bind parameters ('F', 'Audio')\n";
+$sth->execute('F', 'Audio') or do {
+	print $sth->errstr();
+	print "not ok 40\n";
+	exit;
+};
+print "ok 40\n";
+
+
+print "And now get the result\n";
+
+$result = '';
+while (@line = $sth->fetchrow_array()) {
+	$result .= "@line\n";
+}
+
+$expected_result = '';
+while (<DATA>) {
+	last if /^__END_DATA__$/;
+	$expected_result .= $_;
+}
+
+if ($result ne $expected_result) {
+	print "Expected:\n$expected_result";
+	print "Got:\n$result";
+	print "not ";
+}
+print "ok 41\n";
+
+
+$command = 'select * from rooms where roomname like ?';
 
 $sth->finish();
 $dbh->disconnect();
@@ -512,3 +552,23 @@ Film Celco
 __END_DATA__
 1 Record no 1 This is a memo for record no one  19960813
 3 Message no 3 This is a memo for record 3 0 19960102
+__END_DATA__
+Main Gigapix
+Main MacGrfx
+Film FILM 1
+Film FILM 2
+Film FILM 3
+Film SCANNING
+Audio ADR-Foley
+Audio Flambe
+Audio Mach Rm
+Audio Mix A
+Audio Mix B
+Audio Mix C
+Audio Mix D
+Audio Mix E
+Audio Mix F
+Audio Mix G
+Audio Mix H
+Audio Mix J
+Audio Transfer
