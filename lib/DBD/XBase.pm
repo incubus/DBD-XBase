@@ -750,6 +750,18 @@ Example:
 
     drop table passwd
 
+=head1 ATTRIBUTES
+
+Besides standard DBI attribudes, DBD::XBase supports database handle
+attribute xbase_ignorememo:
+
+	$dbh->{'xbase_ignorememo'} = 1;
+
+Setting it to 1 will cause subsequent tables to be opened while
+ignoring the memo files (dbt, fpt). So you can read dbf files for
+which you don't have (you have lost them, for example) the memo files.
+The memo fields will come out as nulls.
+
 =head1 VERSION
 
 0.220

@@ -1,6 +1,8 @@
 
 Revision history for Perl extension XBase and DBD::XBase.
 
+	DBD::XBase: added docs about xbase_ignorememo.
+
 0.220 Mon Sep  2 12:26:34 MET DST 2002
 	XBase::Index::ntx: type option has higher priority than dbf.
 
