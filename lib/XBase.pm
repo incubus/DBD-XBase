@@ -444,6 +444,7 @@ sub dump_records
 	for $num (0 .. $self->last_record())
 		{ print join(':', map { defined $_ ? $_ : ''; }
 				$self->get_record($num, @_)), "\n"; }
+	1;
 	}
 sub decode_version_info
 	{
@@ -581,6 +582,7 @@ sub set_record
 	my @data = $self->process_list_on_write($num, @_,
 				(undef) x ($self->last_field - $#_));
 	$self->write_record($num, " ", @data);
+	$num = "0E0" unless $num;
 	$num;
 	}
 
