@@ -538,8 +538,13 @@ sub process_list_on_read
 			}
 		elsif ($type eq 'N' or $type eq 'F')
 			{
-			substr($value, $self->{'field_lengths'}[$num - 1] - $self->{'field_decimals'}[$num - 1], 0) = '.';
-			$data[$num] = $value + 0;
+			my $len = $self->{'field_lengths'}[$num - 1];
+			my $dec = $self->{'field_decimals'}[$num - 1];
+			if ($dec)
+				{ $data[$num] = sprintf "%-$len.${dec}f", $value; }
+			else
+				{ $data[$num] = sprintf "%-${len}d", $value; }
+			$data[$num] += 0;
 			}
 		elsif ($type =~ /^[MGBP]$/)
 			{
