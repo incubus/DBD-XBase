@@ -11,7 +11,7 @@ use vars qw( @ISA $DEBUG $VERSION );
 use XBase::Base;
 @ISA = qw( XBase::Base );
 
-$VERSION = '0.0941';
+$VERSION = '0.0942';
 
 $DEBUG = 0;
 
@@ -22,6 +22,8 @@ sub new
 		{ return new XBase::ndx $file, @_; }
 	elsif ($file =~ /\.ntx$/i)
 		{ return new XBase::ntx $file, @_; }
+	elsif ($file =~ /\.mdx$/i)
+		{ return new XBase::mdx $file, @_; }
 	else
 		{ __PACKAGE__->Error("Error loading index: unknown extension\n"); }
 	return;
@@ -346,6 +348,69 @@ sub new
 	$self;
 	}
 
+#
+# dBase IV MDX
+#
+
+package XBase::mdx;
+use strict;
+use vars qw( @ISA );
+@ISA = qw( XBase::Base XBase::Index );
+
+sub read_header
+	{
+	my $self = shift;
+	my $header;
+	$self->{'fh'}->read($header, 544) == 544 or do
+		{ __PACKAGE__->Error("Error reading header of $self->{'filename'}: $!\n"); return; };
+
+	@{$self}{ qw( version created dbf_filename block_size
+		block_size_adder production noentries tag_length res
+		tags_used res nopages first_free noavail last_update ) }
+			= unpack 'Ca3A16vvccccvvVVVa3', $header;
+use Data::Dumper;
+
+	for my $i (1 .. $self->{'tags_used'})
+		{
+		my $len = $self->{'tag_length'};
+		$self->{'fh'}->read($header, $len)  == $len or do
+			{ __PACKAGE__->Error("Error reading tag header $i in $self->{'filename'}: $!\n"); return; };
+	
+		my $tag;
+		@{$tag}{ qw( header_page tag_name key_format fwd_low
+			fwd_high backward res key_type ) }
+				= unpack 'VA11ccccca1', $header;
+	
+		$self->{'tags'}{$tag->{'tag_name'}} = $tag;
+		}
+
+print Dumper $self;
+
+	### for my $tag ($self->{'tags'}{'TSCODE'})
+	for my $tag (values %{$self->{'tags'}})
+		{
+		my $offset = $tag->{'header_page'};
+		### $self->seek_to($offset * $self->{'block_size_adder'}) or return;
+		$self->seek_to($offset * 512) or return;
+		$self->{'fh'}->read($header, 544) == 544 or do
+			{ __PACKAGE__->Error("Error reading tag definition in $self->{'filename'}: $!\n"); return; };
+
+		my %new;
+		@new{ qw( root_page_ptr file_size key_format_1
+			key_type_1 res idx_key_length max_no_keys_per_page
+			second_key_type idx_key_item_length res unique) }
+				 = unpack 'VVca1vvvvva3c', $header;
+		$new{'name'} = $tag->{'tag_name'};
+
+print Dumper \%new;
+
+		$self->seek_to($new{'root_page_ptr'} * $self->{'block_size_adder'}) or return;
+		$self->{'fh'}->read($header, 50);
+		print "$header\n";
+		}
+
+	$self;
+	}
 
 1;
 
@@ -387,7 +452,7 @@ in the distribution directory for more information.
 
 =head1 VERSION
 
-0.0941
+0.0942
 
 =head1 AUTHOR
 
