@@ -22,3 +22,9 @@ Revision history for Perl extension XBase and DBD::Xbase.
 	I have worked on DBD::XBase module a little but it's still now
 	usable.
 
+0.031 Thu Oct 30 19:47:37 MET 1997
+
+	Fixed bug in docs about write_record. Changed format of
+	get_field_info to include field number. Fixed bug with decimals.
+
+
