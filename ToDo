@@ -5,12 +5,9 @@ Short term (I will do them):
 
 	Review error messages.
 
-	Tests for create.
-
+	DBD::XBase -- I'm now working on some siiimple SQL parser.
 
 Mid term (would appreciate help or comments):
-
-	DBD::XBase -- I'm now working on some siiimple SQL parser.
 
 	Locking -- will probably lock all the whole file when creating
 	the XBase object and unlock it upon close.
@@ -24,5 +21,4 @@ Long term (it really depends on many things):
 
 	I'm now working on some cdx parser but do not see any real use
 	for that just now.
-
 

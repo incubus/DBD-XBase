@@ -20,11 +20,15 @@ DBD::XBase - DBI driver for XBase
 
 =head1 DESCRIPTION
 
-DBI compliant driver for module XBase.
+DBI compliant driver for module XBase. It is not ready yet, only the
+
+	select * from table
+
+works at the moment.
 
 =head1 VERSION
 
-0.034
+0.0343
 
 =head1 AUTHOR
 
@@ -45,12 +49,13 @@ package DBD::XBase;
 use strict;
 use DBI ();
 use XBase;
+use XBase::SQL;
 
 use vars qw($VERSION @ISA @EXPORT $err $errstr $drh);
 
 require Exporter;
 
-$VERSION = '0.034';
+$VERSION = '0.0343';
 
 $err = 0;
 $errstr = '';
@@ -101,65 +106,66 @@ $imp_data_size = 0;
 sub prepare
 	{
 	my ($dbh, $statement, @attribs)= @_;
-	my $parsed_sql = DBD::XBase::db::_parse_SQL($statement);
+
+	my $parsed_sql = new XBase::SQL($statement);
+
+	my $errstr;
+
 	if (not ref $parsed_sql)
+		{ $errstr = 'Parse SQL failed'; }
+	elsif (defined $parsed_sql->{errstr})
+		{ $errstr = $parsed_sql->{errstr}; }
+
+	if (defined $errstr)
 		{
 		${$dbh->{Err}} = 2;
-		${$dbh->{Errstr}} = "Error: $parsed_sql\n";
+		${$dbh->{Errstr}} = "Error: $errstr\n";
 		return;
 		}
+
 	my $sth = DBI::_new_sth($dbh, {
 		'Statement'	=> $statement,
 		'dbh'		=> $dbh,
 		'xbase_parsed_sql'	=> $parsed_sql,
 		});
-	$sth;
-	}
 
-# select fields from table [ where conditions ]
-# update table set operation [, operations ] [ where conditions ]
-# delete from table where conditions
-# insert into table [ fields ] values values
-
-sub _parse_SQL
-	{
-	my $statement = shift;
-	if (not @_)
-		{ $statement = $statement->{'Statement'} if ref $statement; }
-	else
-		{ $statement = shift; }
-	local $_ = $statement;
-	my $errstr = '';
-	my $backup = $_;
-	my $result = {};
-	if (s/^\s*select\s+//i)
+	if (defined $parsed_sql->{table})
 		{
-		$result->{'command'} = 'select';
-		if (s/^\*\s//)
-			{ $result->{'selectall'} = 1; }
-		elsif (s/^\((\w+\s*(,\s*\w+\s*)*)\)//)
-			{ $result->{'unparsedfields'} = $1; }
-		elsif (s/^\w+\s*(,\s*\w+\s*)*//)
-			{ $result->{'unparsedfields'} = $&; }
-		else
-			{ $errstr = "Bad field specification: $_"; }
-		if (defined $result->{'unparsedfields'})
+		my $table = $parsed_sql->{table};
+		my $xbase = $dbh->{'xbase_tables'}->{$table};
+		if (not defined $xbase)
 			{
-			my $str = $result->{'unparsedfields'};
-			$str =~ s/^\s+//;
-			my @fields = split /\s*,\s*/, $str;
-			$result->{'fields'} = [ @fields ];
+			my $filename = $dbh->{'dsn'} . "/" . $table;
+			$xbase = new XBase($filename);
+			if (not defined $xbase)
+				{
+				${$dbh->{Err}} = 3;
+				${$dbh->{Errstr}} = "Table not found: " . XBase->errstr . "\n";
+				return;
+				}
+			$dbh->{'xbase_tables'}->{$table} = $xbase;	
 			}
-		if ($errstr eq "" and not s/^\s*from\s*//i)
-			{ $errstr = "From specification missing: $_"; }
-		if ($errstr eq "" and s/^(\S+)\s*$//)
-			{ $result->{'table'} = $+; }
-		elsif ($errstr eq "")
-			{ $errstr = "Table specification missing: $_"; }
+		$sth->{xbase_table} = $xbase;
+
+### print STDERR "Not defined :-(\n" unless defined $sth->{xbase_table};
+
+		if (defined $parsed_sql->{fields})
+			{
+			my $field;
+			for $field (@{$parsed_sql->{fields}})
+				{
+				if (not grep { uc $field eq $_ }
+						$xbase->field_names())
+					{
+					${$dbh->{Err}} = 4;
+					${$dbh->{Errstr}} = "Column $field undefined in table $table\n";
+					return;
+					}
+				}
+			}
 		}
-	else
-		{ $errstr = "Unknown command: $_"; }
-	($errstr ne "") ? $errstr : $result;
+
+	$sth;
 	}
 
 
@@ -172,34 +178,18 @@ sub errstr	{ $DBD::XBase::errstr }
 sub execute
 	{
 	my $sth = shift;
-	my $parsed_sql = $sth->{'xbase_parsed_sql'};
-	my $dbh = $sth->{'dbh'};
-	if ($parsed_sql->{'command'} eq "select")
-		{
-		my $from = $parsed_sql->{'table'};
-		my $table = $dbh->{'xbase_tables'}->{$from};
-		if (not defined $table)
-			{
-			my $filename = $dbh->{'dsn'} . "/" . $parsed_sql->{'table'};
-			$table = new XBase($filename);
-
-			if (not defined $table)
-				{
-				${$sth->{Err}} = 3;
-				${$sth->{Errstr}} = $XBase::errstr;
-				return;
-				}
-			$dbh->{'xbase_tables'}->{$from} = $table;
-			}
-		$sth->{'xbase_current_record'} = 0;
-		$sth->{'xbase_table'} = $table;
-		}
+	my $parsed_sql = $sth->{xbase_parsed_sql};
+	my $table = $parsed_sql->{table};
+	my $xbase = $sth->{dbh}->{xbase_tables}->{$table};
+	$sth->{xbase_table} = $xbase if defined $xbase;
+	$sth;
 	}
 
 sub fetch
 	{
         my $sth = shift;
 	my $current = $sth->{'xbase_current_record'};
+	$current = 0 unless defined $current;
 	my $table = $sth->{'xbase_table'};
 	my $parsed_sql = $sth->{'xbase_parsed_sql'};
 	my @fields;
@@ -211,8 +201,13 @@ sub fetch
 		{
 		my %hash = $table->get_record_as_hash($current);
 		$sth->{'xbase_current_record'} = ++$current;
-		if ($hash{'_DELETED'} == 0)
-			{ return [ @hash{ @fields } ]; }
+		next if $hash{'_DELETED'} != 0;
+		if (defined $parsed_sql->{where})
+			{
+
+
+			}
+		return [ @hash{ @fields } ];
 		}
 	$sth->finish(); return ();
 	}
