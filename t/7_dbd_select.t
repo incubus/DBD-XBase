@@ -2,24 +2,23 @@
 
 use strict;
 
-BEGIN	{
+BEGIN {
 	$| = 1;
 	eval 'use DBI 1.00';
-	if ($@ ne '')
-		{
+	if ($@ ne '') {
 		print "1..0\n";
 		print "DBI couldn't be loaded, aborting test\n";
 		print "Error returned from eval was:\n", $@;
 		print "ok 1\n";
 		exit;
-		}
-	print "1..35\n";
-	print "DBI loaded\n";
 	}
+	print "1..38\n";
+	print "DBI loaded\n";
+}
 
-END	{ print "not ok 1\n" unless $::DBIloaded; }
-
-
+END {
+	print "not ok 1\n" unless $::DBIloaded;
+}
 
 ### DBI->trace(2);
 $::DBIloaded = 1;
@@ -28,31 +27,28 @@ print "ok 1\n";
 my $dir = ( -d './t' ? 't' : '.' );
 
 print "Connect to dbi:XBase:$dir\n";
-my $dbh = DBI->connect("dbi:XBase:$dir") or do
-	{
+my $dbh = DBI->connect("dbi:XBase:$dir") or do {
 	print $DBI::errstr;
 	print "not ok 2\n";
 	exit;
-	};
+};
 print "ok 2\n";
 
 my $command = "select ID, MSG from test";
 print "Prepare command `$command'\n";
-my $sth = $dbh->prepare($command) or do
-	{
+my $sth = $dbh->prepare($command) or do {
 	print $dbh->errstr();
 	print "not ok 3\n";
 	exit;
-	};
+};
 print "ok 3\n";
 
 print "Execute it\n";
-$sth->execute() or do
-	{
+$sth->execute() or do {
 	print $sth->errstr();
 	print "not ok 4\n";
 	exit;
-	};
+};
 print "ok 4\n";
 
 print "And get two lines\n";
@@ -79,7 +75,9 @@ print "ok 7\n";
 my $names;
 print "Check the NAME attribute\n";
 $names = $sth->{'NAME'};
-if ("@$names" ne 'ID MSG') { print "Got @$names\nnot "; }
+if ("@$names" ne 'ID MSG') {
+	print "Got @$names\nnot ";
+}
 print "ok 8\n";
 
 $sth->finish();
@@ -87,126 +85,120 @@ $sth->finish();
 
 $command = "select * from rooms where facility = 'Audio' or roomname > 'B'";
 print "Prepare command `$command'\n";
-$sth = $dbh->prepare($command) or do
-	{
+$sth = $dbh->prepare($command) or do {
 	print $dbh->errstr();
 	print "not ok 9\n";
 	exit;
-	};
+};
 print "ok 9\n";
 
 print "Execute it\n";
-$sth->execute() or do
-	{
+$sth->execute() or do {
 	print $sth->errstr();
 	print "not ok 10\n";
 	exit;
-	};
+};
 print "ok 10\n";
 
 print "And now get the result\n";
 
 $result = '';
-while (@line = $sth->fetchrow_array())
-	{ $result .= "@line\n"; }
+while (@line = $sth->fetchrow_array()) {
+	$result .= "@line\n";
+}
 
 
 my $expected_result = '';
 
-while (<DATA>)
-	{
+while (<DATA>) {
 	last if /^__END_DATA__$/;
 	$expected_result .= $_;
-	}
+}
 
-if ($result ne $expected_result)
-	{
+if ($result ne $expected_result) {
 	print "Expected:\n$expected_result";
 	print "Got:\n$result";
 	print "not ";
-	}
+}
 print "ok 11\n";
 
 print "Check the NAME attribute\n";
 $names = $sth->{'NAME'};
-if ("@$names" ne 'ROOMNAME FACILITY') { print "Got @$names\nnot "; }
+if ("@$names" ne 'ROOMNAME FACILITY') {
+	print "Got @$names\nnot ";
+}
 print "ok 12\n";
 
 
 
 $command = "select * from rooms where facility = ? or roomname > ?";
 print "Prepare command `$command'\n";
-$sth = $dbh->prepare($command) or do
-	{
+$sth = $dbh->prepare($command) or do {
 	print $dbh->errstr();
 	print "not ok 13\n";
 	exit;
-	};
+};
 print "ok 13\n";
 
 print "Execute it with bind parameters ('Audio', 'B')\n";
-$sth->execute('Audio', 'B') or do
-	{
+$sth->execute('Audio', 'B') or do {
 	print $sth->errstr();
 	print "not ok 14\n";
 	exit;
-	};
+};
 print "ok 14\n";
 
 print "And now get the result\n";
 
 $result = '';
-while (@line = $sth->fetchrow_array())
-	{ $result .= "@line\n"; }
+while (@line = $sth->fetchrow_array()) {
+	$result .= "@line\n";
+}
 
 
-if ($result ne $expected_result)
-	{
+if ($result ne $expected_result) {
 	print "Expected:\n$expected_result";
 	print "Got:\n$result";
 	print "not ";
-	}
+}
 print "ok 15\n";
 
 $command = "select facility,roomname from rooms where roomname > ? or facility = ? order by roomname";
 print "Prepare command\t`$command'\n";
-$sth = $dbh->prepare($command) or do
-	{
+$sth = $dbh->prepare($command) or do {
 	print $dbh->errstr();
 	print "not ok 16\n";
 	exit;
-	};
+};
 print "ok 16\n";
 
 print "Execute it with bind parameters ('F', 'Audio')\n";
-$sth->execute('F', 'Audio') or do
-	{
+$sth->execute('F', 'Audio') or do {
 	print $sth->errstr();
 	print "not ok 17\n";
 	exit;
-	};
+};
 print "ok 17\n";
 
 
 print "And now get the result\n";
 
 $result = '';
-while (@line = $sth->fetchrow_array())
-	{ $result .= "@line\n"; }
+while (@line = $sth->fetchrow_array()) {
+	$result .= "@line\n";
+}
 
 $expected_result = '';
-while (<DATA>)
-	{
+while (<DATA>) {
 	last if /^__END_DATA__$/;
 	$expected_result .= $_;
-	}
+}
 
-if ($result ne $expected_result)
-	{
+if ($result ne $expected_result) {
 	print "Expected:\n$expected_result";
 	print "Got:\n$result";
 	print "not ";
-	}
+}
 print "ok 18\n";
 
 
@@ -215,29 +207,30 @@ print "Prepare $command\n";
 $sth = $dbh->prepare($command) or do {
 	print $dbh->errstr, "not ok 19\n";
 	exit;
-	};
+};
 print "ok 19\n";
 
 print "Execute it with parameter '%f%'\n";
 $sth->execute('%f%') or do {
 	print $dbh->errstr, "not ok 20\n";
 	exit;
-	};
+};
 print "ok 20\n";
 
 print "And now get the result\n";
 $result = '';
-while (@line = $sth->fetchrow_array())
-	{ $result .= "@line\n"; }
+while (@line = $sth->fetchrow_array()) {
+	$result .= "@line\n"
+}
 $expected_result = '';
-while (<DATA>)
-	{
+while (<DATA>) {
 	last if /^__END_DATA__$/;
 	$expected_result .= $_;
-	}
+}
 
-if ($result ne $expected_result)
-	{ print "Expected:\n${expected_result}Got:\n${result}not "; }
+if ($result ne $expected_result) {
+	print "Expected:\n${expected_result}Got:\n${result}not ";
+}
 print "ok 21\n";
 
 
@@ -246,29 +239,30 @@ print "Prepare $command\n";
 $sth = $dbh->prepare($command) or do {
 	print $dbh->errstr, "not ok 22\n";
 	exit;
-	};
+};
 print "ok 22\n";
 
 print "Execute it with parameters '%o', 'mi%'\n";
 $sth->execute('%o', 'mi%') or do {
 	print $dbh->errstr, "not ok 23\n";
 	exit;
-	};
+};
 print "ok 23\n";
 
 print "And now get the result\n";
 $result = '';
-while (@line = $sth->fetchrow_array())
-	{ $result .= "@line\n"; }
+while (@line = $sth->fetchrow_array()) {
+	$result .= "@line\n";
+}
 $expected_result = '';
-while (<DATA>)
-	{
+while (<DATA>) {
 	last if /^__END_DATA__$/;
 	$expected_result .= $_;
-	}
+}
 
-if ($result ne $expected_result)
-	{ print "Expected:\n${expected_result}Got:\n${result}not "; }
+if ($result ne $expected_result) {
+	print "Expected:\n${expected_result}Got:\n${result}not ";
+}
 print "ok 24\n";
 
 
@@ -278,7 +272,7 @@ print "Prepare $command\n";
 $sth = $dbh->prepare($command) or do {
 	print $dbh->errstr, "not ok 25\n";
 	exit;
-	};
+};
 print "ok 25\n";
 
 print "Bind named parameters: Film, Main, Bay%\n";
@@ -289,27 +283,30 @@ $sth->bind_param(':name', 'Bay%');
 $sth->execute or do {
 	print $dbh->errstr, "not ok 26\n";
 	exit;
-	};
+};
 print "ok 26\n";
 
 print "And now get the result\n";
 $result = '';
-while (@line = $sth->fetchrow_array())
-	{ $result .= "@line\n"; }
+while (@line = $sth->fetchrow_array()) {
+	$result .= "@line\n";
+}
 $expected_result = '';
-while (<DATA>)
-	{
+while (<DATA>) {
 	last if /^__END_DATA__$/;
 	$expected_result .= $_;
-	}
+}
 
-if ($result ne $expected_result)
-	{ print "Expected:\n${expected_result}Got:\n${result}not "; }
+if ($result ne $expected_result) {
+	print "Expected:\n${expected_result}Got:\n${result}not ";
+}
 print "ok 27\n";
 
 print "Check the NAME attribute\n";
 $names = $sth->{'NAME'};
-if ("@$names" ne 'FACILITY ROOMNAME') { print "Got @$names\nnot "; }
+if ("@$names" ne 'FACILITY ROOMNAME') {
+	print "Got @$names\nnot ";
+}
 print "ok 28\n";
 
 
@@ -319,29 +316,30 @@ print "Prepare $command\n";
 $sth = $dbh->prepare($command) or do {
 	print $dbh->errstr, "not ok 29\n";
 	exit;
-	};
+};
 print "ok 29\n";
 
 print "Bind named parameters in execute call\n";
 $sth->execute('Bay  _', 'Film') or do {
 	print $dbh->errstr, "not ok 30\n";
 	exit;
-	};
+};
 print "ok 30\n";
 
 print "And now get the result\n";
 $result = '';
-while (@line = $sth->fetchrow_array())
-	{ $result .= "@line\n"; }
+while (@line = $sth->fetchrow_array()) {
+	$result .= "@line\n";
+}
 $expected_result = '';
-while (<DATA>)
-	{
+while (<DATA>) {
 	last if /^__END_DATA__$/;
 	$expected_result .= $_;
-	}
+}
 
-if ($result ne $expected_result)
-	{ print "Expected:\n${expected_result}Got:\n${result}not "; }
+if ($result ne $expected_result) {
+	print "Expected:\n${expected_result}Got:\n${result}not ";
+}
 print "ok 31\n";
 
 
@@ -350,7 +348,7 @@ print "Prepare $command\n";
 $sth = $dbh->prepare($command) or do {
 	print $dbh->errstr, "not ok 32\n";
 	exit;
-	};
+};
 print "ok 32\n";
 
 print "Bind -1 (to make it into id > 1)\n";
@@ -361,16 +359,18 @@ print "ok 33\n";
 print "Check the names of the fields to return\n";
 $expected_result = '(ID+9)/3 message Datum';
 $result = "@{$sth->{'NAME'}}";
-if ($result ne $expected_result)
-	{ print "Expected:\n${expected_result}\nGot:\n${result}\nnot "; }
+if ($result ne $expected_result) {
+	print "Expected:\n${expected_result}\nGot:\n${result}\nnot ";
+}
 print "ok 34\n";
 
 
 print "Fetch the resulting row\n";
 $expected_result = '4 Message no 3 19960102';
 $result = join ' ', $sth->fetchrow_array;
-if ($result ne $expected_result)
-	{ print "Expected:\n${expected_result}\nGot:\n${result}\nnot "; }
+if ($result ne $expected_result) {
+	print "Expected:\n${expected_result}\nGot:\n${result}\nnot ";
+}
 print "ok 35\n";
 
 
