@@ -227,7 +227,7 @@ dBase nor Fox*, so there are probably pieces missing.
 
 =head1 VERSION
 
-0.031
+0.032
 
 =head1 AUTHOR
 
@@ -262,7 +262,7 @@ use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
 
-$VERSION = "0.031";
+$VERSION = "0.032";
 
 $errstr = '';	# only after new, otherwise use method $table->errstr;
 

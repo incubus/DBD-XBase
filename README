@@ -36,7 +36,8 @@ Installation: Download the tar.gz, unpack it, change to the DBD-XBase-*
 	make test
 	make install
 
-or you can use CPAN module and just type "install DBD::XBase".
+or you can use CPAN module and just type "install DBD::XBase". You
+really should have 5.004 to run cool.
 
 Problems: If anything goes wrong when installing, please send me output
 of you installation messages and of make test TEST_VERBOSE=1. If there

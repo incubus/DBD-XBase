@@ -1,18 +1,17 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
-0.024 Mon Oct 20 22:17:44 MET DST 1997
+0.032 Thu Nov  6 16:27:10 MET 1997
 
-	The original release. Includes XBase that reads dbf and dbt
-	and writes dbf (but not dbt ;-) Put on CPAN mainly for other
-	people to test and comment on it.
+	Fixed bugs: test on "\r" in read_header; check of record
+	number in delete and undelete (spotted by Frans van Loon).
+	Added methods field_lengths and field_decimals and changed
+	*_on_read in [NF] section (spotted by John D Groenveld).
 
-0.029 Fri Oct 24 19:34:32 MET DST 1997
+0.031 Thu Oct 30 19:47:37 MET 1997
 
-	Bug fixes. Added methods for writing dbt files.
-
-	The writing methods are now set_record, set_record_hash and
-	update_record. Any comments?
+	Fixed bug in docs about write_record. Changed format of
+	get_field_info to include field number. Fixed bug with decimals.
 
 0.03 Mon Oct 27 23:23:17 MET 1997
 
@@ -22,9 +21,16 @@ Revision history for Perl extension XBase and DBD::Xbase.
 	I have worked on DBD::XBase module a little but it's still now
 	usable.
 
-0.031 Thu Oct 30 19:47:37 MET 1997
+0.029 Fri Oct 24 19:34:32 MET DST 1997
 
-	Fixed bug in docs about write_record. Changed format of
-	get_field_info to include field number. Fixed bug with decimals.
+	Bug fixes. Added methods for writing dbt files.
 
+	The writing methods are now set_record, set_record_hash and
+	update_record. Any comments?
+
+0.024 Mon Oct 20 22:17:44 MET DST 1997
+
+	The original release. Includes XBase that reads dbf and dbt
+	and writes dbf (but not dbt ;-) Put on CPAN mainly for other
+	people to test and comment on it.
 
