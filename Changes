@@ -1,6 +1,11 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
+0.0345 Mon Dec  8 13:02:46 MET 1997
+
+	Fixed bug with "\0" at the end of field names in header,
+	spotted by Roberto Congiu.
+
 0.0343 Thu Dec  4 10:52:41 MET 1997
 
 	Column names are converted to uppercase. SQL parsing moved to

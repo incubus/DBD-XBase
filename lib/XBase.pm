@@ -232,7 +232,7 @@ both about the Perl and XBase are welcome.
 
 =head1 VERSION
 
-0.0343
+0.0345
 
 =head1 AUTHOR
 
@@ -263,7 +263,7 @@ use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
 
-$VERSION = "0.0343";
+$VERSION = "0.0345";
 
 $errstr = "Use of \$XBase::errstr is depreciated, please use XBase->errstr() instead\n";
 
@@ -781,6 +781,7 @@ sub create
 		{
 		my $name = uc $options{'field_names'}[$i];
 		$name = "FIELD$i" unless defined $name;
+		$name .= "\0";
 		my $type = $options{'field_types'}[$i];
 		$type = "C" unless defined $type;
 
