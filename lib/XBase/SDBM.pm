@@ -1,11 +1,32 @@
 
 =head1 NAME
 
-XBase::SDBM - SDBM nonportable index support for dbf
+XBase::SDBM - SDBM index support for dbf
+
+=head1 DESCRIPTION
+
+When developing the XBase.pm/DBD::XBase module, I was trying to
+support as many existing variants of file formats as possible. The
+module thus accepts wide range of dbf files and their versions from
+various producers. But with index files, the task is much, much
+harder. First, there is little or no documentation of index files
+formats, so the development is based on reverse engineering.
+
+None if the index formats support is finalized. That made it hard to
+integrate them into one consistent API. That is why I decided to write
+my own index support, and as I wanted to avoid inventing yet another
+way of storing records in pages and similar things, I used SDBM. It
+comes with Perl, so you already have it, and it's proven and it
+works.
+
+Now, SDBM is a module that aims at other task than to do supporting
+indexes for a dbf. But equality tests are fast with it and I have
+creted a structure in each index file to enable "walk" though the
+index file.
 
 =head1 VERSION
 
-0.162
+0.180
 
 =head1 AUTHOR
 
@@ -24,7 +45,7 @@ use Fcntl;
 
 sub fetch {
 	my $self = shift;
-	my $current = $self->{'current'};
+	my $current = $self->{'current'};	# current pointer
 	return unless defined $current;
 	my $hash = $self->{'sdbmhash'};
 	my $value = $hash->{$current};
@@ -35,10 +56,10 @@ sub fetch {
 	}
 	my ($key, $num) = ($current =~ /^(.*):(\d+)$/s);
 	$num++;
-	if (defined $hash->{"$key:$num"}) {
+	if (defined $hash->{"$key:$num"}) {	# next record for the same key
 		$self->{'current'} = "$key:$num";
 	} else {
-		my $newkey = $hash->{"$key:next"};
+		my $newkey = $hash->{"$key:next"};	# next key
 		if (defined $newkey) {
 			$self->{'current'} = "$newkey:1";
 		} else {

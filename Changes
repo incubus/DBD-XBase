@@ -1,6 +1,9 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
+0.190 Sat Aug 18 18:02:04 MEST 2001
+	XBase::SDBM: documentation added.
+
 	DBD::XBase: order by with more fields supported.
 
 0.177 Thu May 10 17:19:07 MET DST 2001
