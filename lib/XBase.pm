@@ -19,7 +19,7 @@ use XBase::Base;	# will give us general methods
 use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
-$VERSION = '0.0633';
+$VERSION = '0.064';
 $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 
 *errstr = \$XBase::Base::errstr;
@@ -83,7 +83,9 @@ sub read_header
 			# fixup for char length > 256
 			$length += 256 * $decimal; $decimal = 0;
 			$rproc = sub { my $value = shift;
-				$value =~ s/\s+$// if $CLEARNULLS; $value; };
+				$value =~ s/\s+$// if $CLEARNULLS;
+				return $value;
+				( $value eq '' ? undef : $value ); };
 			$wproc = sub { my $value = shift;
 				sprintf '%-*.*s', $length, $length,
 					(defined $value ? $value : ''); };
@@ -105,6 +107,11 @@ sub read_header
 			$wproc = sub { my $value = shift;
 				if (defined $value) { sprintf '%*.*f', $length, $decimal, ($value + 0); }
                                 else { ' ' x $length; } };
+			}
+		elsif ($type eq 'I')		# For integer?
+			{
+			$rproc = sub { unpack 'V', shift; };
+			$wproc = sub { pack 'V', shift; };
 			}
 		elsif ($type =~ /^[MGBP]$/)	# memo fields
 			{
@@ -928,7 +935,7 @@ welcome.
 
 =head1 VERSION
 
-0.0633
+0.064
 
 =head1 AUTHOR
 

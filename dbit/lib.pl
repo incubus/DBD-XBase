@@ -26,7 +26,7 @@ $dbdriver = $mdriver; # $dbdriver is usually just the same as $mdriver.
 #
 #   DSN being used; do not edit this, edit "$dbdriver.dbtest" instead
 #
-$test_dsn      = $ENV{'DBI_DSN'}   ||  "DBI:$dbdriver:test";
+$test_dsn      = $ENV{'DBI_DSN'}   ||  "DBI:$dbdriver:t";
 $test_user     = $ENV{'DBI_USER'}  ||  "";
 $test_password = $ENV{'DBI_PASS'}  ||  "";
 

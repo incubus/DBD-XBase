@@ -5,134 +5,97 @@
 package XBase::SQL::Expr;
 package XBase::SQL;
 
-### BEGIN { eval { use locale; }; }
-
 use strict;
 use vars qw( $VERSION $DEBUG %COMMANDS );
 
-$VERSION = '0.062';
+$VERSION = '0.064';
 $DEBUG = 0;
 
-# ##################
-# Regexp definitions
-
-
+# #################################
+# Type conversions for create table
 my %TYPES = ( 'char' => 'C', 'num' => 'N', 'numeric' => 'N', 'int' => 'N',
 		'integer' => 'N', 'float' => 'N', 'boolean' => 'L',
 		'blob' => 'M', 'memo' => 'M', 'float' => 'F', 'date' => 'D' );
 
-%COMMANDS = (
-	'COMMANDS' => 	' SELECT | INSERT | DELETE | UPDATE | CREATE | DROP ',
-	'SELECT' =>	' select SELECTFIELDS from TABLE WHERE ? ',
-	'INSERT' =>	q' insert into TABLE INSERTFIELDS ? values
-						\( INSERTCONSTANTS \) ',
-	'DELETE' =>	' delete from TABLE WHERE ? ',
-	'UPDATE' =>	' update TABLE set SETCOLUMNS WHERE ? ',
-	'CREATE' =>	q' create table TABLE \( COLUMNDEF ( , COLUMNDEF ) * \) ',
-	'DROP' =>	q' drop table TABLE ',
+# ##################
+# Regexp definitions
 
-	'TABLE' =>	q'[a-z_][a-z0-9_]*',
-	'FIELDNAME' =>	q'[a-z_][a-z0-9_]*',
-	'EXPFIELDNAME' => 'FIELDNAME',
-	'SELECTFIELDS' =>	'SELECTALL | FIELDNAME ( , FIELDNAME ) *',
-	'SELECTALL' =>	q'\*',	
-	'WHERE' =>	'where WHEREEXPR',
-	'WHEREEXPR' =>	'BOOLEAN',
-	'BOOLEAN' =>	q'\( BOOLEAN \) | RELATION ( ( and | or ) BOOLEAN ) *',
-	'RELATION' =>	'EXPFIELDNAME RELOP ARITHMETIC',
-	'RELOP' => [ qw{ == | = | <= | >= | <> | != | < | > } ],
-	
-	'ARITHMETIC' => [ qw{ \( ARITHMETIC \)
-		| ( CONSTANT | EXPFIELDNAME ) ( ( \+ | \- | \* | \/ | \% ) ARITHMETIC ) ? } ],
+%COMMANDS = (
+
+# Top level SQL commands
+
+	'COMMANDS' => 	'SELECT | INSERT | DELETE | UPDATE | CREATE | DROP',
+	'SELECT' =>	'select ( SELECTALL | SELECTFIELDS ) from TABLE WHERE ?
+							ORDERBY ?',
+	'INSERT' =>	'insert into TABLE ( \( INSERTFIELDS \) ) ? values
+						\( INSERTCONSTANTS \)',
+	'DELETE' =>	'delete from TABLE WHERE ?',
+	'UPDATE' =>	'update TABLE set SETCOLUMNS WHERE ?',
+	'CREATE' =>	'create table TABLE \( COLUMNDEF ( , COLUMNDEF ) * \)',
+	'DROP' =>	'drop table TABLE',
+
+# table, field name, number, string
+
+	'TABLE' =>	'[a-z_][a-z0-9_]*',
+	'FIELDNAME' =>	'[a-z_][a-z0-9_]*',
 	'NUMBER' => q'-?\d*\.?\d+',
 	'STRING' => [ qw{ STRINGDBL | STRINGSGL } ] ,
 	'STRINGDBL' => q' \\" (\\\\\\\\|\\\\"|[^\\"])* \\" ',
 	'STRINGSGL' => q! \\' (\\\\\\\\|\\\\'|[^\\'])* \\' !,
-	'ORDER' => [ qw{ order by FIELDNAME } ],
-	'INSERTCONSTANTS' => [ qw{ CONSTANT ( }, ',', qw{ INSERTCONSTANTS ) * } ],
-	'CONSTANT' => [ qw{ BINDPARAM | NUMBER | STRING } ],
+
+# select fields
+
+	'SELECTFIELDS' =>	'FIELDNAME ( , FIELDNAME ) *',
+	'SELECTALL' =>	q'\*',
+
+# where clause
+
+	'WHERE' =>	'where WHEREEXPR',
+	'WHEREEXPR' =>	'BOOLEAN',
+
+	'BOOLEAN' =>	q'\( BOOLEAN \) | RELATION ( ( and | or ) BOOLEAN ) *',
+	'RELATION' =>	'EXPFIELDNAME ( RELOP ARITHMETIC | is not ? null )',
+	'EXPFIELDNAME' => 'FIELDNAME',
+	
+	'RELOP' => [ qw{ == | = | <= | >= | <> | != | < | > } ],
+	'ARITHMETIC' => [ qw{ \( ARITHMETIC \)
+		| ( CONSTANT | EXPFIELDNAME ) ( ( \+ | \- | \* | \/ | \% ) ARITHMETIC ) ? } ],
+	
+	'CONSTANT' => [ qw{ BINDPARAM | NULL | NUMBER | STRING } ],
 	'BINDPARAM' => q'\?',
-	'INSERTFIELDS' =>	'\( FIELDNAME ( , FIELDNAME ) * \)',
+	'NULL' => 'null',
+
+	'ORDERBY' => 'order by FIELDNAME',	# does nothing
+
+# insert definitions
+
+	'INSERTFIELDS' =>	'FIELDNAME ( , FIELDNAME ) *',
+	'INSERTCONSTANTS' =>	'CONSTANT ( , CONSTANT ) *',
+
+# update definitions
+
+	'SETCOLUMNS' =>	'SETCOLUMN ( , SETCOLUMN ) *',
+	'SETCOLUMN' =>	'FIELDNAME = ARITHMETIC',
+
+# create definitions
+
+	'COLUMNDEF' =>	'COLUMNKEY | COLUMNNAMETYPE ( not null ) ?',
+	'COLUMNKEY' =>	'primary ? key \( FIELDNAME \)',
+	'COLUMNNAMETYPE' =>	'FIELDNAME FIELDTYPE',
+	'FIELDTYPE' =>	'TYPECHAR | TYPENUM | TYPEBOOLEAN | TYPEMEMO | TYPEDATE',
 	
-	'SETCOLUMNS' => 'SETCOLUMN ( , SETCOLUMN ) *',
-	'SETCOLUMN' => 'FIELDNAME = ARITHMETIC',
-	
-	'TYPELENGTH' => q'\d+',
-	'TYPEDEC' => q'\d+',
-	'COLUMNDEF' => 'FIELDNAME FIELDTYPE ( not null ) ?',
-	'FIELDTYPE' => 'TYPECHAR | TYPENUM | TYPEBOOLEAN | TYPEMEMO | TYPEDATE',
-	'TYPECHAR' => q'char ( \( TYPELENGTH \) ) ?',
-	'TYPENUM' => q'( num | numeric | float | int | integer ) ( \( TYPELENGTH ( , TYPEDEC ) ? \) ) ?',
-	'TYPEBOOLEAN' => q'boolean | logical',
-	'TYPEMEMO' => q'memo | blob',
-	'TYPEDATE' => q'date',
+	'TYPECHAR' =>	'char ( \( TYPELENGTH \) ) ?',
+	'TYPENUM' =>	'( num | numeric | float | int | integer ) ( \( TYPELENGTH ( , TYPEDEC ) ? \) ) ?',
+	'TYPEDEC' =>	'\d+',
+
+	'TYPELENGTH' =>	'\d+',
+	'TYPEBOOLEAN' =>	'boolean | logical',
+	'TYPEMEMO' =>	'memo | blob',
+	'TYPEDATE' =>	'date',
 	);
 
-my %STORE = (
-	'SELECT' => sub { shift->{'command'} = 'select'; },
-	'SELECTALL' => 'selectall',
-	'SELECTFIELDS FIELDNAME' => 'selectfields',
-	'SELECT TABLE' => 'table',
-
-	'INSERT' => sub { shift->{'command'} = 'insert'; },
-	'INSERT TABLE' => 'inserttable',
-	'INSERTCONSTANTS CONSTANT' => sub { push @{shift->{'insertvalues'}},
-		(shift) . '->value()'; },
-	'INSERTFIELDS FIELDNAME' => 'insertfields',
-
-	'DELETE' => sub { shift->{'command'} = 'delete'; },
-	'DELETE TABLE' => 'table',
-
-	'INSERT' => sub { shift->{'command'} = 'insert'; },
-	'INSERT TABLE' => 'table',
-
-	'UPDATE' => sub { shift->{'command'} = 'update'; },
-	'UPDATE TABLE' => 'table',
-	'UPDATE SETCOLUMN FIELDNAME' => 'updatefields',
-	'UPDATE SETCOLUMN ARITHMETIC' => sub { my ($self, @expr) = @_;
-		my $line = "sub { my (\$TABLE, \$HASH) = \@_; my \$e = XBase::SQL::Expr->other( @expr ); \$e->value(); }";
-		### print STDERR "Evaling $line\n";
-		my $fn = eval $line;
-		if ($@) { push @{$self->{'updaterror'}}, $@; }
-		else { push @{$self->{'updaterror'}}, undef;
-			push @{$self->{'updatevalues'}}, $fn; }},
-
-	'CREATE' => sub { shift->{'command'} = 'create'; },
-	'CREATE TABLE' => 'table',
-	'CREATE COLUMNDEF FIELDNAME' => 'createfields',
-	'CREATE COLUMNDEF FIELDTYPE' => sub { my $self = shift;
-		my ($type, $len, $dec) = @_[0, 2, 4];
-		push @{$self->{'createtypes'}}, $TYPES{lc $type};
-		push @{$self->{'createlengths'}}, $len;
-		push @{$self->{'createdecimals'}}, $dec; },
-
-	'DROP' => sub { shift->{'command'} = 'drop'; },
-	'DROP TABLE' => 'table',
-
-	'WHEREEXPR' => sub { my ($self, $expr) = @_;
-		### print STDERR "Evaling $expr\n";
-		my $fn = eval "sub { my (\$TABLE, \$HASH, \$BIND) = \@_; my \@BIND = \@\$BIND; $expr; }";
-		if ($@) { $self->{'whereerror'} = $@; }
-		else { $self->{'wherefn'} = $fn; }
-		},
-	);
-
-my %SIMPLIFY = (
-	'STRING' => sub { my $e = (get_strings(@_))[1];
-				$e =~ s/'/\\'/g;
-					"XBase::SQL::Expr->string('$e')"; },
-	'NUMBER' => sub { my $e = (get_strings(@_))[0];
-					"XBase::SQL::Expr->number('\Q$e\E')"; },
-	'EXPFIELDNAME' => sub { my $e = (get_strings(@_))[0];
-					"XBase::SQL::Expr->field('$e', \$TABLE, \$HASH)"; },
-	'BINDPARAM' => 'XBase::SQL::Expr->string(scalar shift @BIND)',
-	'FIELDNAME' => sub { uc ((get_strings(@_))[0]); },
-	'WHEREEXPR' => sub { join ' ', get_strings(@_); },
-	'RELOP' => sub { my $e = (get_strings(@_))[0];
-			if ($e eq '=') { $e = '=='; }
-			elsif ($e eq '<>') { $e = '!=';} $e; },
-	);
-
+# #####################################
+# "Expected" messages for various types
 my %ERRORS = (
 	'TABLE' => 'Table name',
 	'RELATION' => 'Relation',
@@ -150,11 +113,95 @@ my %ERRORS = (
 	'FIELDTYPE' => 'Field type',
 	);
 
+# ########################################
+# Simplifying conversions during the match
+my %SIMPLIFY = (
+	'STRING' => sub { my $e = (get_strings(@_))[1];
+			## $e =~ s/([\\'])/\\$1/g;
+			"XBase::SQL::Expr->string('$e')"; },
+	'NUMBER' => sub { my $e = (get_strings(@_))[0];
+				"XBase::SQL::Expr->number($e)"; },
+	'EXPFIELDNAME' => sub { my $e = (get_strings(@_))[0];
+				"XBase::SQL::Expr->field('$e', \$TABLE, \$HASH)"; },
+	'BINDPARAM' => 'XBase::SQL::Expr->string($BIND->[$startbind++])',
+	'FIELDNAME' => sub { uc ((get_strings(@_))[0]); },
+	'WHEREEXPR' => sub { join ' ', get_strings(@_); },
+	'RELOP' => sub { my $e = (get_strings(@_))[0];
+			if ($e eq '=') { $e = '=='; }
+			elsif ($e eq '<>') { $e = '!=';} $e; },
+	'TABLE' => sub { (get_strings(@_))[0]; },
+	'ARITHMETIC' => sub { join ' ', get_strings(@_); },
+	'RELATION' => sub { my @values = get_strings(@_);
+		local $^W = 0;
+		my $testnull = join ' ', @values[1 .. 3];
+		if ($testnull =~ /^is (not )?null ?$/i)
+			{ return "not $1 defined(($values[0])->value)"; }
+		else { return join ' ', @values; }	},
+	'NULL' => 'XBase::SQL::Expr->null()',
+	);
+#
+#
+my %STORE = (
+	'SELECT' => sub { shift->{'command'} = 'select'; },
+	'SELECTALL' => 'selectall',
+	'SELECTFIELDS' => sub { my ($self, @fields) = @_;
+		while (@fields) { push @{$self->{'fields'}}, shift @fields; shift @fields; }},
+
+	'INSERT' => sub { shift->{'command'} = 'insert'; },
+	'INSERTCONSTANTS' => sub { my $self = shift;
+		my $fntext = 'sub { my ($TABLE, $BIND, $startbind) = @_; map { $_->value() } ' . join(' ', @_) . ' }';
+		my $fn = eval $fntext;
+		if ($@) { $self->{'inserterror'} = $@; }
+		else { $self->{'insertfn'} = $fn; }
+		},
+	'INSERTFIELDS' => sub { my ($self, @fields) = @_;
+		while (@fields) { push @{$self->{'fields'}}, shift @fields; shift @fields; }},
+
+	'DELETE' => sub { shift->{'command'} = 'delete'; },
+
+	'UPDATE' => sub { shift->{'command'} = 'update'; },
+	
+	'SETCOLUMNS' => sub { my $self = shift;
+		my $list = '';
+		while (@_)
+			{
+			push @{$self->{'fields'}}, shift @_;
+			shift @_;
+			$list .= shift(@_) . ', ';
+			shift @_;
+			}
+		my $fntext = 'sub { my ($TABLE, $BIND, $startbind) = @_; map { $_->value() } ' . $list . ' }';
+		my $fn = eval $fntext;
+		if ($@) { $self->{'updateerror'} = $@; }
+		else { $self->{'updatefn'} = $fn; }
+		},
+
+
+	'CREATE' => sub { shift->{'command'} = 'create'; },
+	'COLUMNNAMETYPE' => sub { my $self = shift;
+		push @{$self->{'createfields'}}, $_[0];
+		push @{$self->{'createtypes'}}, $TYPES{lc $_[1]};
+		push @{$self->{'createlengths'}}, $_[3];
+		push @{$self->{'createdecimals'}}, $_[5]; },
+
+	'DROP' => sub { shift->{'command'} = 'drop'; },
+	
+	'TABLE' => 'table',
+
+	'WHEREEXPR' => sub { my ($self, $expr) = @_;
+		my $fn = eval 'sub { my ($TABLE, $HASH, $BIND, $startbind) = @_; ' . $expr . '; }';
+		if ($@) { $self->{'whereerror'} = $@; }
+		else { $self->{'wherefn'} = $fn; }
+		},
+	);
+
 sub parse
 	{
 	my ($class, $string) = @_;
 	my $self = bless {}, $class;
 
+	### print STDERR "Parsing $string\n";
+	# try to match the $string against $COMMANDS{'COMMANDS'}
 	my ($srest, $error, $errstr, @result) = match($string, 'COMMANDS');
 	$srest =~ s/^\s+//s;
 
@@ -162,17 +209,16 @@ sub parse
 		{ $error = 1; $errstr = 'Extra characters in SQL command'; }
 	if ($error)
 		{
-		if (not defined $errstr)
-			{ $errstr = 'Error in SQL command'; }
+		if (not defined $errstr) { $errstr = 'Error in SQL command'; }
 		substr($srest, 40) = '...' if length $srest > 44;
 		$self->{'errstr'} = "$errstr near `$srest'";
-		### print "$self->{'errstr'}\n";
 		}
 	else
 		{
-		### print_result(\@result);
+		# take the results and store them to $self
+		### use Data::Dumper; print STDERR Dumper @result;
 		$self->store_results(\@result, \%STORE);
-		### use Data::Dumper; print Dumper $self;
+		### print STDERR Dumper $self;
 		}
 	$self;
 	}
@@ -183,35 +229,27 @@ sub store_results
 	my $i = 0;
 	while ($i < @$result)
 		{
-		my ($regexp, $match) = @{$result}[$i, $i + 1];
-		my %nstore = %$store;
-
-		my ($tag, $value);
-		while (($tag, $value) = each %$store)
+		my ($key, $match) = @{$result}[$i, $i + 1];
+		my $stval = $store->{$key};
+		if (defined $stval)
 			{
-			my $oldtag = $tag;
-			next unless $tag =~ s/^\Q$regexp\E($|\s+)//;
-
-			delete $nstore{$oldtag};
-			if ($tag eq '')
-				{
-				my @result;
-				if (ref $match) { @result = get_strings($match); }
-				else { @result = $match; }
-				### print "Storing @result to $value\n";
-				if (ref $value eq 'CODE')
-					{ &{$value}($self, @result); }
-				else
-					{ push @{$self->{$value}}, @result; }
-				}
-			else { $nstore{$tag} = $value; }
+			my @result;
+			if (ref $match) { @result = get_strings($match); }
+			else { @result = $match; }
+			if (ref $stval eq 'CODE')
+				{ &{$stval}($self, @result); }
+			else
+				{ push @{$self->{$stval}}, @result; }
 			}
-	
 		if (ref $match)
-			{ $self->store_results($match, \%nstore); }
+			{
+			$self->store_results($match, $store);
+			}
 		$i += 2;
 		}
 	}
+#
+#
 sub get_strings
 	{
 	my @strings = @_;
@@ -265,8 +303,6 @@ sub match
 	if (@regexps and $regexps[0] eq '?' or $regexps[0] eq '*')
 		{ $modif = shift @regexps; }
 
-### { local $^W = 0; print "Match: $title: $modif; `@regexps' on string `$string'\n"; }
-
 	my @result;
 	my $i = 0;
 	while ($i < @regexps)
@@ -279,7 +315,7 @@ sub match
 			{ $i = $#regexps; next; }
 		elsif (defined $COMMANDS{$regexp})
 			{ ($string, $error, $errstr, @r) = match($string, $regexp); }
-		elsif ($string =~ s/^\s*?($regexp)($|\b|(?=\W))//si)
+		elsif ($string =~ s/^\s*?($regexp)(?:$|\b|(?=\W))//si)
 			{ @r = $1; }
 		else
 			{ $error = 1; }
@@ -419,6 +455,12 @@ sub number
 	my $self = shift->new;
 	$self->{'value'} = shift;
 	$self->{'number'} = 1;
+	$self;
+	}
+sub null
+	{
+	my $self = shift->new;
+	$self->{'value'} = undef;
 	$self;
 	}
 sub other

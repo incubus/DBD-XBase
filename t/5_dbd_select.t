@@ -13,7 +13,7 @@ BEGIN	{
 		print "ok 1\n";
 		exit;
 		}
-	print "1..10\n";
+	print "1..13\n";
 	print "DBI loaded\n";
 	}
 
@@ -114,6 +114,41 @@ if ($result ne $expected_result)
 	print "not ";
 	}
 print "ok 10\n";
+
+
+$command = "select * from rooms where facility = ? or roomname > ?";
+print "Prepare command `$command'\n";
+$sth = $dbh->prepare($command) or do
+	{
+	print $dbh->errstr();
+	print "not ok 11\n";
+	exit;
+	};
+print "ok 11\n";
+
+print "Execute it with bind parameters ('Audio', 'B')\n";
+$sth->execute('Audio', 'B') or do
+	{
+	print $sth->errstr();
+	print "not ok 12\n";
+	exit;
+	};
+print "ok 12\n";
+
+print "And now get the result\n";
+
+$result = '';
+while (@line = $sth->fetchrow_array())
+	{ $result .= "@line\n"; }
+
+
+if ($result ne $expected_result)
+	{
+	print "Expected:\n$expected_result";
+	print "Got:\n$result";
+	print "not ";
+	}
+print "ok 13\n";
 
 $sth->finish();
 $dbh->disconnect();

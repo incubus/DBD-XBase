@@ -1,6 +1,17 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
+0.064 Sun May 31 18:56:26 MET DST 1998		(*****)
+
+	Major rewrite of the DBD and SQL part. New features:
+	support for bind parameters in where, insert and update.
+	Support for NULL and IS NULL tests. The XBase::SQL is faster
+	and hopefully clearer. The DBD::XBase supports (among others)
+	bind_col. The DBD driver now passes 98.39 % of the standard
+	DBD tests.
+
+	Added support for data type 'I' for Fox* into XBase.pm.
+
 0.0632 Wed May 27 12:27:04 MET DST 1998
 
 	Added --nomemo option to dbfdump. The list of entires is made

@@ -57,9 +57,10 @@ sub TableDefinition ($@) {
 
     foreach $col (@cols) {
 	my $colDef = $$col[0] . " " . AnsiTypeToDb($$col[1], $$col[2]);
-	if (!($$col[3] & $::COL_NULLABLE)) {
-	    $colDef .= " NOT NULL";
-	}
+#	if (!($$col[3] & $::COL_NULLABLE)) {
+#	    $colDef .= " NOT NULL";
+#	}
+	$$col[3] |= $::COL_NULLABLE;
 	push(@colDefs, $colDef);
     }
     if (@keys) {

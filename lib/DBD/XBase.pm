@@ -19,7 +19,7 @@ use vars qw($VERSION @ISA @EXPORT $err $errstr $drh);
 
 require Exporter;
 
-$VERSION = '0.0632';
+$VERSION = '0.064';
 
 $err = 0;
 $errstr = '';
@@ -133,8 +133,14 @@ sub prepare
 sub STORE {
 	my ($dbh, $attrib, $value) = @_;
 	if ($attrib eq 'AutoCommit')
-		{ return 1 if $value; }
+		{ return 1 if $value; croak("Can't disable AutoCommit"); }
 	$dbh->DBD::_::db::STORE($attrib, $value);
+	}
+sub FETCH {
+	my ($dbh, $attrib) = @_;
+	if ($attrib eq 'AutoCommit')
+		{ return 1; }
+	$dbh->DBD::_::db::FETCH($attrib);
 	}
 
 sub _ListTables
@@ -150,7 +156,16 @@ sub _ListTables
 	closedir DIR;
 	@result;
 	}
-
+sub quote
+	{
+	my $text = $_[1];
+	$text =~ s/([\\'])/\\$1/g;
+	"'$text'";
+	}
+sub commit
+	{ warn "Commit ineffective while AutoCommit is on"; 1; }
+sub rollback
+	{ warn "Commit ineffective while AutoCommit is on"; 0; }
 package DBD::XBase::st;
 use strict;
 use vars qw( $imp_data_size );
@@ -159,14 +174,32 @@ $imp_data_size = 0;
 sub bind_param
 	{
 	my ($sth, $param, $value, $attribs) = @_;
-	$sth->{'param'}[$param] = $value;
+	$sth->{'param'}[$param - 1] = $value;
+	1;
+	}
+
+sub bind_columns
+	{
+	my ($sth, $attrib, @col_refs) = @_;
+	my $i = 1;
+	for (@col_refs)
+		{ $sth->bind_col($i, $_); $i++; }
+	1;
+	}
+sub bind_col
+	{
+	my ($sth, $col_num, $col_var_ref) = @_;
+	$col_num--;
+	$sth->{'xbase_bind_col'}[$col_num] = $col_var_ref;
+	### print STDERR "bind_col: $sth, $col_num, $col_var_ref, $sth->{'xbase_bind_col'}[$col_num]\n";
+	1;
 	}
 
 sub execute
 	{
 	my $sth = shift;
 	if (@_)
-		{ push @{$sth->{'param'}}, @_; }
+		{ @{$sth->{'param'}} = @_; }
 	$sth->{'param'} = [] unless defined $sth->{'param'};
 	my $xbase = $sth->{'xbase_table'};
 	my $parsed_sql = $sth->{'xbase_parsed_sql'};
@@ -200,18 +233,17 @@ sub execute
 		{
 		my $recno = 0;
 		my $last = $xbase->last_record();
-		my $fn = $parsed_sql->{'wherefn'};
-		my @fields = @{$parsed_sql->{'updatefields'}};
+		my $wherefn = $parsed_sql->{'wherefn'};
+		my @fields = @{$parsed_sql->{'fields'}};
+		my @values = &{$parsed_sql->{'updatefn'}}($xbase, $sth->{'param'}, 0);
 		for ($recno = 0; $recno <= $last; $recno++)
 			{
 			my $values = $xbase->get_record_as_hash($recno);
 			next if $values->{'_DELETED'} != 0;
-			next if defined $fn and not &{$fn}($xbase, $values, $sth->{'param'});
+			next if defined $wherefn and not &{$wherefn}($xbase, $values, $sth->{'param'});
 			
 			my %newval;
-			@newval{ @fields } = map { &{$_}($xbase, $values) }
-				@{$parsed_sql->{'updatevalues'}};
-
+			@newval{ @fields } = @values;
 			$xbase->update_record_hash($recno, %newval);
 			}
 		return 1;
@@ -220,19 +252,17 @@ sub execute
 		{
 		my $recno = 0;
 		my $last = $xbase->last_record();
-		my @values = @{$parsed_sql->{'insertvalues'}};
-		
-		if (defined $parsed_sql->{'insertfields'})
+		my @values = &{$parsed_sql->{'insertfn'}}($xbase, $sth->{'param'}, 0);
+		if (defined $parsed_sql->{'fields'})
 			{
-			my @fields = @{$parsed_sql->{'insertfields'}};
 			my %newval;
-			@newval{ @fields } = map { eval $_; } @values;
+			@newval{ @{$parsed_sql->{'fields'} } } = @values;
 			$xbase->set_record($last + 1);
 			$xbase->update_record_hash($last + 1, %newval);
 			}
 		else
 			{
-			$xbase->set_record($last + 1, map { eval $_; } @values);
+			$xbase->set_record($last + 1, @values);
 			}
 		return 1;
 		}
@@ -255,6 +285,19 @@ sub execute
 		$dbh->{'xbase_tables'}->{$table} = $xbase;	
 		return 1;
 		}
+	elsif ($command eq 'select')
+		{
+		unless (defined $sth->{'num_of_fields'})
+			{
+			my $numfields = scalar( @{ $sth->FETCH('NAME') } );
+			$sth->STORE('NUM_OF_FIELDS', $numfields);
+			$sth->{'num_of_fields'} = $numfields;
+			}
+		}
+	elsif ($command eq 'drop')
+		{
+		$xbase->drop;
+		}
 	1;
 	}
 
@@ -274,7 +317,17 @@ sub fetch
 		next if $values->{'_DELETED'} != 0;
 		if (defined $parsed_sql->{'wherefn'})
 			{ next unless &{$parsed_sql->{'wherefn'}}($table, $values, $sth->{'param'}); }
-		return [ @{$values}{ @fields } ];
+		my $retarray = [ @{$values}{ @fields } ];
+		my $i = 0;
+		for my $ref ( @{$sth->{'xbase_bind_col'}} )
+			{
+### print STDERR "Ref: $ref\n";
+			next unless defined $ref;
+			$$ref = $retarray->[$i]
+			}
+		continue
+			{ $i++; }
+		return $retarray;
 		}
 	$sth->finish(); return;
 	}
@@ -282,19 +335,32 @@ sub fetch
 
 sub FETCH
 	{
-	my $sth = shift;
-	my $parsed_sql = $sth->{'xbase_parsed_sql'};
-	my $table = $sth->{'xbase_table'};
-	if (defined $_[0] and $_[0] eq 'NAME')
+	my ($sth, $attrib) = @_;
+	if ($attrib eq 'NAME')
 		{
+		my $parsed_sql = $sth->{'xbase_parsed_sql'};
+		my $table = $sth->{'xbase_table'};
 		if (defined $parsed_sql->{'selectall'})
 			{ return [ $table->field_names() ]; }
 		else
-			{ return [ @{$parsed_sql->{'selectfields'}} ]; }
+			{ return [ @{$parsed_sql->{'fields'}} ]; }
 		}
+	elsif ($attrib eq 'NULLABLE')
+		{
+		my $name = $sth->FETCH('NAME');
+		return [ (1) x scalar(@$name) ];
+		}
+	else
+		{ return $sth->DBD::_::st::FETCH($attrib); }
 	}
-sub finish
-	{ 1; }
+sub STORE
+	{
+	my ($sth, $attrib, $value) = @_;
+	return $sth->DBD::_::st::STORE($attrib, $value);
+	}
+    
+sub finish { 1; }
+
 1;
 
 __END__
@@ -338,6 +404,9 @@ C<or>, and also use brackets. Examples:
     select first,last from people where login = "ftp"
 						or uid = 1324
 
+You can use bind parameters in the where clause. To check for NULL
+values, use ID IS NULL, not ID == NULL.
+
 =item delete
 
     delete from table [ where condition ]
@@ -346,6 +415,7 @@ The C<where> condition si the same as for C<select>. Examples:
 
     delete from jobs		## emties the table
     delete from jobs where companyid = "ISW"
+    delete from jobs where id < ?
 
 =item insert
 
@@ -357,6 +427,10 @@ fields in the natural order in the table are set. Example:
 
     insert into accounts (login, uid) values ("guest", 65534)
 
+You can use bind parameters in the list of values:
+
+    insert into accounts (login, uid) values (?, ?)
+
 =item update
 
     update table set field = new value [ , set more fields ]
@@ -366,6 +440,8 @@ Example:
 
     update table set uid = 65534 where login = "guest"
 
+Again, the value can also be specified as bind parameter.
+
 =item create table
 
     create table table name ( columns specification )
@@ -373,21 +449,27 @@ Example:
 Columns specification is a comma separated list of column names and
 types. Example:
 
-    create table rooms ( roomid int, category int, balcony boolean)
+    create table rooms ( roomid int, cat char(10), balcony boolean)
+
+=item drop table
+
+    drop table table name
 
 =back
 
 =head1 VERSION
 
-0.0632
+0.064
 
 =head1 AUTHOR
 
-(c) Jan Pazdziora, adelton@fi.muni.cz
+(c) 1997--1998 Jan Pazdziora, adelton@fi.muni.cz,
+http://www.fi.muni.cz/~adelton/ at Faculty of Informatics, Masaryk
+University in Brno, Czech Republic
 
 =head1 SEE ALSO
 
-perl(1), DBI(3), XBase(3)
+perl(1); DBI(3), XBase(3)
 
 =cut
 
