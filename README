@@ -6,27 +6,26 @@
 This is the README file for the XBase and DBD::XBase packages.
 
 Module XBase provides access to XBase data files, namely .dbf and
-.dbt. It provides "native" interface to the table's content.
-Currently, it reads and writes these two types of files.
+.dbt. It provides "native" Perl interface to the table's content.
+Currently only the basic tables (dbf) and memo fields in dbt files
+are supported. The goal wasn't to write database engine but simply
+a parser. If you are looking for something more powerfull for your
+data than just this conversion tool, look (for example) for MySQL or
+Postgres.
 
-The man page XBase(3) is included. DBD::XBase is intended DBD::*
-interface to XBase but it does not exist yet.
+The man page XBase(3) is included.
 
-I would appreciate any nice little scripts that I could put into the
-t directory. Also, nice tables with interesting features would help me
-in writing the parsers.
+DBD::XBase is a database driver for Perl DBI interface. It talks to
+XBase module that actually accesses the data. Currently only SELECT
+command is supported. This module is not ready yet but any comments
+are welcome.
 
-Briefly, what is this about, why is not Xbase-1.07 enough? It might be
-enough, but: This is an independent attempt to make interface to dBase
-and Fox* tables. The main change (currently) are the added writing
-capabilities. The interface is different and hopefully more pleasant.
-The module is use strict clean and tries to handle error nicely.
-
-And yes, this is alpha software. I will be glad to hear about you
-testing it and I will try to fix any bugs and add new features but
-please, test it on a backup copy of your data. The more tests we do
-now, the sooner we can feel the module is safe and usable.
-
+Once more, this is a module to parse and update XBase files, not
+a db engine. It is provided in a hope you might find it usefull.
+My intent is to support as meny variations of formats as possible, but
+I do not have dBase/Fox* and do not plan to have, so send me examples
+of your data files if you feel your native XBase engines produce data
+incompatible with this module.
 
 Installation: Download the tar.gz, unpack it, change to the DBD-XBase-*
 	directory. Then do
@@ -36,8 +35,8 @@ Installation: Download the tar.gz, unpack it, change to the DBD-XBase-*
 	make test
 	make install
 
-or you can use CPAN module and just type "install DBD::XBase". You
-really should have 5.004 to run cool.
+or you can use CPAN module and just type "install XBase". You really
+should have 5.004 to run cool.
 
 Problems: If anything goes wrong when installing, please send me output
 of you installation messages and of make test TEST_VERBOSE=1. If there
@@ -46,8 +45,8 @@ messages (errstr) and if possible, you data files that cause the
 problems.
 
 Available:
-	http://www.fi.muni.cz/~adelton/perl/ and on your favorite CPAN
-	site.
+	http://www.fi.muni.cz/~adelton/perl/ and from your favorite
+	CPAN site.
 
 Copyright: (c) 1997 Jan Pazdziora, adelton@fi.muni.cz. All rights
 	reserved. This library is free software; you can redistribute
