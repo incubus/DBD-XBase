@@ -104,7 +104,7 @@ there are probably pieces missing.
 
 =head1 VERSION
 
-0.022
+0.023
 
 =head1 AUTHOR
 
@@ -124,6 +124,7 @@ use 5.004;	# hmm, maybe it would work with 5.003 or so, but I do
 # ##################################
 # Here starts the XbaseTable package
 
+package XbaseTable::dbt;
 package XbaseTable;
 
 use strict;
@@ -134,7 +135,7 @@ use IO::File;
 # General things
 
 use vars qw( $VERSION $DEBUG $errstr $FIXERRORS $CLEARNULLS );
-$VERSION = "0.022";
+$VERSION = "0.023";
 
 # Sets the debug level
 $DEBUG = 1;
@@ -203,7 +204,7 @@ sub open
 	$fh->open($filename, $mode) or do
 		{ Error "Error opening file $self->{'filename'}: $!\n";
 		return; };	# open the file
-	
+
 	my $header;
 	$fh->read($header, 32) == 32 or do
 		{ Error "Error reading header of $filename\n"; return; };
@@ -227,7 +228,7 @@ sub open
 			last if FIXERRORS;
 			return;
 			};
-		
+
 		last if substr $field_def, 0, 1 eq "\x0d";
 				# we have found the terminator
 
@@ -271,7 +272,7 @@ sub open
 			$header_len, $record_len, $names, $types,
 			$lengths, $decimals, 1, $hashnames, $template,
 			$#$names );
-	
+
 	1;	# return true since everything went fine
 	}
 
@@ -415,7 +416,7 @@ sub process_item_on_read
 		return undef;
 		}
 
-	# now the other fields	
+	# now the other fields
 	if ($type eq 'C')
 		{
 		$value =~ s/\s+$// if $CLEARNULLS;
@@ -432,9 +433,11 @@ sub process_item_on_read
 		substr($value, $self->{'field_lengths'}[$num], 0) = '.';
 		return $value + 0;
 		}
-	###
-	### Fixup for MGBP ### to be added, read from dbt
-	###
+	if ($type =~ /^[MGBP]$/)
+		{
+		return undef if $value =~ /^ +$/;
+		return $self->read_memo_data($value + 0);
+		}
 
 	$value;
 	}
@@ -443,7 +446,7 @@ sub process_item_on_read
 sub read_record
 	{
 	my ($self, $num) = @_;
-	
+
 	my ($fh, $tell, $record_len, $filename ) =
 		@{$self}{ qw( fh tell record_len filename ) };
 
@@ -461,7 +464,7 @@ sub read_record
 			return;
 			};
 		}
-	
+
 	delete $self->{'tell'};
 	my $buffer;
 				# read the record
@@ -477,7 +480,7 @@ sub read_record
 
 	my @data = unpack $template, $buffer;
 				# unpack the data
-	
+
 	my @result = map { $self->process_item_on_read($_, $data[$_ + 1]); }
 					( -1 .. $self->last_field() );
 				# process them
@@ -488,6 +491,22 @@ sub read_record
 	@result;		# and send back
 	}
 
+# Read additional data from the memo file
+sub read_memo_data
+	{
+	my ($self, $num) = @_;
+	my $dbt = $self->{'dbt'};
+	if (not defined $dbt)
+		{
+		my $filename = $self->{'filename'};
+		$filename =~ s/\.dbf//i;
+		$filename .= '.dbt';
+		$self->{'dbt'} = $dbt = new XbaseTable::dbt($filename);
+		return undef unless defined $dbt;
+		}
+	my $ret = $dbt->read_block($num);	
+	return $ret;
+	}
 
 # #############
 # Write records
@@ -519,7 +538,7 @@ sub write_record
 		$self->{'fh'}->print("\x1a");	# add EOF
 		$self->update_last_record($num) or return;
 		}
-	
+
 	$self->update_last_change() or return;
 	1;
 	}
@@ -644,19 +663,19 @@ sub process_item_on_write
 		else			{ $value = "?"; }
 		return sprintf "%-$totlen.${totlen}s", $value;
 		}
-	if ($type =~ /[NFD]/)
+	if ($type =~ /^[NFD]$/)
 		{
 		$value += 0;
 		$value = sprintf "%$totlen.${decimal}f", $value;
 		$value =~ s/[.,]//;
 		return $value;
 		}
-	
+
 	###
 	### Fixup for MGBP ### to be added, read from dbt
 	###
 
-	$value .= ""; 
+	$value .= "";
 	return sprintf "%-$length.${decimal}s", $value;
 	}
 
@@ -681,15 +700,131 @@ sub update_last_record
 	}
 1;
 
+# #######################################################
+# Here starts the XbaseTable::dbf package, for memo files
+
 package XbaseTable::dbt;
 
+sub Error (@)	{ XbaseTable::Error(@_); }
+sub Warning (@)	{ XbaseTable::Warning(@_); }
+sub FIXERRORS ()	{ XbaseTable::FIXERRORS(); }
+
+# ###########################
+# Consturctor, open and close
+
+# Creates the object, reads the header of the file
 sub new
 	{
-	
+	my ($class, $filename) = @_;
+	my $new = { 'filename' => $filename };
+	bless $new, $class;
+	$new->open() and return $new;
+	return;
 	}
+
+# Reads the header of the file, fills the structures
+sub open
+	{
+	my $self = shift;
+	return 1 if defined $self->{'opened'};
+				# won't open if already opened
+
+	my $fh = new IO::File;
+	my ($filename, $writable, $mode) = ($self->{'filename'}, 0, "r");
+	($writable, $mode) = (1, "r+") if -w $filename;
+				# decide if we want r or r/w access
+
+	$fh->open($filename, $mode) or do
+		{ Error "Error opening file $self->{'filename'}: $!\n";
+		return; };	# open the file
+
+	my $header;
+	$fh->read($header, 17) == 17 or do
+		{ Error "Error reading header of $filename\n"; return; };
+
+	my ($next_for_append, $block_size, $dbf_filename, $reserved)
+		= unpack "VVA8C", $header;
+
+	my $version = 4;
+	if ($reserved == 3) { $version = 3; }
+
+	$block_size = 512 if $version == 3;
+	($dbf_filename = $self->{'filename'}) =~ s/\.dbf//i;
+
+	@{$self}{ qw( next_for_append block_size dbf_filename version
+		opened fh writable ) }
+		= ( $next_for_append, $block_size, $dbf_filename,
+		$version, 1, $fh, $writable );
+	1;
+	}
+
+# Close the file
 sub close
 	{
+	my $self = shift;
+	if (not defined $self->{'opened'})
+		{ Error "Can't close file that is not opened\n"; return; }
+	$self->{'fh'}->close();
+	delete @{$self}{'opened', 'fh'};
+	1;
+	}
+
+# ##############
+# Reading blocks
+
+sub read_block
+	{
+	my ($self, $num) = @_;
+	return unless $num > 0;
+
+	my $block_size = $self->{'block_size'};
+	my $offset = 512 + ($num - 1) * $block_size;
+
+	my $filesize = -s $self->{'filename'};
+	my $fh = $self->{'fh'};
+
+	$fh->seek($offset, 0) or do
+		{ Error "Error seeking to offset $offset: $!\n"; return; };
+
+	# dBase III+ memo file type
+	if ($self->{'version'} == 3)
+		{
+		my $result = '';
+		while ($fh->tell() < $filesize)
+			{
+			my $buffer;
+			$fh->read($buffer, $block_size) == $block_size or do
+				{ Warning "Error reading memo block\n";
+				return unless FIXERRORS; };
+			if ($buffer =~ /^(.*?)\x1a\x1a/)
+				{ return $result . $+; }
+			$result .= $buffer;
+			}
+		return $result;
+		}
+
+	# dBase IV style
+	elsif ($self->{'version'} == 4)
+		{
+		my $buffer;
+		$fh->read($buffer, $block_size) == $block_size or do
+			{ Warning "Error reading memo block\n";
+			return unless FIXERRORS; };
+		my ($unused_id, $length) = unpack "VV", $buffer;
+		if ($length < $block_size - 8)
+			{ return substr $buffer, 8, $length; }
+		my $rest_length = $length - ($block_size - 8);
+		my $rest_data;
+		$fh->read($rest_data, $rest_length) == $rest_length or do
+			{ Warning "Error reading memo block\n";
+			return unless FIXERRORS; };
+		return $buffer . $rest_data;
+		}
+
+	return;
 	}
 
 1;
+
+
 

@@ -7,4 +7,6 @@ dump.to.dbf
 test.dbf
 test.dbf.backup
 test.dbf.dump
+test.dbt
+test.dbt.dump
 test.pl
