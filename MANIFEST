@@ -15,9 +15,9 @@ lib/XBase/cdx.pm
 t/1_header.t
 t/2_read.t
 t/3_write.t
-t/4_dbd_select.t
 t/4_create.t
 t/5_drop.t
+t/6_dbd_select.t
 t/dump.to.dbf
 t/rooms.cdx
 t/rooms.dbf
