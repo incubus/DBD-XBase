@@ -44,7 +44,7 @@ my $hash_values = join ', ',
 	map { defined $_ ? ( /^\d+$/ ? $_ : qq["$_"] ) : 'undef' }
 							values %hash;
 if ($hash_values_expected ne $hash_values)
-	{ print "Expected:\n\@hash{ qw( @{[keys %hash]} ) } =\n ($hash_values_expected)\nGot:\n$hash_values\nnot "; }
+	{ print "Expected:\n\@hash{ qw( @{[sort keys %hash]} ) } =\n ($hash_values_expected)\nGot:\n$hash_values\nnot "; }
 print "ok 4\n";
 
 

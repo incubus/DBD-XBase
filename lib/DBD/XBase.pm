@@ -19,7 +19,7 @@ use vars qw( $VERSION @ISA @EXPORT $err $errstr $drh $sqlstate );
 
 require Exporter;
 
-$VERSION = '0.100';
+$VERSION = '0.110';
 
 $err = 0;
 $errstr = '';
@@ -535,18 +535,21 @@ The SQL commands currently supported by DBD::XBase's prepare are:
 Fields is a comma separated list of fields or a C<*> for all. The
 C<where> condition specifies which rows will be returned, you can
 have arbitrary arithmetic and boolean expression here, compare fields
-and constants and use C<and> and C<or>. Examples:
+and constants and use C<and> and C<or>. Match using C<like> is also
+supported. Examples:
 
     select * from salaries where name = "Smith"	
     select first,last from people where login = "ftp"
 						or uid = 1324
+    select id,first_name,last_name from employ
+					where last_name like 'Ki%'
     select id,name from employ where id = ?
 
 You can use bind parameters in the where clause, as the last example
 shows. The actual value has to be supplied via bind_param or in the
 call to execute, see DBI(3) for details. To check for NULL values in
-the C<where> expression, use C<ID IS NULL> and C<ID IS NOT NULL>, not
-C<ID == NULL>.
+the C<where> expression, use C<id is null> and C<id is not null>, not
+C<id == null>.
 
 =head2 delete
 
@@ -612,7 +615,7 @@ Example:
 
 =head1 VERSION
 
-0.100
+0.110
 
 =head1 AUTHOR
 

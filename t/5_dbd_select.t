@@ -13,7 +13,7 @@ BEGIN	{
 		print "ok 1\n";
 		exit;
 		}
-	print "1..16\n";
+	print "1..22\n";
 	print "DBI loaded\n";
 	}
 
@@ -197,6 +197,68 @@ if ($result ne $expected_result)
 	}
 print "ok 16\n";
 
+
+$command = 'select * from rooms where roomname like ?';
+print "Prepare $command\n";
+$sth = $dbh->prepare($command) or do {
+	print $dbh->errstr, "not ok 17\n";
+	exit;
+	};
+print "ok 17\n";
+
+print "Execute it with parameter '%f%'\n";
+$sth->execute('%f%') or do {
+	print $dbh->errstr, "not ok 18\n";
+	exit;
+	};
+print "ok 18\n";
+
+print "And now get the result\n";
+$result = '';
+while (@line = $sth->fetchrow_array())
+	{ $result .= "@line\n"; }
+$expected_result = '';
+while (<DATA>)
+	{
+	last if /^__END_DATA__$/;
+	$expected_result .= $_;
+	}
+
+if ($result ne $expected_result)
+	{ print "Expected:\n${expected_result}Got:\n${result}not "; }
+print "ok 19\n";
+
+
+$command = 'select * from rooms where facility like ? and roomname not like ?';
+print "Prepare $command\n";
+$sth = $dbh->prepare($command) or do {
+	print $dbh->errstr, "not ok 20\n";
+	exit;
+	};
+print "ok 20\n";
+
+print "Execute it with parameters '%o', 'mi%'\n";
+$sth->execute('%o', 'mi%') or do {
+	print $dbh->errstr, "not ok 21\n";
+	exit;
+	};
+print "ok 21\n";
+
+print "And now get the result\n";
+$result = '';
+while (@line = $sth->fetchrow_array())
+	{ $result .= "@line\n"; }
+$expected_result = '';
+while (<DATA>)
+	{
+	last if /^__END_DATA__$/;
+	$expected_result .= $_;
+	}
+
+if ($result ne $expected_result)
+	{ print "Expected:\n${expected_result}Got:\n${result}not "; }
+print "ok 22\n";
+
 $sth->finish();
 $dbh->disconnect();
 
@@ -262,3 +324,17 @@ Audio Mix H
 Audio Mix J
 Film SCANNING
 Audio Transfer
+__END_DATA__
+ADR-Foley Audio
+Transfer Audio
+Flambe Audio
+FILM 1 Film
+FILM 2 Film
+FILM 3 Film
+Mix F Audio
+MacGrfx Main
+__END_DATA__
+ADR-Foley Audio
+Mach Rm Audio
+Transfer Audio
+Flambe Audio

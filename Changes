@@ -1,6 +1,9 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
+0.110 Sun Dec 20 21:29:05 MET 1998
+	XBase::SQL: added LIKE clause to WHERE part of SQL commands. 
+
 0.105 Sun Dec 20 17:09:43 MET 1998
 	XBase::Base: added workaround for systems that not only write
 	to files something else than they are told to, but also damage

@@ -15,26 +15,24 @@ BEGIN {
 	if ($@) { local $^W = 0; eval ' sub O_BINARY { 0 } ' }
 	}
 
-use vars qw( $VERSION $DEBUG $errstr );
-
-$VERSION = '0.102';
+$XBase::Base::VERSION = '0.110';
 
 # Sets the debug level
-$DEBUG = 0;
-sub DEBUG () { $DEBUG };
+$XBase::Base::DEBUG = 0;
+sub DEBUG () { $XBase::Base::DEBUG };
 
 my $SEEK_VIA_READ = 0;
 
 # Holds the text of the global error, if there was one
-$errstr = '';
+$XBase::Base::errstr = '';
 # Fetch the error message
-sub errstr ()	{ ( ref $_[0] ? $_[0]->{'errstr'} : $errstr ); }
+sub errstr ()	{ ( ref $_[0] ? $_[0]->{'errstr'} : $XBase::Base::errstr ); }
 
 # Set errstr and print error on STDERR if there is debug level
 sub Error (@)
 	{
 	my $self = shift;
-	( ref $self ? $self->{'errstr'} : $errstr ) = join '', @_;
+	( ref $self ? $self->{'errstr'} : $XBase::Base::errstr ) = join '', @_;
 	}
 # Null the errstr
 sub NullError
