@@ -1234,7 +1234,7 @@ Examples of using cursors:
     my $table = new XBase "employ.dbf";
     my $cur = $table->prepare_select_with_index("empid.ndx");
     ## my $cur = $table->prepare_select_with_index(
-		["empid.cdx", "ADDRES"], "id", "address");
+		["empid.cdx", "ADDRES", "char"], "id", "address");
     $cur->find_eq(1097);
     while (my $hashref = $cur->fetch_hashref
 			and $hashref->{"ID"} == 1097) {

@@ -71,13 +71,21 @@ file (mdx, cdx), you have to specify the tag in the file:
 	my $index = new XBase::Index "cust.cdx", 'tag' => 'addr';
 
 With the XBase and prepare_select_with_index, you would specify an
-arrayref instead of the index file name, holding file anme and tag
+arrayref instead of the index file name, holding file name and tag
 name:
 
 	my $cur = $table->prepare_select_with_index(
 		[ "cust.cdx", 'addr' ], 'field1', 'field2');
 
 There is a script indexdump that does the dump for you.
+
+If you have an compound index, with an expression instead of just
+plain field name, chances are that XBase.pm won't be able to recognize
+the type of the index. You can specify the type of the index as the
+third parameter in the first anonymous array, like
+
+	my $cur = $table->prepare_select_with_index(
+		[ "cust.cdx", 'addr+zip', 'char' ], 'field1', 'field2');
 
 --
 
