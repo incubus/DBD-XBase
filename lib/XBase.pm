@@ -334,7 +334,9 @@ sub read_header
 			$multiuser1, $work_area, $multiuser2,
 			$set_fields_flag, $res, $index_flag)
 				= unpack "A11aVCCa2Ca2Ca7C", $field_def;
-		
+	
+		$name = uc $name;
+
 		if ($type eq "C")
 			{ $length += 256 * $decimal; $decimal = 0; }
 				# fixup for char length > 256
@@ -777,7 +779,7 @@ sub create
 	my $i;
 	for $i (0 .. $#{$options{'field_names'}})
 		{
-		my $name = $options{'field_names'}[$i];
+		my $name = uc $options{'field_names'}[$i];
 		$name = "FIELD$i" unless defined $name;
 		my $type = $options{'field_types'}[$i];
 		$type = "C" unless defined $type;
