@@ -1,6 +1,10 @@
 
 Revision history for Perl extension XBase and DBD::XBase.
 
+0.240 Mon Aug 25 15:03:57 MEST 2003
+	XBase: delete_record/undelete_record now corrctly returns
+	false when the delete fails, problem reported by Boris Kocak.
+
 0.234 Mon Jul  7 20:41:14 CEST 2003
 	Added test to Makefile.PL and note to INSTALL about case
 	insensitive clash with Xbase.pm, suggested by Michael Higgins

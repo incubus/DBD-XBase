@@ -20,7 +20,7 @@ use XBase::Base;		# will give us general methods
 use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
-$VERSION = '0.234';
+$VERSION = '0.240';
 $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 
 *errstr = \$XBase::Base::errstr;
@@ -652,13 +652,11 @@ sub delete_record {
 	my ($self, $num) = @_;
 	$self->NullError();
 	$self->write_record($num, "*");
-	1;
 }
 sub undelete_record {
 	my ($self, $num) = @_;
 	$self->NullError();
 	$self->write_record($num, " ");
-	1;
 }
 
 # Update the last change date
@@ -1386,7 +1384,7 @@ Thanks a lot.
 
 =head1 VERSION
 
-0.234
+0.240
 
 =head1 AUTHOR
 
