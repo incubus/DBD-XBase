@@ -12,7 +12,7 @@ use XBase::Base;
 
 use vars qw( $VERSION @ISA );
 @ISA = qw( XBase::Base );
-$VERSION = '0.0696';
+$VERSION = '0.100';
 
 # Read header is called from open to fill the object structures
 sub read_header
@@ -254,7 +254,7 @@ specify their specific B<read_record> and B<write_record> methods.
 
 =head1 VERSION
 
-0.0696
+0.100
 
 =head1 AUTHOR
 

@@ -19,7 +19,7 @@ use vars qw( $VERSION @ISA @EXPORT $err $errstr $drh $sqlstate );
 
 require Exporter;
 
-$VERSION = '0.0902';
+$VERSION = '0.100';
 
 $err = 0;
 $errstr = '';
@@ -616,7 +616,7 @@ Example:
 
 =head1 VERSION
 
-0.0693
+0.100
 
 =head1 AUTHOR
 

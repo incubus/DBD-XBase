@@ -3,11 +3,12 @@ Revision history for Perl extension XBase and DBD::Xbase.
 
 0.100
 	DBD::XBase: capitalized AND/OR in SQL commands now work,
-	method rows implemented, reported by cybertoast.
-	Updated to use _set_fbav.
+	method rows implemented, reported by cybertoast. Updated to
+	use _set_fbav. Unpolished support to *info* methods.
 
 	XBase::SQL: fixed the primary key/key parsing problem, patch
-	by Bill Brinkley & Joe Johnston.
+	by Bill Brinkley & Joe Johnston. A quick fix to avoid bug in
+	Perl with long blobs.
 
 	XBase::Memo: appending record to dBaseIV memo used to corrupt
 	the data -- reported by Dan Albertsson.
@@ -215,8 +216,7 @@ Revision history for Perl extension XBase and DBD::Xbase.
 
 	XBase::SQL rewritten, DBD::XBase now supports select, delete,
 	insert, update and create table. Documentation for DBD::XBase
-	extended. DBD::XBase is still alpha, now my effort will go to
-	support everything that DBI 0.92 requires.
+	extended. DBD::XBase is still alpha but rther stable.
 
 	Added support for fpt memo files.
 

@@ -17,6 +17,11 @@ print OUT <<'EOBODY';
 use XBase;
 use Getopt::Long;
 
+my $stdin = 0;
+
+if (defined $ARGV[$#ARGV] and $ARGV[$#ARGV] eq '-')
+	{ $stdin = 1; pop @ARGV; }
+
 my %options;
 Getopt::Long::GetOptions( \%options,
 	'help', 'version', 'info', 'rs=s', 'fs=s', 'undef=s', 'fields=s',
@@ -26,20 +31,23 @@ Getopt::Long::GetOptions( \%options,
 if (defined $options{'version'})
 	{ print "This is dbfdump version $XBase::VERSION.\n"; exit; }
 
+if ($stdin)
+	{ push @ARGV, '-'; $options{'nomemo'} = 1; }
+
 if (@ARGV == 0 or defined $options{'help'})
 	{
-	die <<EOF;
+	die <<'EOF';
 Usage: dbfdump [ options ] files
     where the options specify
-	--rs		record separator
-	--fs		field separator
-	--fields	comma separated list of fields to print
-	--undef		what to print for NULL values
+	--rs		output record separator (default newline)
+	--fs		output field separator (default colon)
+	--fields	comma separated list of fields to print (default all)
+	--undef		what to print for NULL values (default empty string)
 	--memofile	specifies unstandard name of attached memo file
-	--memosep	separator for dBase III dbt's -- default "\x1a\x1a"
+	--memosep	separator for dBase III dbt's (default \x1a\x1a)
     all having as parameter a string; and also
 	--nomemo	do not try to read the memo (dbt/fpt) file 
-	--info		print info about the file and fields
+	--info		only print info about the file and fields
 	--version	print version of the XBase library
 EOF
 	}
@@ -81,32 +89,42 @@ dbfdump - Dump the record of the dbf file
 
 where options are
 
-	--rs		record separator
-	--fs		field separator
-	--fields	comma separated list of fields to print
-	--undef		string to print for NULL values
+	--rs		output record separator (default newline)
+	--fs		output field separator (default colon)
+	--fields	comma separated list of fields to print (default all)
+	--undef		string to print for NULL values (default empty)
+	--memofile	specifies unstandard name of attached memo file
+	--memosep	separator for dBase III dbt's (default \x1a\x1a)
+
+	--nomemo	do not try to read the memo (dbt/fpt) file
 	--info		print info about the file and fields
 	--version	print version of the XBase library
 
 =head1 SYNOPSIS
 
-	dbfdump -fields id,msg table
+	dbfdump -fields id,msg table.dbf
 	dbfdump -fs=' : ' table
+	dbfdump --nomemo file.dbf
+
+	ssh user@host 'cat file.dbf.gz' | gunzip - | dbfdump -
 
 =head1 DESCRIPTION
 
-Dbfdump print to standard output content of dbf files listed. By
+Dbfdump prints to standard output the content of dbf files listed. By
 default, it prints all fields, separated by colons, one record on
-a line. The record separators can be changed by options on the command
-line. It is also possible to specify list of fields to print -- comma
-separated list for the C<--fields> command line parameter.
+a line. The output record and column separators can be changed by
+switches on the command line. You can also ask only for some fields to
+be printed.
 
 The content of associated memo files (dbf, fpt) is printed for memo
-fields.
+fields, unless you use the C<--nomemo> option.
+
+You can specify reading the standard input by putting dash (-) instead
+of file name.
 
 =head1 AUTHOR
 
-(c) Jan Pazdziora, adelton@fi.muni.cz, http://www.fi.muni.cz/~adelton/
+(c) 1998 Jan Pazdziora, adelton@fi.muni.cz, http://www.fi.muni.cz/~adelton/
 at Faculty of Informatics, Masaryk University in Brno, Czech Republic
 
 =head1 SEE ALSO
