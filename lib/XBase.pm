@@ -20,7 +20,7 @@ use XBase::Base;		# will give us general methods
 use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
-$VERSION = '0.162';
+$VERSION = '0.165';
 $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 
 *errstr = \$XBase::Base::errstr;
@@ -390,6 +390,7 @@ sub dump_records
 		}
 
 	my @fields = ();
+	my @unknown_fields;
 	if (defined $fields)
 		{
 		if (ref $fields eq 'ARRAY') { @fields = @$fields; }
@@ -403,23 +404,38 @@ sub dump_records
 					{ $i++; }
 				elsif ($fields[$i] =~ /^(.*)-(.*)/)
 					{
+					local $^W = 0;
 					my @allfields = $self->field_names;
 					my ($start, $end) = ($1, $2);
 					if ($start eq '')
 						{ $start = $allfields[0]; }
 					if ($end eq '')
 						{ $end = $allfields[$#allfields]; }
-					$start = $self->field_name_to_num($start);
-					$end = $self->field_name_to_num($end);
+					my $start_num = $self->field_name_to_num($start);
+					my $end_num = $self->field_name_to_num($end);
+					if ($start ne '' and not defined $start_num) {
+						push @unknown_fields, $start;
+						}
+					if ($end ne '' and not defined $end_num) {
+						push @unknown_fields, $end;
+						}
 					unless (defined $start and defined $end)
 						{ $start = 0; $end = -1; }
 					
-					splice @fields, $i, 1, @allfields[$start .. $end];
+					splice @fields, $i, 1, @allfields[$start_num .. $end_num];
+					}
+				else {
+					push @unknown_fields, $fields[$i];
+					$i++;
 					}
 				}
 			}
 		}
 
+	if (@unknown_fields) {
+		$self->Error("There have been unknown fields `@unknown_fields' specified.\n");
+		return 0;
+		}
 	my $cursor = $self->prepare_select(@fields);
 	my @record;
 	if (defined $table)

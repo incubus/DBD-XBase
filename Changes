@@ -1,6 +1,9 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
+0.165
+	XBase: better sanity checks in dump_records.
+
 	XBase::SQL: added support for not in SQL command.
 
 0.162 Sun Jan 21 17:53:05 MET 2001

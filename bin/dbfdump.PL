@@ -114,7 +114,7 @@ for $file (@ARGV)
 			}
 		}
 	else
-		{ $table->dump_records(%options); }
+		{ $table->dump_records(%options) or print STDERR $table->errstr; }
 	$table->close;
 	}
 
