@@ -20,7 +20,7 @@ use XBase::Base;		# will give us general methods
 use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
-$VERSION = '0.240';
+$VERSION = '0.241';
 $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 
 *errstr = \$XBase::Base::errstr;
@@ -748,8 +748,19 @@ sub create {
 	}
 	$fieldspack .= "\x0d";
 
-	my $header = pack 'CCCCVvvvCCa12CCv', $version, 0, 0, 0, 0,
-		(32 + length $fieldspack), $record_len, 0, 0, 0, '', 0, 0, 0;
+	{
+		local $^W = 0;
+		$options{'codepage'} += 0;
+	}
+	my $header = pack 'C CCC V vvv CC a12 CC v',
+		$version,
+		0, 0, 0,
+		0,
+		(32 + length $fieldspack), $record_len, 0,
+		0, 0,
+		'',
+		0, $options{'codepage'},
+		0;
 	$header .= $fieldspack;
 	$header .= "\x1a";
 
@@ -1089,9 +1100,11 @@ will make it into some reasonable default.
 		"field_decimals" => [ 0, undef ]);
 
 Other attributes are B<memofile> for non standard memo file location,
-B<version> to force different version of the dbt (dbt) file. The
-default is the version of the object you create the new from, or 3 if
-you call this as class method (XBase->create).
+B<codepage> to set the codepage flag in the dbf header (it does not
+affect how XBase.pm reads or writes the data though, just to make
+FoxPro happy), and B<version> to force different version of the dbt
+(dbt) file. The default is the version of the object from which you
+create the new one, or 3 if you call this as class method (XBase->create).
 
 The new file mustn't exist yet -- XBase will not allow you to
 overwrite existing table. Use B<drop> (or unlink) to delete it first.
@@ -1384,7 +1397,7 @@ Thanks a lot.
 
 =head1 VERSION
 
-0.240
+0.241
 
 =head1 AUTHOR
 

@@ -19,7 +19,7 @@ use Exporter;
 use vars qw( $VERSION @ISA @EXPORT $err $errstr $drh $sqlstate );
 			# a couple of global variables that may come handy
 
-$VERSION = '0.240';
+$VERSION = '0.241';
 
 $err = 0;
 $errstr = '';

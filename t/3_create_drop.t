@@ -34,7 +34,8 @@ my $table = create XBase('name' => "$dir/newtable",
 	'field_names' => [ 'NAME', 'COMMENT', 'UID', 'FLOAT', 'ACTIVE' ],
 	'field_types' => [ 'C', 'M', 'D', 'F', 'L' ],
 	'field_lengths' => [ 15, 10, 8, 6, 1 ],
-	'field_decimals' => [ undef, undef, undef, 2, undef ]);
+	'field_decimals' => [ undef, undef, undef, 2, undef ],
+	codepage => 1);
 
 print "not " unless defined $table;
 print "ok 2\n";
@@ -93,6 +94,10 @@ print "ok 10\n";
 print "Check if the files newtable.dbf and newtable.dbt have been deleted\n";
 print "not " if (-f "$dir/newtable.dbf" or -f "$dir/newtable.dbt");
 print "ok 11\n";
+
+
+
+
 
 ### use XBase;
 ### my $table = XBase->create(
