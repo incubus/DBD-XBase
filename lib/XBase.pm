@@ -336,7 +336,8 @@ sub read_header
 			$multiuser1, $work_area, $multiuser2,
 			$set_fields_flag, $res, $index_flag)
 				= unpack "A11aVCCa2Ca2Ca7C", $field_def;
-	
+
+		$name =~ s/[\000 ].*$//s;
 		$name = uc $name;
 
 		if ($type eq "C")
