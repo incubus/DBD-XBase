@@ -1,12 +1,18 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
+0.0342 Fri Nov 28 18:30:31 MET 1997
+
+	Fixed bug when creating new file, spotted by Roberto Congiu.
+	$XBase::errstr depreciated. Minor changes in the
+	documentation.
+
 0.03301 Thu Nov 20 17:32:53 MET 1997
 
 	Handling null numeric fields (John D Groenveld). Changed
 	"look for error" test in header.t to be OS portable. Fixed bug
 	in decode_version_info (dbtflag). Fixed bug with field length
-	in XBase::create.
+	in XBase::create, spotted by Risto Wichman.
 
 0.032 Thu Nov  6 16:27:10 MET 1997
 

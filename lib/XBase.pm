@@ -17,16 +17,12 @@ XBase - Perl module for reading and writing the dbf files
 =head1 DESCRIPTION
 
 This module can read and write XBase database file, known as dbf in
-dBase and FoxPro world. It also reads memo (and the like) fields from
-the dbt files, if needed. This module should really be used via
-DBD::XBase DBI driver, but this is the alternative interface.
-Note for now: no real DBD:: support currently exists.
+dBase and FoxPro world. It also reads memo fields from the dbt files,
+if needed. Module XBase provides simple native interface to XBase
+files and you can also use the DBD::XBase DBI driver (is not complete
+yet).
 
-Remember: Since the version number is pretty low now, you might want
-to check the CHANGES file any time you upgrade to see wheather some of
-the features you use haven't disappeared.
-
-WARNING for now: It doesn't support any index files at the present
+B<Warning> for now: It doesn't support any index files at the present
 time! That means if you change your dbf, your idx&mdx (if you have
 any) will not match. So do not do that.
 
@@ -38,8 +34,10 @@ The following methods are supported:
 
 =item new
 
-Creates the XBase object, takes the file's name as argument, parses
-the file's header, fills the data structures.
+Creates the XBase object, the argument gives the dbf file (table in
+fact) name. A suffix .dbf will be appended if needed. This method
+creates a new object and reads the file header. It will also read
+appropriate memo file if there is a memo field in dbf.
 
 =item close
 
@@ -47,33 +45,47 @@ Closes the object/file.
 
 =item create
 
-Creates new database file. Expects class name and hash of options,
-containing at least B<name> and references to lists B<field_names>,
-B<field_types>, B<field_lengths> and B<field_decimals>.
+Creates new database file on disk and initializes it with 0 records.
+A dbt (memo) file will be also created if the table contains some memo
+field. Arguments to create are passed as hash.
 
-You can also pass reference to XBase object instead of class name (and
-then can omit the other field_* attributes) and the new table will
-have the same structure (fields) as the original object.
+You can call this method as method of another XBase object and then
+you only need to pass B<name> value of the hash; the structure
+(fields) of the new file will be the same as of the original object.
 
-BUG: currently will not create .dbt file for you.
+If you call create using class name (XBase), you have to (besides
+B<name>) also specify another four values, each being a reference
+to list: B<field_names>, B<field_types>, B<field_lengths> and
+B<field_decimals>. The field types are specified by one letter
+strings. If you set certain value (except field name) as undefined,
+create will make it into some reasonable default.
+
+The new file mustn't exist yet -- XBase will not allow you to
+overwrite existing table. Use B<drop> to delete them first (or unlink).
+
+=item drop
+
+This method closes the table and deletes it on disk (including dbt
+file, if there is any).
 
 =item last_record
 
-Number of the last record in the file. The lines deleted but present
-in the file are included in this number.
+Returns number of the last record in the file. The lines deleted but
+present in the file are included in this number.
 
 =item last_field
 
-Number of the last field in the file, number of fields minus 1.
+Returns number of the last field in the file, number of fields minus 1.
 
 =item field_names, field_types, field_lengths, field_decimals
 
-List of field names and so for the dbf file.
+Return list of field names and so on for the dbf file.
 
 =back
 
-When dealing with the records, you always have to specify the number
-of the record in the file. The range is 0 .. $table->last_record().
+When dealing with the records, reading or writing, you always have
+to specify the number of the record in the file. The range is
+0 .. $table->last_record().
 
 =head2 Reading the data
 
@@ -81,18 +93,20 @@ of the record in the file. The range is 0 .. $table->last_record().
 
 =item get_record
 
-Returns a list of data from the specified record (line of the table).
-The first argument is the number of the record. If there are any other
-arguments, they are considered to be the names of the fields and only
-the specified fields are returned. If no field names are present,
-returns all fields in the record. The first value of the returned list
-is the 1/0 value saying if the record is deleted or not.
+Returns a list of data (field values) from the specified record (line
+of the table). The first argument in the call is the number of the
+record. If you do not specify any other argument, all fields are
+returned. You can also put list of field names after the record number
+and then only those will be returned. The first value of the returned
+list is the 1/0 _DELETED value saying if the record is deleted or not,
+so on success, get_record will never return empty list.
 
 =item get_record_as_hash
 
-Returns hash (in list context) or reference to hash (scalar), where
-keys are the field names of the record and values the values. The
-deleted flag has name _DELETED.
+Returns hash (in list context) or reference to hash (in scalar
+context) containing field values indexed by field names. The deleted
+flag has name _DELETED. The only argument in the call is the record
+number.
 
 =back
 
@@ -109,8 +123,8 @@ is undeleted.
 
 =item set_record_hash
 
-Takes number of the record and hash, sets the fields, unspecified are
-undeffed/emptied. The record is undeleted.
+Takes number of the record and hash as arguments, sets the fields,
+unspecified are undeffed/emptied. The record is undeleted.
 
 =item update_record_hash
 
@@ -123,6 +137,9 @@ Deletes/undeletes the record.
 
 =back
 
+The set and update methods return the record number actually written,
+number 0 is returned as true.
+
 =head2 Errors and debugging
 
 If the method fails (returns undef of null list), the error message
@@ -130,10 +147,9 @@ can be retrieved via B<errstr> method. If the B<new> or B<create>
 method fails, you have no object so you get the error message using
 class syntax XBase->errstr().
 
-The methods B<get_header_info> and B<dump_records> can be used to
-quickly view the content of the file, at least for now. Please speak
-up if you like them and want them to be supported. They are here
-mainly for my debugging purposes.
+The methods B<get_header_info> returns (not prints) information about
+the file and about the fields, B<dump_records> prints all records from
+the file, one on a line, fields separated by commas.
 
 Module XBase::Base(3) defines some basic functionality and also following
 variables, that affect the internal behaviour:
@@ -151,9 +167,9 @@ When reading the file, try to continue, even if there is some
 
 =back
 
-In the module XBase there is variable $CLEARNULLS which if true, will
-make the reading methods cuts off spaces and nulls from the end of
-character fields on read.
+In the module XBase there is variable $CLEARNULLS that specifies,
+whether will the reading methods cuts off spaces and nulls from the
+end of fixed character fields on read. The default is true.
 
 =head1 LITTLE EXAMPLE
 
@@ -164,7 +180,7 @@ This is a code to update field MSG in record where ID is 123.
 	for (0 .. $table->last_record())
 		{
 		my ($deleted, $id)
-			= $table->get_record($_, "ID");
+			= $table->get_record($_, "ID")
 		die $table->errstr unless defined $deleted;
 		next if $deleted;
 		if ($id == 123)
@@ -188,16 +204,10 @@ anyway and writing them is extremely difficult. I will try to add the
 support but do not promise anything ;-) There are too many too complex
 questions: how about compound indexes? Which index formats should
 I support? What files contain the index data? I do not have dBase nor
-Fox* so do not have data to experiment. Send me anything that might
-help.
+Fox* so do not have data to experiment.
 
-Any ideas, suggestions, URLs, help or code? Please write me, I am
-writing this module for you.
-
-=head1 INTERFACE
-
-Would you like different interface in the module? Write me, we shall
-figure something out.
+Please send me examples of your data files and suggestions for
+interface.
 
 =head1 HISTORY
 
@@ -216,14 +226,13 @@ I have written a new module. It doesn't use any code from Xbase-1.07
 and you are free to use and distribute it under the same terms as Perl
 itself.
 
-Please send all bug reports CC'ed to my e-mail, since I might miss
+Please send all bug reports cc'ed to my e-mail, since I might miss
 your post in c.l.p.misc or dbi-users (or other groups). Any comments
-from both Perl and XBase gurus are welcome, since I do neither use
-dBase nor Fox*, so there are probably pieces missing.
+both about the Perl and XBase are welcome.
 
 =head1 VERSION
 
-0.0341
+0.0342
 
 =head1 AUTHOR
 
@@ -231,16 +240,12 @@ dBase nor Fox*, so there are probably pieces missing.
 
 =head1 SEE ALSO
 
-perl(1); DBD::XBase(3) and DBI(3) for DBI interface;
-XBase::Base(3) and DBD::Memo(3) for internal details
+perl(1); DBD::XBase(3) and DBI(3) for DBI interface
 
 =cut
 
 # ########
-use 5.004;	# Hmm, maybe it would work with 5.00293 or so, but I do
-		# not have it, so this is more like a note, on which
-		# version the module has been tested
-
+use 5.004;	# Yes, 5.004 and everything should be fine
 
 # #############################
 # Here starts the XBase package
@@ -258,7 +263,7 @@ use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
 
-$VERSION = "0.0341";
+$VERSION = "0.0342";
 
 $errstr = "Use of \$XBase::errstr is depreciated, please use XBase->errstr() instead\n";
 
