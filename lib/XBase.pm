@@ -621,16 +621,6 @@ sub delete_record
 	{
 	my ($self, $num) = @_;
 	$self->NullError();
-	if (defined $self->{'attached_index_columns'}) {
-		my @nfs = keys %{$self->{'attached_index_columns'}};
-		my ($del, @old_data) = $self->get_record_nf($num, @nfs);
-
-		for my $nf (@nfs) {
-			for my $idx (@{$self->{'attached_index_columns'}{$nf}}) {
-				$idx->delete($old_data[$nf], $num + 1);
-				}
-			}
-		}
 	$self->write_record($num, "*");
 	1;
 	}
@@ -639,17 +629,6 @@ sub undelete_record
 	my ($self, $num) = @_;
 	$self->NullError();
 	$self->write_record($num, " ");
-
-	if (defined $self->{'attached_index_columns'}) {
-		my @nfs = keys %{$self->{'attached_index_columns'}};
-		my ($del, @new_data) = $self->get_record_nf($num, @nfs);
-
-		for my $nf (@nfs) {
-			for my $idx (@{$self->{'attached_index_columns'}{$nf}}) {
-				$idx->insert($new_data[$nf], $num + 1);
-				}
-			}
-		}
 	1;
 	}
 
@@ -1195,8 +1174,9 @@ the following B<fetch> will return all fields.
 The first parameter is the file name of the index file, the rest is
 as above. For index types that can hold more index structures in on
 file, use arrayref instead of the file name and in that array include
-file name and the tag name. The B<fetch> will then return records in
-the ascending order, according to the index.
+file name and the tag name, and optionaly the index type.
+The B<fetch> will then return records in the ascending order,
+according to the index.
 
 =back
 

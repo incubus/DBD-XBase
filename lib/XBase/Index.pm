@@ -7,7 +7,7 @@ XBase::Index - base class for the index files for dbf
 
 package XBase::Index;
 use strict;
-use vars qw( @ISA $DEBUG $VERSION $VERBOSE );
+use vars qw( @ISA $DEBUG $VERSION $VERBOSE $BIGEND );
 use XBase::Base;
 @ISA = qw( XBase::Base );
 
@@ -16,6 +16,15 @@ $VERSION = '0.162';
 $DEBUG = 0;
 
 $VERBOSE = 0 unless defined $VERBOSE;
+
+my $packed = pack('d', 1);
+if ($packed eq "\077\360\000\000\000\000\000\000") {
+	$BIGEND = 1;
+} elsif ($packed eq "\000\000\000\000\000\000\360\077") {
+	$BIGEND = 0;
+} else {
+	die "XBase::Index: your architecture is not supported.\n";
+}
 
 # Open appropriate index file and create object according to suffix
 sub new
@@ -222,6 +231,12 @@ sub prepare_select_eq
 ### { local $^W = 0; print "Got: $key, $val, $newleft ($numdate)\n"; }
 
 			$left = $newleft;
+# Joe Campbell says:
+# Compound char keys have two parts preceded by white space
+# get rid of the white space so that I can do a matching....
+# and suggests
+#			$key =~ s/^\s*//g;
+
 
 			# finish if we are at the end of the page or
 			# behind the correct value
@@ -611,11 +626,115 @@ sub read_header
 	$self->{'start_free_list'} /= $self->{'record_len'};
 	$self->{'header_len'} = 0;
 
+	if ($opts{'type'} eq 'N') {
+		$self->{'key_type'} = 1;
+		}
+
 	$self;
 	}
 
-sub last_record
-	{ shift->{'total_pages'}; }
+sub last_record {
+	shift->{'total_pages'};
+}
+
+sub create {
+	my ($class, $table, $filename, $column) = @_;
+	my $type = $table->field_type($column);
+	if (not defined $type) {
+		die "XBase::idx: could determine index type for `$column'\n";
+	}
+	my $numdate = 0;
+	$numdate = 1 if $type eq 'N';
+
+	my $self = bless {}, $class;
+	$self->create_file($filename) or die "Error creating `$filename'\n";
+	$self->write_to(0, "\000" x 512);
+	my $key_length = $table->field_length($column);
+	$key_length = 8 if $numdate;
+
+	my $count = int((512 - 12) / ($key_length + 4));
+### warn "Key length $key_length, per page $count.\n";
+
+	my @data;
+	my $last_record = $table->last_record;
+	for (my $i = 0; $i <= $last_record; $i++) {
+		my ($deleted, $data) = $table->get_record($i, $column);
+		push @data, [ sprintf("%-${key_length}s", $data), $i + 1 ];
+	}
+	if ($type eq 'N') {
+		@data = sort { $a->[0] <=> $b->[0] } @data;
+	} else {
+		@data = sort { $a->[0] cmp $b->[0] } @data;
+	}
+	$self->{'header_len'} = 0;	# it is 512 really, but we
+					# count from 1, not from 0
+	$self->{'record_len'} = 512;
+
+	my $bigend = substr(pack('d', 1), 0, 2) eq '?ð';	# endian
+
+	my $pageno = 1;
+	my $level = 1;
+	my @newdata;
+	while ($level == 1 or @data > 1) {
+		last if $pageno > 5;
+		my $attributes = 0;
+		$attributes = 2 if $level == 1;
+		if (scalar(@data) < $count) {
+			# we have less than one page, so it's root.
+			$attributes++;	
+		}
+
+		my $left_page = 0xFFFFFFFF;
+		my $current_count = 0;
+		my $out = '';
+		@newdata = ();
+		for (my $i = 0; $i < @data; $i++) {
+			my $key = $data[$i][0];
+### print STDERR "Page $pageno: $i: @{$data[$i]}\n";
+			if ($numdate) {		# some decoding for numbers
+				$key = pack 'd', $key;
+				if (not $bigend) { $key = reverse $key; }
+				if ((substr($key, 0, 1) & "\200") eq "\200") {
+					$key ^= "\377\377\377\377\377\377\377\377";
+				} else {
+					$key ^= "\200";
+				}
+			}
+			$out .= pack "a$key_length N", $key, $data[$i][1];
+			$current_count++;
+
+			if ($current_count == $count or $i == $#data) {
+### print STDERR "Dumping $pageno.\n";
+				# time to close this page and move on
+				my $right_page = 0xFFFFFFFF;
+				if ($i < $#data) {
+					$right_page = $pageno + 1;
+				}
+				$self->write_record($pageno,
+					pack 'a512',
+						pack('vvVV', $attributes, $current_count,
+						$left_page, $right_page)
+					. $out);
+				push @newdata, [$data[$i][0], $pageno * 512];
+				$left_page = $pageno;
+				$current_count = 0;
+				$pageno++;
+				$out = '';
+			}
+		}
+
+		@data = @newdata;
+		$level++;
+	}
+
+	my $header = pack 'VVVv CC a220 a276',
+		($pageno - 1) * 512, 0xFFFFFFFF, $pageno * 512,
+		$key_length, 0, 0, $column, '';
+	$self->write_to(0, $header);
+	$self->close;
+
+	return new XBase::Index($filename, 'type' => $type);
+}
 
 package XBase::idx::Page;
 use strict;
@@ -624,9 +743,11 @@ use vars qw( @ISA $DEBUG );
 
 *DEBUG = \$XBase::Index::DEBUG;
 
+### $DEBUG = 1;
 # Constructor for the idx page
 sub new
 	{
+	local $^W = 0;
 	my ($indexfile, $num) = @_;
 	my $parent;
 	if ((ref $indexfile) =~ /::Page$/)
@@ -654,15 +775,22 @@ sub new
 		my ($key, $recno) = unpack "\@$offset a$keylength N", $data;
 		my $left;
 		unless ($attributes & 2) {
-			$left = $recno;
+			$left = $recno / 512;
 			$recno = undef;
 			}
+		print "$i: \@$offset a$keylength N -> ($left, $recno, $key)\n" if $DEBUG > 1;
+		### use Data::Dumper; print Dumper $indexfile;
 		if ($numdate)
 			{			# some decoding for numbers
-			$key = reverse $key if $bigend;
+			if ((substr($key, 0, 1) & "\200") ne "\200") {
+				$key ^= "\377\377\377\377\377\377\377\377";
+			} else {
+				$key ^= "\200";
+			}
+			if (not $bigend) { $key = reverse $key; }
 			$key = unpack 'd', $key;
 			}
-		print "$i: \@$offset VVa$keylength -> ($left, $recno, $key)\n" if $DEBUG > 1;
+		print "$i: \@$offset a$keylength N -> ($left, $recno, $key)\n" if $DEBUG > 1;
 		push @$keys, $key;
 		push @$values, ($recno ? $recno : undef);
 		$left = ($left ? $left : undef);
