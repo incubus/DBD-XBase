@@ -18,6 +18,10 @@ $XBase::Base::DEBUG = 1;        # We want to see any problems
 $XBase::CLEARNULLS = 1;         # Yes, we want that
 
 
+print "Unlinking write.dbf and write.dbt\n";
+
+unlink "$dir/write.dbf", "$dir/write.dbt";
+
 print "We will make a copy of database files test.dbf and test.dbt\n";
 
 eval "use File::Copy;";
