@@ -125,7 +125,7 @@ sub prepare
 	my ($dbh, $statement, @attribs)= @_;
 
 	my $parsed_sql = parse XBase::SQL($statement);
-###	use Data::Dumper; print Dumper $parsed_sql;
+	use Data::Dumper; print Dumper $parsed_sql;
 	if (defined $parsed_sql->{'errstr'})
 		{
 		${$dbh->{'Err'}} = 2;
@@ -142,7 +142,7 @@ sub prepare
 			});
 		}
 	
-	my $table = $parsed_sql->{'table'};
+	my $table = $parsed_sql->{'table'}[0];
 	my $xbase = $dbh->{'xbase_tables'}->{$table};
 	if (not defined $xbase)
 		{
@@ -266,7 +266,7 @@ sub fetch
 		next if $values->{'_DELETED'} != 0;
 		if (defined $parsed_sql->{'wherefn'})
 			{ next unless &{$parsed_sql->{'wherefn'}}($table, $values); }
-		return [ @$values{ @fields } ];
+		return [ @{$values}{ @fields } ];
 		}
 	$sth->finish(); return;
 	}
