@@ -165,6 +165,7 @@ sub open
 
 	my $fh = new IO::File;
 	my ($filename, $writable, $mode) = ($self->{'filename'}, 0, 'r');
+
 	($writable, $mode) = (1, 'r+') if -w $filename;
 				# decide if we want r or r/w access
 

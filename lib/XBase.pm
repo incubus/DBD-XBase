@@ -779,8 +779,8 @@ sub create
 		$record_len += $length;
 		if ($type eq "C")
 			{
-			$decimal = $length % 256;
-			$length = int($length / 256);
+			$decimal = int($length / 256);
+			$length %= 256;
 			}
 		$header .= pack "A11A1VCCvCvCA7C", $name, $type, 0,
 				$length, $decimal, 0, 0, 0, 0, "", 0;

@@ -5,7 +5,8 @@ Revision history for Perl extension XBase and DBD::Xbase.
 
 	Handling null numeric fields (John D Groenveld). Changed
 	"look for error" test in header.t to be OS portable. Fixed bug
-	in decode_version_info (dbtflag).
+	in decode_version_info (dbtflag). Fixed bug with field length
+	in XBase::create.
 
 0.032 Thu Nov  6 16:27:10 MET 1997
 
