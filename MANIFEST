@@ -35,6 +35,7 @@ t/2_write.t
 t/3_create_drop.t
 t/4_dbfdump.t
 t/5_cdx.t
+t/5_idx.t
 t/5_ndx.t
 t/5_ntx.t
 t/5_sdbm.t

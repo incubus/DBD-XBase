@@ -623,7 +623,7 @@ sub create {
 		die "XBase::idx: could determine index type for `$column'\n";
 	}
 	my $numdate = 0;
-	$numdate = 1 if $type eq 'N';
+	$numdate = 1 if $type eq 'N' or $type eq 'D';
 
 	my $self = bless {}, $class;
 	$self->create_file($filename) or die "Error creating `$filename'\n";
@@ -634,22 +634,35 @@ sub create {
 	my $count = int((512 - 12) / ($key_length + 4));
 ### warn "Key length $key_length, per page $count.\n";
 
+	my $encode_function;
+	if ($numdate) {
+		$encode_function = sub {
+			my $key = pack 'd', shift;
+			$key = reverse $key unless $XBase::Index::BIGEND;
+			if ((substr($key, 0, 1) & "\200") eq "\200") {
+				$key ^= "\377\377\377\377\377\377\377\377";
+			} else {
+				$key ^= "\200";
+			}
+			return $key;
+		};
+	} else {
+		$encode_function = sub {
+			return sprintf "%-${key_length}s", shift;
+		};
+	}
+
 	my @data;
 	my $last_record = $table->last_record;
 	for (my $i = 0; $i <= $last_record; $i++) {
 		my ($deleted, $data) = $table->get_record($i, $column);
-		push @data, [ sprintf("%-${key_length}s", $data), $i + 1 ];
+		push @data, [ $encode_function->($data), $i + 1 ];
 	}
-	if ($type eq 'N') {
-		@data = sort { $a->[0] <=> $b->[0] } @data;
-	} else {
-		@data = sort { $a->[0] cmp $b->[0] } @data;
-	}
+	@data = sort { $a->[0] cmp $b->[0] } @data;
+
 	$self->{'header_len'} = 0;	# it is 512 really, but we
 					# count from 1, not from 0
 	$self->{'record_len'} = 512;
-
-	my $bigend = substr(pack('d', 1), 0, 2) eq '?ð';	# endian
 
 	my $pageno = 1;
 	my $level = 1;
@@ -670,15 +683,6 @@ sub create {
 		for (my $i = 0; $i < @data; $i++) {
 			my $key = $data[$i][0];
 ### print STDERR "Page $pageno: $i: @{$data[$i]}\n";
-			if ($numdate) {		# some decoding for numbers
-				$key = pack 'd', $key;
-				if (not $bigend) { $key = reverse $key; }
-				if ((substr($key, 0, 1) & "\200") eq "\200") {
-					$key ^= "\377\377\377\377\377\377\377\377";
-				} else {
-					$key ^= "\200";
-				}
-			}
 			$out .= pack "a$key_length N", $key, $data[$i][1];
 			$current_count++;
 
