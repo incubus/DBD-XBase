@@ -18,7 +18,7 @@ use XBase::Base;		# will give us general methods
 use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
-$VERSION = '0.102';
+$VERSION = '0.105';
 $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 
 *errstr = \$XBase::Base::errstr;
@@ -174,8 +174,6 @@ sub read_header
 			( $names, $types, $lengths, $decimals,
 			$hashnames, $#$names, $unpacks,
 			$readproc, $writeproc, $CLEARNULLS );
-
-### use Data::Dumper; print STDERR Dumper $self;
 
 	1;	# return true since everything went fine
 	}
@@ -1077,7 +1075,7 @@ Thanks a lot.
 
 =head1 VERSION
 
-0.102
+0.105
 
 =head1 AUTHOR
 

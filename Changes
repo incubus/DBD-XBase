@@ -1,7 +1,23 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
-0.100
+0.105 Sun Dec 20 17:09:43 MET 1998
+	XBase::Base: added workaround for systems that not only write
+	to files something else than they are told to, but also damage
+	the files by merely opening it.
+
+	XBase::Memo: fixed problem with fpt files -- thanks to Dan
+	Albertsson for providing many test files.
+
+	XBase::SQL: fix of handling of double quoted strings.
+
+	dbfdump: memosep and memofile options fixed.
+
+	t/4_dbfdump.t: avoided using cat.
+
+	t/*_dbd_*.t: forcing use of DBI version at least 1.0.
+
+0.100 Mon Dec  7 11:00:23 MET 1998
 	DBD::XBase: capitalized AND/OR in SQL commands now work,
 	method rows implemented, reported by cybertoast. Updated to
 	use _set_fbav. Unpolished support to *info* methods.

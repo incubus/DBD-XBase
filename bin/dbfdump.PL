@@ -58,6 +58,9 @@ my %addopts = ();
 if (defined $options{'nomemo'} or defined $options{'info'})
 	{ $addopts{'ignorememo'} = 1; }
 
+$addopts{'memosep'} = $options{'memosep'};
+$addopts{'memofile'} = $options{'memofile'};
+
 my $file;
 for $file (@ARGV)
 	{
