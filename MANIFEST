@@ -3,6 +3,7 @@ MANIFEST
 Makefile.PL
 README
 ToDo
+bin/dbfdump.PL
 eg/copy_table
 eg/create_table
 eg/dump_table

@@ -17,7 +17,7 @@ $VERSION = 0.0597;
 # Read header is called from open to fill the object structures
 sub read_header
 	{
-	my $self = shift;
+	my ($self, $dbf_version) = (shift, shift);
 
 	my $header;
 	$self->{'fh'}->read($header, 512) == 512 or do
@@ -34,9 +34,12 @@ sub read_header
 		{
 		($next_for_append, $version, $block_size)
 					= unpack 'V @16C @20v', $header;
-		if ($version == 3)
+		if ($version == 3 or
+			($version == 0 and defined $dbf_version and
+				(($dbf_version & 7) == 3)))
 			{
 			$block_size = 512;
+			$version = 3;
 			bless $self, 'XBase::Memo::dBaseIII';
 			}
 		else
@@ -161,7 +164,7 @@ sub read_record
 	my $rest_length = $length - ($block_size - 8);
 	my $rest_data = $self->SUPER::read_record($num + 1, $rest_length);
 	if (not defined $rest_data) { return; }
-	return substr($buffer, 8, length($buffer) - 8) . $rest_data;
+	return substr($buffer, 8) . $rest_data;
 	}
 
 sub write_record

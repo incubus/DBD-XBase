@@ -19,7 +19,7 @@ use XBase::Base;	# will give us general methods
 use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
-$VERSION = 0.0598;
+$VERSION = 0.0599;
 $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 
 *errstr = \$XBase::Base::errstr;
@@ -31,9 +31,12 @@ $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 # Open the specified file or try to append the .dbf suffix.
 sub open
 	{
-	my ($self, $filename) = @_;
-	$self->SUPER::open($filename) and return 1;
-	for my $ext ('.dbf', '.DBF')
+	my ($self) = shift;
+	my %options;
+	if (scalar(@_) % 2) { $options{'filename'} = shift; }	
+	$self->{'openoptions'} = { %options, @_ };
+	my $filename = $self->{'openoptions'}{'filename'};
+	for my $ext ('', '.dbf', '.DBF')
 		{
 		if (-f $filename.$ext)
 			{
@@ -41,7 +44,7 @@ sub open
 			return $self->SUPER::open($filename.$ext);
 			}
 		}
-	return;
+	return $self->SUPER::open($filename);
 	}
 # We have to provide way to fill up the object upon open
 sub read_header
@@ -54,7 +57,6 @@ sub read_header
 		{ __PACKAGE__->Error("Error reading header of $self->{'filename'}: $!\n"); return; };
 
 	@{$self}{ qw( version last_update num_rec header_len record_len ) }
-	### my ($version, $last_update, $num_rec, $header_len, $record_len)
 		= unpack 'Ca3Vvv', $header;	# parse the data
 	my $header_len = $self->{'header_len'};
 
@@ -150,7 +152,9 @@ sub init_memo_field
 	my $self = shift;
 	return $self->{'memo'} if defined $self->{'memo'};
 	require XBase::Memo;
-
+	if (defined $self->{'openoptions'}{'memofile'})
+		{ return XBase::Memo->new($self->{'openoptions'}{'memofile'}); }
+	
 	my $memoname = $self->{'filename'};
 	$memoname =~ s/\.DBF$/.DBT/;	$memoname =~ s/(\.dbf)?$/.dbt/;
 	my $memo = XBase::Memo->new($memoname, $self->{'version'});
@@ -185,7 +189,7 @@ sub field_decimals	{ @{shift->{'field_decimals'}}; }
 
 # Return field number for field name
 sub field_name_to_num
-	{ my ($self, $name) = @_; $self->{'hash_names'}{$name}; }
+	{ my ($self, $name) = @_; $self->{'hash_names'}{uc $name}; }
 sub field_type
 	{
 	my ($self, $name) = @_;
@@ -271,14 +275,31 @@ sub get_version_info
 	$result .= ' containing SQL table' if $sqltable;
 	$result;
 	}
-# Print the records as comma separated fields
+
+
+# Print the records as colon separated fields
 sub dump_records
 	{
 	my $self = shift;
-	my $num;
-	for $num (0 .. $self->last_record)
-		{ print join(':', map { defined $_ ? $_ : ''; }
-				$self->get_record($num, @_)), "\n"; }
+	my %options = ( 'rs' => "\n", 'fs' => ':', 'undef' => '' );
+	my %inoptions = @_;
+	for my $key (keys %inoptions)
+		{
+		my $value = $inoptions{$key};
+		my $outkey = lc $key;
+		$outkey =~ s/[^a-z]//g;
+		$options{$outkey} = $value;
+		}
+
+	my ($rs, $fs, $undef, $fields) = @options{ qw( rs fs undef fields ) };
+	my @fields = ();
+	@fields = @$fields if defined $fields;
+
+	my $result = $self->get_all_records(@fields);
+	return unless defined $result;
+
+	print map { (join($fs, map { defined $_ ? $_ : $undef } @$_),
+							$rs); } @$result;
 	1;
 	}
 
@@ -316,11 +337,12 @@ sub get_record_nf
 	if (not @fieldnums)
 		{ @fieldnums = ( 0 .. $self->last_field ); }
 	my $unpack = join ' ', '@0a1', map {
-		my $e = $self->{'field_unpacks'}[$_];
+		my $e;
+		defined $_ and $e = $self->{'field_unpacks'}[$_];
 		defined $e ? $e : '@0a0'; } @fieldnums;
 	
 	my $rproc = $self->{'field_rproc'};
-	my @fns = (\&_read_deleted, map { defined $rproc->[$_] ? $rproc->[$_] : sub { undef; }; } @fieldnums);
+	my @fns = (\&_read_deleted, map { (defined $_ and defined $rproc->[$_]) ? $rproc->[$_] : sub { undef; }; } @fieldnums);
 
 	my @out = unpack $unpack, $data;
 
@@ -711,6 +733,42 @@ Deletes/undeletes specified record.
 
 =back
 
+=head2 Dumping the content of the file
+
+To print the content of the file in a readable form, use method
+B<dump_records>. It prints all not deleted records from the file. By
+default, all fields are printed, separated by colons, one record on
+a row. The method can have parameters in a form of a hash with the
+following keys:
+
+=over 4
+
+=item rs
+
+Record separator, string, newline by default.
+
+=item fs
+
+Field separator, string, one colon by default.
+
+=item fields
+
+Reference to a list of names of the fields to print. By default it's
+undef, meaning all fields.
+
+=item undef
+
+What to print for undefined (NULL) values, empty string by default.
+
+=back
+
+Example of use is
+
+    use XBase;
+    my $table = new XBase "table" or die XBase->errstr;
+    $table->dump_records("fs" => " | ", "rs" => " <-+\n",
+			"fields" => [ "id", "msg" ]);'
+
 =head2 Errors and debugging
 
 If the method fails (returns false or null list), the error message
@@ -719,9 +777,7 @@ method fails, you have no object so you get the error message using
 class syntax C<XBase-E<gt>errstr()>.
 
 The methods B<get_header_info> returns (not prints) string with
-information about the file and about the fields. Method B<dump_records>
-prints all records from the file, one on a line, fields separated by
-commas.
+information about the file and about the fields.
 
 Module XBase::Base(3) defines some basic functionality and also following
 variables, that affect the internal behaviour:
@@ -748,19 +804,14 @@ end of fixed character fields on read. The default is true.
 This is a code to update field MSG in record where ID is 123.
 
     use XBase;
-    my $table = new XBase "test.dbf" or die XBase->errstr();
-    for (0 .. $table->last_record())
+    my $table = new XBase "test.dbf" or die XBase->errstr;
+    for (0 .. $table->last_record)
     	{
-    	my ($deleted, $id)
-    		= $table->get_record($_, "ID")
+    	my ($deleted, $id) = $table->get_record($_, "ID")
     	die $table->errstr unless defined $deleted;
     	next if $deleted;
-    	if ($id == 123)
-    		{
-    		$table->update_record_hash($_,
-    			"MSG" => "New message");
-    		last;
-    		}
+	$table->update_record_hash($_, "MSG" => "New message")
+						if $id == 123;
     	}
 
 For some more examples please see the eg directory of the distribution.
@@ -809,7 +860,7 @@ welcome.
 
 =head1 VERSION
 
-0.0598
+0.0599
 
 =head1 AUTHOR
 
@@ -819,7 +870,7 @@ University in Brno, Czech Republic
 
 =head1 SEE ALSO
 
-perl(1); DBD::XBase(3) and DBI(3) for DBI interface
+perl(1); DBD::XBase(3) and DBI(3) for DBI interface; dbfdump(1)
 
 =cut
 
