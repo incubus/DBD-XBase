@@ -619,6 +619,8 @@ sub delete_record
 	{
 	NullError();
 	my ($self, $num) = @_;
+	if ($num > $self->last_record())
+		{ Error "Can't delete record number $num, there is not so many of them\n"; return;}
 	$self->write_record($num, "*");
 	1;
 	}
@@ -626,6 +628,8 @@ sub undelete_record
 	{
 	NullError();
 	my ($self, $num) = @_;
+	if ($num > $self->last_record())
+		{ Error "Can't undelete record number $num, there is not so many of them\n"; return;}
 	$self->write_record($num, " ");
 	1;
 	}
