@@ -20,7 +20,7 @@ use XBase::Base;		# will give us general methods
 use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
-$VERSION = '0.132';
+$VERSION = '0.134';
 $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 
 *errstr = \$XBase::Base::errstr;
@@ -141,7 +141,7 @@ sub read_header
 				else {
 					$rproc = sub {
 						my $value = shift;
-						return undef if not $value =~ /\d/ or $value < 0;
+						return if not $value =~ /\d/ or $value < 0;
 						$memo->read_record($value - 1) if defined $memo;
 						};
 					$wproc = sub {
@@ -153,7 +153,9 @@ sub read_header
 			elsif (defined $memo and $length == 4)
 				{
 				$rproc = sub {
-					$memo->read_record(unpack('V', $_[0]) - 1) if defined $memo;
+					my $val = unpack('V', $_[0]) - 1;
+					return if $val < 0;
+					$memo->read_record($val) if defined $memo;
 					};
 				$wproc = sub {
 					my $value = $memo->write_record(-1, $type, shift) if defined $memo;
@@ -754,9 +756,9 @@ sub prepare_select_with_index
 	{
 	my ($self, $file) = ( shift, shift );
 	my @tagopts = ();
-	if (ref $file eq 'ARRAY') {             ### this is suboptimal
-					### interface but should suffice for now
-		@tagopts = ( 'tag' => $file->[1] );
+	if (ref $file eq 'ARRAY') {		### this is suboptimal
+				### interface but should suffice for the moment
+		@tagopts = ( 'tag' => $file->[1]);
 		$file = $file->[0];
 		}
 	my $fieldnames = [ @_ ];
@@ -809,6 +811,12 @@ sub names
 	{ shift->[3]; }
 sub rewind
 	{ shift->[1] = undef; '0E0'; }
+
+sub attach_index {
+	my $self = shift;
+	require XBase::Index;
+
+	}
 
 package XBase::IndexCursor;
 use vars qw( @ISA );
@@ -1213,7 +1221,7 @@ Thanks a lot.
 
 =head1 VERSION
 
-0.132
+0.134
 
 =head1 AUTHOR
 

@@ -11,7 +11,7 @@ use vars qw( @ISA $DEBUG $VERSION );
 use XBase::Base;
 @ISA = qw( XBase::Base );
 
-$VERSION = '0.132';
+$VERSION = '0.134';
 
 $DEBUG = 0;
 
@@ -362,7 +362,7 @@ sub read_header
 	$self->{'key_string'} = $key_string;
 	my $field_type = (defined $self->{'dbf'} and $self->{'dbf'}->field_type($key_string));
 	if (not defined $field_type) {
-		__PACKAGE__->Error("Couldn't find key string `$self->{'key_string'}' in dbf file, can't determine field type\n");
+		__PACKAGE__->Error("Couldn't find key string `$key_string' in dbf file, can't determine field type\n");
 		return;
 		}
 	$self->{'key_type'} = ($field_type =~ /^[NDIF]$/ ? 1 : 0);
@@ -692,9 +692,12 @@ sub read_header
 	{
 	my $self = shift;
 	my %opts = @_;
+### use Data::Dumper; print Dumper $self;
 	my $header;
-	$self->{'dbf'} = $opts{'dbf'};
-	$self->{'fh'}->read($header, 512) == 512 or do
+	
+	$self->{'dbf'} = $opts{'dbf'} if not exists $self->{'dbf'};
+
+	$self->{'fh'}->read($header, 1024) == 1024 or do
 		{ __PACKAGE__->Error("Error reading header of $self->{'filename'}: $!\n"); return; };
 	@{$self}{ qw( start_page start_free_list total_pages
 		key_length index_options index_signature
@@ -702,7 +705,7 @@ sub read_header
 		key_expression_length
 		key_string
 		) }
-		= unpack 'VVNv CC @502 vvv @510 v A512', $header;
+		= unpack 'VVNv CC @502 vvv @510 v @512 a512', $header;
 
 	$self->{'total_pages'} = -1;	### the total_pages value 11
 		### found in rooms.cdx is not correct, so we invalidate it
@@ -711,17 +714,47 @@ sub read_header
 		($self->{'key_string'} =~ /^([^\000]*)\000([^\000]*)/);
 
 	$self->{'key_record_length'} = $self->{'key_length'} + 4;
-	{ local $^W = 0; $self->{'key_string'} =~ s/[\000 ].*$//s; }
 	$self->{'record_len'} = 512;
 	$self->{'start_page'} /= $self->{'record_len'};
 	$self->{'start_free_list'} /= $self->{'record_len'};
 	$self->{'header_len'} = 0;
 	
+
 	if (defined $opts{'tag'}) {
+		my $subidx = bless { %$self }, ref $self;
+
 		$self->prepare_select_eq($opts{'tag'});
 		my $value = $self->fetch;
+
 		print "Adjusting start_page value by $value for $opts{'tag'}\n" if $DEBUG;
-		$self->{'start_page'} += $value / 512;
+		$subidx->{'fh'}->seek($value, 0);
+		$subidx->read_header;
+
+### use Data::Dumper; print Dumper $subidx;
+
+		my $key_string = $subidx->{'key_string'};
+		my $field_type;
+		if (defined $subidx->{'dbf'}) {
+			$field_type = $subidx->{'dbf'}->field_type($key_string);
+			if (not defined $field_type) {
+				__PACKAGE__->Error("Couldn't find key string `$key_string' in dbf file, can't determine field type\n");
+				return;
+				}
+			}
+		elsif (defined $opts{'type'}) {
+			$field_type = $opts{'type'};
+			}
+		else {
+			__PACKAGE__->Error("Index type (char/numeric) unknown for $subidx\n");
+			return;
+			}
+		$subidx->{'key_type'} = ($field_type =~ /^[NDIF]$/ ? 1 : 0);
+
+		for (keys %$self) { delete $self->{$_} }
+		for (keys %$subidx) { $self->{$_} = $subidx->{$_} }
+		$self = $subidx;
+
+### use Data::Dumper; print Dumper $self;
 		}
 
 	$self;
@@ -789,24 +822,38 @@ sub new
 				$key .= substr($data, -$getlength);
 				substr($data, -$getlength) = '';
 				}
+			$prevkeyval = $key;
+
+			if ($numdate)
+				{		# some decoding for numbers
+				if ("\200" & substr($key, 0, 1)) {
+					substr($key, 0, 1) &= "\177";
+					}
+				else { $key = ~$key; }
+				if ($keylength == 8) {
+					$key = reverse $key if $bigend;
+					$key = unpack 'd', $key;
+					}
+				else {
+					$key = unpack 'N', $key;
+					}
+				}
 
 			print "$key -> $recno\n" if $DEBUG;
 			push @$keys, $key;
 			push @$values, $recno;
 			push @$lefts, undef;
-			$prevkeyval = $key;
 			}
 		}
 
 	else { ### non leaf pages not ready yet
-
-		die <<'EOF';
+               die <<'EOF';
 
 	You've got a cdx file that spans more than one page. I never
 	got to see such a file, so I'm unable to read it. But do not
 	worry -- just contact adelton@fi.muni.cz and I'm sure that if
 	you send him the cdx file, he should be able to fix me to
-	understand this file.				-- Yours XBase::Index
+	understand this file.                           -- Yours XBase::Index
 EOF
 		}
 
@@ -838,7 +885,15 @@ __END__
 
 This is a snippet of code to print ID and NAME fields from dbf
 data.dbf where ID equals 1097. Provided you have index on ID in
-file id.ndx.
+file id.ndx. You can use the same code for ntx and idx index files.
+For the cdx and mdx, the prepare_select call would be
+
+	prepare_select_with_index(['rooms.cdx', 'ROOMNAME'])
+
+so instead of plain filename you specify an arrayref with filename and
+an index tag in that file. The reason is that cdx and mdx can contain
+multiple indexes in one file and you have to distinguish, which you
+want to use.
 
 =head1 DESCRIPTION
 
@@ -852,43 +907,148 @@ a record with some value, you first search in this sorted list and
 once you have the record number in the dbf, you directly fetch the
 record from dbf.
 
+=head2 What indexes do
+
 To make the searching in this ordered list fast, it's generally organized
-as a tree -- it starts with a root page and here records that point to
+as a tree -- it starts with a root page with records that point to
 pages at lower level, etc., until leaf pages where the pointer is no
 longer a pointer to the index but to the dbf. When you search for a
 record in the index file, you fetch the root page and scan it
 (lineary) until you find key value that is equal or grater than that you
 are looking for. That way you've avoided reading all pages describing
-the values that are lower. Here you descend one leve, fetch the page
+the values that are lower. Here you descend one level, fetch the page
 and again search the list of keys in that page. And you repeat this
 process until you get to the leaf (lowest) level and here you finaly
-find a pointer to the dbf.
+find a pointer to the dbf. XBase::Index does this for you.
 
 Some of the formats also support multiple indexes in one file --
 usually there is one top level index that for different field values
-points to different root pages in the index file.
+points to different root pages in the index file (so called tags).
 
 XBase::Index supports (or aims to support) the following index
 formats: ndx, ntx, mdx, cdx and idx. They differ in a way they store
 the keys and pointers but the idea is always the same: make a tree of
 pages, where the page contains keys and pointer either to pages at
 lower levels, or to dbf (or both). XBase::Index only supports
-read'only access to the index fiels at the moment (and if you need
+read only access to the index fields at the moment (and if you need
 writing them as well, follow reading because we need to have the
 reading support stable before I get to work on updating the indexes).
 
-If you're not a programmer, you can test your index using the
-test_index script in the main directory of the DBD::XBase
-distribution. Just run
+=head2 Testing your index file (and XBase::Index)
 
-	./test_index ~/path/index.ndx
+You can test your index using the indexdump script in the main
+directory of the DBD::XBase distribution (I mean test XBase::Index
+on correct index data, not testing corrupted index file, of course ;-)
+Just run
 
-or whatever you index file is and what you should get is the content
-of the index file. On each row, there is the key value and a record
-number of the record in the dbf file. Let me know if you get results
-different from those you expect. I'd probably ask you to send me the
-index file (and possibly the dbf file as well), so that I can debug
-the problem.
+	./indexdump ~/path/index.ndx
+	./indexdump ~/path/index.cdx tag_name
+
+or
+
+	perl -Ilib ./indexdump ~/path/index.cdx tag_name
+
+if you haven't installed this version of XBase.pm/DBD::XBase yet. You
+should get the content of the index file. On each row, there is
+the key value and a record number of the record in the dbf file. Let
+me know if you get results different from those you expect. I'd
+probably ask you to send me the index file (and possibly the dbf file
+as well), so that I can debug the problem.
+
+The index file is (as already noted) a complement to a dbf file. Index
+file without a dbf doesn't make much sense because the only thing that
+you can get from it is the record number in the dbf file, not the
+actual data. But it makes sense to test -- dump the content of the
+index to see if the sequence is OK.
+
+The index formats usually distinguish between numeric and character
+data. Some of the file formats include the information about the type
+in the index file, other depend on the dbf file. Since with indexdump
+we only look at the index file, you may need to specify the -type
+option to indexdump if it complains that it doesn't know the data
+type of the values (this is the case with cdx at least). The possible
+values are num, char and date and the call would be like
+
+	./indexdump -type=num ~/path/index.cdx tag_name
+
+(this -type option may not work with all index formats at the moment
+-- will be fixed and patches always welcome).
+
+You can use C<-ddebug> option to indexdump to see how pages are
+fetched and decoded, or run debugger to see the calls and parsing.
+
+=head2 Using the index files to speed up searches in dbf
+
+The syntax for using the index files to access data in the dbf file is
+generally
+
+	my $table = new XBase "tablename";
+		# or any other arguments to get the XBase object
+		# see XBase(3)
+	my $cur = $table->prepare_select_with_index("indexfile",
+		"list", "of", "fields", "to", "return");
+
+or
+
+	my $cur = $table->prepare_select_with_index(
+		[ "indexfile_with_tags", "tag_name" ],
+		"list", "of", "fields", "to", "return");
+
+where we specify the tag in the index file (this is necessary with cdx
+and mdx). After we have the cursor, we can search to given record and
+start fetching the data:
+
+	$cur->find_eq('jezek');
+	while (my @data = $cur->fetch) { # do something
+
+=head2 Supported index formats
+
+The following table summarizes which formats are supproted by
+XBase::Index. If the field says something else that Yes, I welcome
+testers and offers of example index files.
+
+  Reading of index files -- types supported by XBase::Index
+
+  type	string		numeric		date
+  ----------------------------------------------------------
+  ndx	Yes		Yes		Yes (you need to
+  					convert to Julian)
+
+  ntx	Yes		Untested	Untested
+  			(will fail with floats and negatives)
+
+  idx	Untested	Untested	Untested
+  	(but should be pretty usable)
+
+  mdx	Untested	Untested	Untested
+
+  cdx	Partially	Partially	Untested
+  	(will fail with index files bigger than one page)
+
+
+  Writing of index files -- not supported untill the reading
+  is stable enough.
+
+So if you have access to an index file that is untested or unsupported
+and you care about support of these formats, contact me. If you are
+able to actually generate those files on request, the better because I
+may need specific file size or type to check something. If the file
+format you work with is supported, I still appreciate a report that it
+really works for you.
+
+B<Please note> that there is very little documentation about the file
+formats and the work on XBase::Index is heavilly based on making
+assumption based on real life data. Also, the documentation is often
+wrong or only describing some format variations but not the others.
+I personally do not need the index support but am more than happy to
+make it a reality for you. So I need your help -- contact me if it
+doesn't work for you and offer me your files for testing. Mentioning
+word XBase somewhere in the Subject line will get you (hopefully ;-)
+fast response. Mentioning work Help or similar stupidity will probably
+make my filters to consider your email as spam. Help yourself by
+making my life easier in helping you.
+
+=head2 Programmer's notes
 
 Programmers might find the following information usefull when trying
 to debug XBase::Index from their files:
@@ -907,26 +1067,23 @@ method returns the object corresponding to the index type.
 
 Then you probably want to do $index->prepare_select or
 $index->prepare_select_eq, that would possition you just before record
-equal or greater that the parameter (record in the index file, that
+equal or greater than the parameter (record in the index file, that
 is). Then you do a series of fetch'es that return next pair of (key,
 pointer_to_dbf). Behind the scenes, prepare_select_eq or fetch call
 XBase::Index::get_record which in turn calls
 XBase::index_type::Page::new. From the index file perspective, the
-first lower item in the file is one index page (or block, or whatever
+atomic item in the file is one index page (or block, or whatever
 you call it). The XBase::index_type::Page::new reads the block of data
 from the file and parses the information in the page -- pages have
 more or less complex structures. Page::new fills the structure, so
 that the fetch calls can easily check what values are in the page.
-
-You can use C<-d> option to test_index to see how pages are fetched and
-decoded, or debugger to see the calls.
 
 For some examples, please see eg/use_index in the distribution
 directory.
 
 =head1 VERSION
 
-0.132
+0.134
 
 =head1 AUTHOR
 

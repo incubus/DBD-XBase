@@ -25,7 +25,7 @@ my %TYPES = ( 'char' => 'C', 'varchar' => 'C',
 
 # Top level SQL commands
 
-	'COMMANDS' => 	'SELECT | INSERT | DELETE | UPDATE | CREATE | DROP',
+	'COMMANDS' => 	' ( SELECT | INSERT | DELETE | UPDATE | CREATE | DROP ) [\\s|;]* ',
 	'SELECT' =>	'select ( SELECTALL | SELECTFIELDS ) from TABLE WHERE ?
 							ORDERBY ?',
 	'INSERT' =>	'insert into TABLE ( \( INSERTFIELDS \) ) ? values
@@ -58,7 +58,7 @@ my %TYPES = ( 'char' => 'C', 'varchar' => 'C',
 	'WHEREEXPR' =>	'BOOLEAN',
 
 	'BOOLEAN' =>	q'\( BOOLEAN \) | RELATION ( ( AND | OR ) BOOLEAN ) *',
-	'RELATION' =>   ' ARITHMETIC ( is not ? null | LIKE CONSTANT_NOT_NULL | RELOP ARITHMETIC )',
+	'RELATION' =>   'ARITHMETIC ( is not ? null | LIKE CONSTANT_NOT_NULL | RELOP ARITHMETIC )',
 	'EXPFIELDNAME' => 'FIELDNAME',
 	'AND' =>	'and',
 	'OR' =>		'or',
@@ -70,7 +70,7 @@ my %TYPES = ( 'char' => 'C', 'varchar' => 'C',
 	
 	'CONSTANT' => ' CONSTANT_NOT_NULL | NULL ',
 	'CONSTANT_NOT_NULL' => ' BINDPARAM | NUMBER | STRING ',
-	'BINDPARAM' => q'\?',
+	'BINDPARAM' => q'\? | : [a-z][a-z0-9]* ',
 	'NULL' => 'null',
 
 	'ORDERBY' => 'order by ORDERFIELDNAME ( asc | ORDERDESC ) ?',
@@ -123,7 +123,8 @@ my %ERRORS = (
 	'FIELDTYPE' => 'Field type',
 	);
 
-# ########################################
+
+# ###########
 # Simplifying conversions during the match
 my %SIMPLIFY = (
 	'STRINGDBL' => sub { join '', '"', get_strings(@_), '"'; },
@@ -156,8 +157,10 @@ my %SIMPLIFY = (
 	'OR' =>		'or',
 	'LIKE' =>	sub { join ' ', get_strings(@_); },
 	);
-#
-#
+
+
+# #########
+# Callbacks to be called after everything is nicely matched
 my %STORE = (
 	'SELECT' => sub { shift->{'command'} = 'select'; },
 	'SELECTALL' => 'selectall',
@@ -223,21 +226,34 @@ my %STORE = (
 	'ORDERDESC' => 'orderdesc',
 	);
 
+#######
+
+# Parse is called with a string -- the whole SQL query. It should
+# return the object with all properties filled, or errstr upon error
+
+# First, we call match. Then, after we know that the match was
+# successfull, we call store_results
 sub parse
 	{
 	my ($class, $string) = @_;
 	my $self = bless {}, $class;
 
-	### print STDERR "Parsing $string\n";
 	# try to match the $string against $COMMANDS{'COMMANDS'}
+	# that's the top level starting point
 	my ($srest, $error, $errstr, @result) = match($string, 'COMMANDS');
-	$srest =~ s/^\s+//s;
 
+	# after the parse, nothing should have left from the $string
+	# if it does, it's some rubbish
 	if ($srest ne '' and not $error)
 		{ $error = 1; $errstr = 'Extra characters in SQL command'; }
+	
+	# we want to have meaningfull error messages. if it heasn't
+	# been specified so far, let's just say Error	
 	if ($error)
 		{
 		if (not defined $errstr) { $errstr = 'Error in SQL command'; }
+
+		# and only show the relevant part of the SQL string
 		substr($srest, 40) = '...' if length $srest > 44;
 		$self->{'errstr'} = "$errstr near `$srest'";
 		}
@@ -252,46 +268,73 @@ sub parse
 		}
 	$self;
 	}
+
+##########
+
+# Function match is called with a string and a list of regular
+# expressions we need to match
 sub match
 	{
 	my $string = shift;
 	my @regexps = @_;
 
+	# we save the starting string, for case when we need to backtrack
 	my $origstring = $string;
 
+	# the title is the name of the goal (bigger entity) we now try
+	# to match; it's mainly used to find correct error message
 	my $title;
 
 	if (@regexps == 1 and defined $COMMANDS{$regexps[0]})
 		{
 		$title = $regexps[0];
 		my $c = $COMMANDS{$regexps[0]};
+
+		# if we are to match a thing in %COMMANDS, let's expand it
 		@regexps = expand( ( ref $c ) ? @$c :
 					grep { $_ ne '' } split /\s+/, $c);
 		}
 
+	# as the first element of the @regexp list, we might have got
+	# modifiers -- ? or * -- we will use them in cse of non-match
 	my $modif;
 	if (@regexps and $regexps[0] eq '?' or $regexps[0] eq '*')
 		{ $modif = shift @regexps; }
 
+	# let's walk through the @regexp list and see
 	my @result;
 	my $i = 0;
 	while ($i < @regexps)
 		{
 		my $regexp = $regexps[$i];
 		my ($error, $errstr, @r);
+
+		# if it's an array, call match recursivelly
 		if (ref $regexp)
 			{ ($string, $error, $errstr, @r) = match($string, @$regexp); }
-		elsif ($regexp eq '|')
-			{ $i = $#regexps; next; }
+		# if it's a thing in COMMANDS, call match recursivelly
 		elsif (defined $COMMANDS{$regexp})
 			{ ($string, $error, $errstr, @r) = match($string, $regexp); }
+		
+		# if we've found |, it means that one alternative matched
+		# fine and we can leave the loop -- we use next to go
+		# through continue
+		elsif ($regexp eq '|')
+			{ $i = $#regexps; next; }
+
+		# otherwise do a regexp match
 		elsif ($string =~ s/^\s*?($regexp)(?:$|\b|(?=\W))//si)
 			{ @r = $1; }
+	
+		# and yet otherwise we have a problem
 		else
 			{ $error = 1; }
 
+		# if we have a problem
 		if (defined $error)
 			{
+			# if nothing has matched yet, try to find next
+			# alternative
 			if ($origstring eq $string)
 				{
 				while ($i < @regexps)
@@ -299,7 +342,10 @@ sub match
 				next if $i < @regexps;
 				last if defined $modif;
 				}
-	
+
+			# if we got here, we haven't found any alternative
+			# and no modifier was specified for this list
+			# so just form the errstr and return with shame
 			if (not defined $errstr)
 				{
 				if (defined $ERRORS{$regexp})
@@ -311,7 +357,8 @@ sub match
 
 			return ($string, 1, $errstr, @result);
 			}
-	
+
+		# add result to @result
 		if (ref $regexp)
 			{ push @result, @r; }
 		elsif (@r > 1)
@@ -322,6 +369,7 @@ sub match
 	continue
 		{
 		$i++;
+		# if we hve *, let's try another round
 		if (defined $modif and $modif eq '*' and $i >= @regexps)
 			{ $origstring = $string; $i = 0; }
 		}

@@ -19,6 +19,7 @@ driver_characteristics
 eg/copy_table
 eg/create_table
 eg/use_index
+indexdump
 lib/DBD/XBase.pm
 lib/XBase.pm
 lib/XBase/Base.pm
@@ -57,4 +58,3 @@ t/rooms.cdx
 t/rooms.dbf
 t/test.dbf
 t/test.dbt
-test_index

@@ -1,0 +1,54 @@
+#!/usr/bin/perl -w 
+
+use strict;
+use XBase::Index;
+use Getopt::Long;
+
+my %opts = ();
+my $type;
+my $startvalue;
+GetOptions('debug:i' => sub { my $key = shift; my $val = shift;
+				$val = 1 if $val eq '0';
+				$XBase::Index::DEBUG = $val },
+	'type=s' => sub { my $key = shift;
+				my $val = shift;
+				if ($val eq 'num') { $type = 'N'; }
+				elsif ($val eq 'date') { $type = 'D'; }
+				elsif ($val eq 'char') { $type = 'C'; }
+				elsif ($val eq 'string') { $type = 'C'; }
+				else { die "Unknown index type `$val'\n"; }
+		},
+	'start=s' => \$startvalue,
+	);
+$opts{'type'} = $type if defined $type;
+
+# AUDIO 4608
+# FACILITY 3072
+# FILM 9216
+# MAIN 7680
+# ROOMNAME 1536
+
+my $file = shift;
+if (@ARGV) { $opts{'tag'} = shift; }
+my $index = new XBase::Index $file, %opts or die XBase::Index->errstr;
+### use Data::Dumper; print Dumper $index;
+
+if (defined $startvalue) {
+	$index->prepare_select_eq($startvalue) or die $index->errstr;
+	}
+else {
+	$index->prepare_select or die $index->errstr;
+	}
+
+### $index->get_record(5);
+
+while (my @data = $index->fetch())
+	{
+	$data[0] =~ s/\s+$//;
+	print "@data\n";
+	}
+
+if ($index->errstr) { die $index->errstr; }
+
+__END__
+

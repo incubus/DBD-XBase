@@ -13,53 +13,15 @@
 	__END__
 
 Since the 0.063 version of the XBase module, there is a new support
-for ndx index files, since 0.0693 we have support for ntx. I'm trying
-to find the best interface to that, so anything described here can
-change. But if you do not complaint about the interface, I might me
-too lazy to change it later ;-) On the other hand, if you do not say
-the interface is good, I might change it later on. So _please_ if you
-have something to say about the module, say it.
+for ndx index files, since 0.0693 we have support for ntx, since 0.13*
+we more or less supprot mdx, idx and cdx.
 
 The first example shows how to find all rows equal or greater than
 1097. The order is taken from the index file ndx-num.ndx. Note that at
 the moment there is not check made that the index really belongs to
 the dbf (and the check is impossible, so there will be none in the
-future). You can have "file.ntx" in any place we have ndx in this file
--- the distinction is based on the extension.
-
-Similar syntax with cursors works even without index, the following
-example will give you the records in the natural order, how they go in
-the dbf file:
-
-	#!/usr/bin/perl -w
-
-	use strict;
-	use XBase;
-
-	my $table = new XBase "ndx-num.dbf";
-	my $cur = $table->prepare_select();
-
-	while (my @data = $cur->fetch()) 
-		{ print "@data\n"; }
-	__END__
-
-which looks pretty similar and it is indeed. Only, you cannot do that
-find_eq. If you use prepare_select_with_index, you can call fetch
-directly without find_eq, then you will get all value in the order
-given in the index, as in the example below.
-
-	#!/usr/bin/perl -w
-
-	use strict;
-	use XBase;
-
-	my $table = new XBase "orders";
-	my $cur = $table->prepare_select_with_index("klantnum.ndx",
-		qw( ORDER_ID KLANTNUMME WERKNEMER_ VERVALDATU LEVERDATUM));
-
-	while (my @data = $cur->fetch())
-		{ print "@data\n"; }
-	__END__
+future). If you have different index format, just specify different
+file name -- the index format is derived from the file extension.
 
 The values in the index (AFAIK) can be character strings, numeric and
 dates.  There is probably no problem when using strings and numeric,
@@ -103,26 +65,19 @@ This will list the keys from the ndx file, together with their
 corresponding values, which are the record numbers in the dbf file.
 If the results are not those you would expect, email me.
 
-If you want to help even more, you can use
+If you have an index format that can hold more index structures in one
+file (mdx, cdx), you have to specify the tag in the file:
 
-	print Dumper $index;
+	my $index = new XBase::Index "cust.cdx", 'tag' => 'addr';
 
-or
+With the XBase and prepare_select_with_index, you would specify an
+arrayref instead of the index file name, holding file anme and tag
+name:
 
-	$XBase::Index::DEBUG = 1;
+	my $cur = $table->prepare_select_with_index(
+		[ "cust.cdx", 'addr' ], 'field1', 'field2');
 
-or something similar to see what's going on in the module. And of
-course, there is the source to check and decrypt ;-)
-
-The name XBase::Index is not very meaningfull, especially as we will
-hopefully support wider variety of index types. It will change, so do
-not depend on it. On the other hand, it we say it's OK to distinguish
-the index type based on the extension, we can keep XBase::Index.
-Comment.
-
-Anyway, the sooner we find the first 50 per cent of the bugs and agree
-on the interface, the sooner you can start writing scripts that won't
-need to be changed with each new version of XBase.pm. So: comment.
+There is a script indexdump that does the dump for you.
 
 --
 
