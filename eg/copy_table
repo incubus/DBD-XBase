@@ -1,0 +1,24 @@
+#!/usr/bin/perl -w
+
+use strict;
+use XBase;
+
+my $dir = ( -d 't/' ? 't/' : '' );
+my $table = new XBase("${dir}test") or die $XBase::errstr;
+
+my $jezek;
+$jezek = new XBase("jezek");
+$jezek->drop() if defined $jezek;
+$jezek = $table->create("name" => "jezek") or die $table->errstr();
+
+my $outno = 0;
+for my $recno (0 .. $table->last_record())
+	{
+	my @data = $table->get_record($recno) or die $table->errstr();
+	next if shift @data;
+	$jezek->set_record($outno++, @data) or die $jezek->errstr();
+	}
+
+$table->close() or die $table->errstr();
+$jezek->close() or die $jezek->errstr();
+

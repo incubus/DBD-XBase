@@ -1,0 +1,12 @@
+#!/usr/bin/perl -w
+
+use strict;
+use XBase;
+
+my $tablename = "jezek";
+$tablename = shift if @ARGV;
+
+my $table = new XBase($tablename) or die $XBase::errstr;
+$table->dump_records() or die $table->errstr();
+$table->close() or die $table->errstr();
+
