@@ -2,13 +2,22 @@
 
 use strict;
 
-BEGIN	{ $| = 1; print "1..7\n"; }
+BEGIN	{ $| = 1;
+	print "Load DBI\n";
+	eval 'use DBI';
+	if ($@ ne '')
+		{
+		print "1..0\n";
+		print "DBI couldn't be loaded, aborting test\n";
+		print "ok 1\n";
+		exit;
+		}
+	print "1..7\n"; }
+
 END	{ print "not ok 1\n" unless $::DBIloaded; }
 
 
-print "Load DBI\n";
 
-use DBI;
 ### DBI->trace(2);
 $::DBIloaded = 1;
 print "ok 1\n";
