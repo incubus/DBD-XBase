@@ -3,35 +3,7 @@
 
 XBase::Memo - Generic support for various memo formats
 
-=head1 SYNOPSIS
-
-Used indirectly, via XBase.
-
-=head1 DESCRIPTION
-
-Objects of this class are created to deal with memo files, currently
-.dbt. Defines method B<read_header> to parse that header of the file
-and set object's structures, B<write_record> and B<last_record> to
-work properly on this type of file.
-
-There are two separate packages in this module, XBase::Memo::dBaseIII
-and XBase::Memo::dBaseIV. Memo objects are effectively of one of these
-types and they specify B<read_record> and B<write_record> methods.
-
-=head1 VERSION
-
-0.045
-
-=head1 AUTHOR
-
-(c) Jan Pazdziora, adelton@fi.muni.cz
-
-=head1 SEE ALSO
-
-perl(1), XBase(3)
-
 =cut
-
 
 # ###################################
 # Here starts the XBase::Memo package
@@ -41,12 +13,10 @@ package XBase::Memo;
 use strict;
 use XBase::Base;
 
-
 use vars qw( $VERSION @ISA );
 @ISA = qw( XBase::Base );
 
-
-$VERSION = "0.045";
+$VERSION = "0.0593";
 
 sub read_header
 	{
@@ -135,8 +105,7 @@ sub read_record
 	my $last = $self->last_record();
 	while ($num <= $last)
 		{
-		my $buffer = $self->SUPER::read_record($num, -1);
-		if (not defined $buffer) { return; }
+		my $buffer = $self->SUPER::read_record($num, -1) or return;
 		my $index = index($buffer, "\x1a\x1a");
 		if ($index >= 0)
 			{ return $result . substr($buffer, 0, $index); }
@@ -250,4 +219,33 @@ use vars qw( @ISA );
 @ISA = qw( XBase::Memo::dBaseIV );
 
 1;
+
+__END__
+
+=head1 SYNOPSIS
+
+Used indirectly, via XBase.
+
+=head1 DESCRIPTION
+
+Objects of this class are created to deal with memo files, currently
+.dbt. Defines method B<read_header> to parse that header of the file
+and set object's structures, B<write_record> and B<last_record> to
+work properly on this type of file.
+
+There are two separate packages in this module, XBase::Memo::dBaseIII
+and XBase::Memo::dBaseIV. Memo objects are effectively of one of these
+types and they specify B<read_record> and B<write_record> methods.
+
+=head1 VERSION
+
+0.045
+
+=head1 AUTHOR
+
+(c) Jan Pazdziora, adelton@fi.muni.cz
+
+=head1 SEE ALSO
+
+perl(1), XBase(3)
 

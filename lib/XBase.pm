@@ -23,7 +23,7 @@ use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
 
-$VERSION = '0.0591';
+$VERSION = '0.0592';
 
 *errstr = \$XBase::Base::errstr;
 
@@ -60,6 +60,7 @@ sub read_header
 
 	my ($names, $types, $lengths, $decimals) = ( [], [], [], [] );
 	my $offsets = [ 1 ];
+	my $readproc = [ ];
 
 	while (tell($fh) < $header_len - 1)	# will read the field desc's
 		{
@@ -77,8 +78,22 @@ sub read_header
 		$name =~ s/[\000 ].*$//s;
 		$name = uc $name;		# no locale yet
 
-		if ($type eq 'C')		# fixup for char length > 256
-			{ $length += 256 * $decimal; $decimal = 0; }
+		if ($type eq 'C')	
+			{
+			# fixup for char length > 256
+			$length += 256 * $decimal; $decimal = 0;
+			push @$readproc, \&_read_char;
+			}
+		elsif ($type eq 'L')
+			{ push @$readproc, \&_read_boolean; }
+		elsif ($type =~ /^[NFD]$/)
+			{ push @$readproc, \&_read_number; }
+		elsif ($type =~ /^[MGBP]$/)
+			{
+			push @$readproc, \&_read_memo;
+			$self->{'memo'} = $self->init_memo_field()
+					unless defined $self->{'memo'};
+			}
 
 		push @$names, $name;
 		push @$types, $type;
@@ -91,19 +106,15 @@ sub read_header
 	my $hashnames;		# create name-to-num_of_field hash
 	@{$hashnames}{ reverse @$names } = reverse ( 0 .. $#$names );
 
-	my $template = join '', 'a1',
-		map { 'a' . $lengths->[$_]; } (0 .. $#$names);
-	
 			# now it's the time to store the values to the object
 	@{$self}{ qw( version last_update num_rec header_len record_len
 		field_names field_types field_lengths field_decimals
-		hash_names unpack_template last_field field_offsets ) } =
+		hash_names last_field field_offsets
+		field_rproc ) } =
 			( $version, $last_update, $num_rec, $header_len,
 			$record_len, $names, $types, $lengths, $decimals,
-			$hashnames, $template, $#$names, $offsets );
-
-	if (grep { /^[MGBP]$/ } @$types)
-		{ $self->{'memo'} = $self->init_memo_field(); }
+			$hashnames, $#$names, $offsets,
+			$readproc );
 
 	1;	# return true since everything went fine
 	}
@@ -267,49 +278,45 @@ sub dump_records
 
 sub get_record
 	{
-	my ($self, $num, @fields) = @_;
+	my ($self, $num) = (shift, shift);
 	$self->NullError();
-
-	my @data = $self->read_record($num);
-### print STDERR "Get data: @data\n";
-				# SUPER will uncache/unpack for us
-	return unless @data;
-
-	@data = $self->process_list_on_read(@data);
-
-	if (@fields)		# now make a list of numbers of fields
-		{		# to be returned
-		return $data[0], map {
-			if (not defined $self->{'hash_names'}{$_})
-				{
-				#### Warning "Field named '$_' does not seem to exist\n";
-				#### return unless FIXPROBLEMS;
-				undef;
-				}
-			else
-				{ $data[$self->{'hash_names'}{$_} + 1]; }
-			} @fields;
-		}
-	return @data;
+	$self->get_record_nf( $num, map { $self->field_name_to_num($_); } @_);
 	}
 sub get_record_nf
 	{
 	my ($self, $num, @fieldnums) = @_;
-
+	my $data = $self->read_record($num) or return;
+	my @out = ( _read_deleted($self, unpack 'a1', $data) );
+	unless (@fieldnums)
+		{ @fieldnums = ( 0 .. $self->last_field ); }
+	my ($off, $len, $rproc) = @{$self}{ qw( field_offsets field_lengths field_rproc ) };
+	my $field;
+	for $field (@fieldnums)
+		{
+		push @out, &{$rproc->[$field]}( $self, unpack
+				"\@$off->[$field] a$len->[$field]", $data );
+		}
+	@out;
 	}
 sub get_record_as_hash
 	{
 	my ($self, $num) = @_;
-	my @list = $self->get_record($num);
-	return () unless @list;
+	my @list = $self->get_record($num) or return;
 	my $hash = {};
 	@{$hash}{ '_DELETED', $self->field_names() } = @list;
 	return %$hash if wantarray;
 	$hash;
 	}
 
+# Processing on read
+sub _read_deleted
+	{
+	my $value = $_[1];
+	if ($value eq '*') { return 1; } elsif ($value eq ' ') { return 0; }
+	undef;
+	}
 sub _read_char
-	{ my ($self, $value) = @_; $value =~ s/\s+$// if $CLEARNULLS; $value; }
+	{ my $value = $_[1]; $value =~ s/\s+$// if $CLEARNULLS; $value; }
 sub _read_boolean
 	{
 	my ($self, $value) = @_;
@@ -318,57 +325,15 @@ sub _read_boolean
 	undef;
 	}
 sub _read_number
+	{ ### print STDERR join "\n", caller(), ''; 
+	my $value = $_[1]; (($value =~ /\d/) ? $value + 0 : undef); }
+sub _read_memo
 	{
 	my ($self, $value) = @_;
-	return undef unless $value =~ /\d/;
+	if ($value =~ /\d/ and defined $self->{'memo'})
+		{ return $self->{'memo'}->read_record($value); }
+	undef;
 	}
-
-sub process_list_on_read
-	{
-	my $self = shift;
-
-	my @data;
-	my $num;
-	for $num (0 .. $self->last_field() + 1)
-		{
-		my $value = $_[$num];
-		if ($num == 0)
-			{
-			if ($value eq '*')      { $data[$num] = 1; }
-			elsif ($value eq ' ')	{ $data[$num] = 0; }
-			### else { Warning "Unknown deleted flag '$value' found\n";}
-			next;
-			}
-		my $type = $self->{'field_types'}[$num - 1];
-		if ($type eq 'C')
-			{
-			$value =~ s/\s+$// if $CLEARNULLS;
-			$data[$num] = $value
-			}
-		elsif ($type eq 'L')
-			{
-			if ($value =~ /^[YyTt]$/)	{ $data[$num] = 1; }
-			if ($value =~ /^[NnFf]$/)	{ $data[$num] = 0; }
-			# return undef;	# ($value eq '?')
-			}
-		elsif ($type eq 'N' or $type eq 'F')
-			{
-			next unless $value =~ /\d/;
-			my $len = $self->{'field_lengths'}[$num - 1];
-			my $dec = $self->{'field_decimals'}[$num - 1];
-			$data[$num] = (sprintf "%-$len.${dec}f", $value + 0) + 0;
-			}
-		elsif ($type =~ /^[MGBP]$/)
-			{
-			if (defined $self->{'memo'} and $value !~ /^ +$/)
-				{ $data[$num] = $self->{'memo'}->read_record($value); }
-			}
-		else
-			{ $data[$num] = $value;	}
-		}
-	@data;
-	}
-
 
 # #############
 # Write records

@@ -30,8 +30,8 @@ my $records_expected = join "\n",
 	'1:2:No 2:This is a memo for record 2:1:19960814',
 	'0:3:Message no 3:This is a memo for record 3:0:19960102';
 my $records = join "\n", map {
-	join ":", map { defined $_ ? $_ : "" } $table->get_record($_);
-		} ( 0 .. 2 );
+	join ":", map { defined $_ ? $_ : "" } $table->get_record($_) }
+								( 0 .. 2 );
 if ($records_expected ne $records)
 	{ print "Expected:\n$records_expected\nGot:\n$records\nnot "; }
 print "ok 3\n";

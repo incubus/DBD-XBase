@@ -151,10 +151,9 @@ sub seek_to
 	1;
 	}
 
-# Read the record of given number; when defined unpack_template, unpack
-# into list. The second parameter is the length of the record to read.
-# If can be undefined, meaning read the whole record, and it can be
-# -1, meaning read at most the whole record
+# Read the record of given number. The second parameter is the length of
+# the record to read. It can be undefined, meaning read the whole record,
+# and it can be -1, meaning read at most the whole record
 sub read_record
 	{
 	my ($self, $num, $in_length) = @_;
@@ -174,13 +173,17 @@ sub read_record
 	
 	if ($in_length != -1 and $actually_read != $in_length)
 		{ $self->Error("Error reading the whole record num $num\n"); return; };
-	
-	if (defined $self->{'unpack_template'})
-		{ return unpack $self->{'unpack_template'}, $buffer; }
-	else
-		{ return $buffer; }
-	}
 
+	$buffer;
+	}
+sub read_from
+	{
+	my ($self, $offset, $in_length) = @_;
+	unless (defined $offset)
+		{ $self->Error("Offset to read from must be specified\n"); return; }
+	$self->seek_to_record($num) or return;
+
+	}
 # Write the record of given number
 sub write_record
 	{
