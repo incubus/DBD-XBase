@@ -373,9 +373,36 @@ if ($result ne $expected_result) {
 }
 print "ok 35\n";
 
+$command = 'select * from test order by id';
+print "Prepare $command\n";
+$sth = $dbh->prepare($command) or do {
+	print $dbh->errstr, "not ok 36\n";
+	exit;
+};
+print "ok 36\n";
 
+print "Execute it\n";
+$sth->execute() or do {
+	print $dbh->errstr, "not ok 37\n";
+	exit;
+};
+print "ok 37\n";
 
+print "And now get the result\n";
+$result = '';
+while (@line = $sth->fetchrow_array()) {
+	$result .= "@line\n";
+}
+$expected_result = '';
+while (<DATA>) {
+	last if /^__END_DATA__$/;
+	$expected_result .= $_;
+}
 
+if ($result ne $expected_result) {
+	print "Expected:\n${expected_result}Got:\n${result}not ";
+}
+print "ok 38\n";
 
 
 $sth->finish();
@@ -482,3 +509,6 @@ Film FILM 3
 Film SCANNING
 Film BullPen
 Film Celco
+__END_DATA__
+1 Record no 1 This is a memo for record no one  19960813
+3 Message no 3 This is a memo for record 3 0 19960102

@@ -1,6 +1,10 @@
 
 Revision history for Perl extension XBase and DBD::Xbase.
 
+0.176 Thu Feb  8 13:19:16 MET 2001
+	DBD::XBase: select * with order by was failing, reported by
+	Filipe Luis Geschaeft
+
 0.173 Tue Feb  6 11:18:46 MET 2001
 	XBase: year encoding not correct in dbf header, reported
 	by Helmut Jarausch.

@@ -19,7 +19,7 @@ use Exporter;
 use vars qw( $VERSION @ISA @EXPORT $err $errstr $drh $sqlstate );
 			# a couple of global variables that may come handy
 
-$VERSION = '0.147';
+$VERSION = '0.176';
 
 $err = 0;
 $errstr = '';
@@ -386,20 +386,18 @@ sub execute {
 	# should be called with $TABLE, $VALUES and $BIND parameters
 	my $wherefn = $parsed_sql->{'wherefn'};
 
+	# we expand selectall to list of fields
+	if (defined $parsed_sql->{'selectall'}) {
+		$parsed_sql->{'selectfields'} = [ $xbase->field_names ];
+		push @{$parsed_sql->{'usedfields'}}, $xbase->field_names;
+		$parsed_sql->{'selectfieldscount'} = scalar $xbase->field_names;
+	}
 
 	# we only set NUM_OF_FIELDS for select command -- which is
-	# exactly what selectall and selectfieldscount is meaning; by
-	# the way, the usedfields is filled correctly for select * here
+	# exactly what selectfieldscount means
 	if (not $sth->FETCH('NUM_OF_FIELDS')) {
-		if (defined $parsed_sql->{'selectall'}) {
-			$parsed_sql->{'fields'} = [ $xbase->field_names ];
-			$sth->STORE('NUM_OF_FIELDS', scalar $xbase->field_names);
-			push @{$parsed_sql->{'usedfields'}}, $xbase->field_names;
-			}
-		elsif ($parsed_sql->{'selectfieldscount'}) {
-			$sth->STORE('NUM_OF_FIELDS', $parsed_sql->{'selectfieldscount'});
-			}
-		}
+		$sth->STORE('NUM_OF_FIELDS', $parsed_sql->{'selectfieldscount'});
+	}
 		
 	# this cursor will be needed, because both select and update and
 	# delete with where clause need to fetch the data first
@@ -414,6 +412,7 @@ sub execute {
 		# orderfield value
 		my $subparsed_sql = { %$parsed_sql };
 		delete $subparsed_sql->{'orderfield'};
+		delete $subparsed_sql->{'selectall'};
 
 		my $selectfn = $parsed_sql->{'selectfn'};
 		$subparsed_sql->{'selectfn'} = sub {
@@ -752,11 +751,11 @@ Example:
 
 =head1 VERSION
 
-0.155
+0.176
 
 =head1 AUTHOR
 
-(c) 1997--1999 Jan Pazdziora, adelton@fi.muni.cz,
+(c) 1997--2001 Jan Pazdziora, adelton@fi.muni.cz,
 http://www.fi.muni.cz/~adelton/ at Faculty of Informatics, Masaryk
 University in Brno, Czech Republic
 
