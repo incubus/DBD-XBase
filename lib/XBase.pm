@@ -10,7 +10,7 @@ XBase - Perl module for reading and writing the dbf files
 # ############
 package XBase;
 
-use 5.004;
+use 5.010;
 use strict;
 use XBase::Base;		# will give us general methods
 

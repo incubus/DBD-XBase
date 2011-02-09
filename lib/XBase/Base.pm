@@ -9,16 +9,7 @@ package XBase::Base;
 
 use strict;
 use IO::File;
-use Fcntl qw( O_RDWR O_RDONLY );
-
-### I _Realy_ hate to have this code here!
-BEGIN { local $^W = 0;
-	if ($^O =~ /mswin/i) {
-		eval 'use Fcntl qw( O_BINARY )'
-	} else {
-		eval ' sub O_BINARY { 0 } '
-	}
-}
+use Fcntl qw( O_RDWR O_RDONLY O_BINARY );
 
 $XBase::Base::VERSION = '0.129';
 

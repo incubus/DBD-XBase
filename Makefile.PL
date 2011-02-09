@@ -1,7 +1,10 @@
 
-use 5.004;
+use 5.010;
 
+{
+local $SIG{__WARN__} = sub {};
 eval 'use XBase;';
+}
 if (Xbase->can("open_dbf")) {
 	print <<EOF;
 	You seem to have case insensitive filesystem and an old module
