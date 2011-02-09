@@ -1401,12 +1401,12 @@ Thanks a lot.
 
 =head1 AUTHOR
 
-(c) 1997--2003 Jan Pazdziora, adelton@fi.muni.cz,
-http://www.fi.muni.cz/~adelton/ at Faculty of Informatics, Masaryk
-University in Brno, Czech Republic
+(c) 1997--2003 Jan Pazdziora.
 
 All rights reserved. This package is free software; you can
 redistribute it and/or modify it under the same terms as Perl itself.
+
+Contact the author at jpx dash perl at adelton dot com.
 
 =head1 THANKS
 

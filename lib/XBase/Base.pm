@@ -404,7 +404,7 @@ No more description -- check the source code if you need to know more.
 
 =head1 AUTHOR
 
-(c) 1997--1999 Jan Pazdziora, adelton@fi.muni.cz
+(c) 1997--2011 Jan Pazdziora.
 
 =head1 SEE ALSO
 

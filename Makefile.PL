@@ -38,7 +38,7 @@ WriteMakefile(
 	'DISTNAME'	=> 'DBD-XBase',
 	'VERSION_FROM'	=> 'lib/DBD/XBase.pm',
     ($] >= 5.005 ? (
-	'AUTHOR'	=> 'Jan Pazdziora (adelton@fi.muni.cz)',
+	'AUTHOR'	=> 'Jan Pazdziora',
 	'ABSTRACT'	=> 'Reads and writes XBase (dbf) files, includes DBI support',
 		) : ()),
 	'PL_FILES'	=> { 'bin/dbfdump.PL' => 'bin/dbfdump',

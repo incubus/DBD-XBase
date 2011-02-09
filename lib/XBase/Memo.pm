@@ -317,7 +317,7 @@ appropriate.
 
 =head1 AUTHOR
 
-(c) 1997--2001 Jan Pazdziora, adelton@fi.muni.cz
+(c) 1997--2011 Jan Pazdziora.
 
 =head1 SEE ALSO
 

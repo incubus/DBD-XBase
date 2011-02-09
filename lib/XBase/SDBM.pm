@@ -30,9 +30,7 @@ index file.
 
 =head1 AUTHOR
 
-(c) 2001 Jan Pazdziora, adelton@fi.muni.cz,
-http://www.fi.muni.cz/~adelton/ at Faculty of Informatics, Masaryk
-University in Brno, Czech Republic
+(c) 2001--2011 Jan Pazdziora.
 
 All rights reserved. This package is free software; you can
 redistribute it and/or modify it under the same terms as Perl itself.

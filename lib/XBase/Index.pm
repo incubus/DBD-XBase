@@ -1796,7 +1796,7 @@ directory.
 
 =head1 AUTHOR
 
-(c) 1998--2002 Jan Pazdziora, adelton@fi.muni.cz
+(c) 1998--2011 Jan Pazdziora.
 
 =head1 SEE ALSO
 

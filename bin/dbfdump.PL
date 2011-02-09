@@ -175,9 +175,7 @@ of file name.
 
 =head1 AUTHOR
 
-(c) 1998--1999 Jan Pazdziora, adelton@fi.muni.cz,
-http://www.fi.muni.cz/~adelton/
-at Faculty of Informatics, Masaryk University in Brno, Czech Republic
+(c) 1998--2011 Jan Pazdziora.
 
 =head1 SEE ALSO
 

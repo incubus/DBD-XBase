@@ -11,7 +11,7 @@ announced in fall 1997, and my answers to them.
 
 =head1 AUTHOR
 
-I<Jan Pazdziora>, adelton@fi.muni.cz
+I<Jan Pazdziora>.
 
 =head1 Questions and answers
 

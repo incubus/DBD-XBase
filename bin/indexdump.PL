@@ -104,9 +104,7 @@ to get the actual data.
 
 =head1 AUTHOR
 
-(c) 1999--2000 Jan Pazdziora, adelton@fi.muni.cz,
-http://www.fi.muni.cz/~adelton/
-at Faculty of Informatics, Masaryk University in Brno, Czech Republic
+(c) 1999--2011 Jan Pazdziora.
 
 =head1 SEE ALSO
 

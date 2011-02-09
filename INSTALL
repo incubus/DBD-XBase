@@ -98,11 +98,12 @@ For general Perl issues, use the comp.lang.perl.* newsgroups, for DBI
 issues, look at http://dbi.perl.org/ or use dbi-users-help@perl.org.
 
 Available:
-	http://www.fi.muni.cz/~adelton/perl/ and from your favorite
+	http://www.adelton.com/perl/DBD-XBase/ and from your favorite
 	CPAN site in the authors/id/JANPAZ/ directory.
 
-Copyright: (c) 1997--2003 Jan Pazdziora, adelton@fi.muni.cz. All rights
-	reserved. This package is free software; you can redistribute
-	it and/or modify it under the same terms as Perl itself.
+Copyright: (c) 1997--2011 Jan Pazdziora.
+	All rights reserved. This package is free software; you can
+	redistribute it and/or modify it under the same terms as Perl
+	itself.
 
 

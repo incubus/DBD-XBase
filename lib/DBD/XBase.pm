@@ -768,9 +768,9 @@ The memo fields will come out as nulls.
 
 =head1 AUTHOR
 
-(c) 1997--2003 Jan Pazdziora, adelton@fi.muni.cz,
-http://www.fi.muni.cz/~adelton/ at Faculty of Informatics, Masaryk
-University in Brno, Czech Republic
+(c) 1997--2011 Jan Pazdziora.
+
+Contact the author at jpx dash perl at adelton dot com.
 
 =head1 SEE ALSO
 
