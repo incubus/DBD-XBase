@@ -26,7 +26,7 @@ index file.
 
 =head1 VERSION
 
-0.200
+1.00
 
 =head1 AUTHOR
 
