@@ -616,7 +616,8 @@ package, but the interface seemed rather complicated to me.
 So with the help of article XBase File Format Description by Erik
 Bachmann on URL
 
-	http://www.e-bachmann.dk/docs/xbase.htm
+	http://www.clicketyclick.dk/databases/xbase/format/
+	formerly http://www.e-bachmann.dk/docs/xbase.htm
 
 I have written a new module. It doesn't use any code from Xbase-1.07
 and you are free to use and distribute it under the same terms as Perl

@@ -1391,7 +1391,7 @@ redefine then in XBase::Base package.
 This module is built using information from and article XBase File
 Format Description by Erik Bachmann, URL
 
-	http://www.e-bachmann.dk/docs/xbase.htm
+	http://www.clicketyclick.dk/databases/xbase/format/
 
 Thanks a lot.
 
