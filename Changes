@@ -1,6 +1,21 @@
 
 Revision history for Perl extension XBase and DBD::XBase.
 
+1.01 Wed Feb  9 21:22:07 CET 2011
+	Updated the Changes file.
+
+1.00 Wed Feb  9 21:19:35 CET 2011
+	Changed the location of the distribution to
+	http://www.adelton.com/perl/DBD-XBase/
+
+	Changed author's email address.
+
+	Require perl 5.10 and use O_BINARY from Fcntl.
+
+	Updated the clean target to make distclean clean.
+
+	Updated URL of Erik's documentation.
+
 0.241 Thu Nov 20 21:12:56 MET 2003
 	XBase: codepage option to XBase->create added, suggested by
 	Chris Greenhill.
