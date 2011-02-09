@@ -49,6 +49,6 @@ WriteMakefile(
 	'EXE_FILES'	=> [ 'bin/dbfdump', ' bin/indexdump' ],
         'dist'		=> { COMPRESS => 'gzip -9f', SUFFIX => 'gz',
 		POSTOP => 'mv $(DISTNAME)-$(VERSION).tar.gz ../' },
-	'clean'		=> { FILES => 'bin/dbfdump bin/indexdump t/newtable.dbf t/newtable.dbt t/write.dbf t/write.dbt t/rooms1.dbf t/rooms1.cdx '},	
+	'clean'		=> { FILES => 'bin/dbfdump bin/indexdump t/newtable.* t/write*.* t/rooms.sdbm* t/rooms1.* t/tstidx* '},	
 	);
 
