@@ -173,6 +173,10 @@ fields, unless you use the C<--nomemo> option.
 You can specify reading the standard input by putting dash (-) instead
 of file name.
 
+=head1 AVAILABLE FROM
+
+http://www.adelton.com/perl/DBD-XBase/
+
 =head1 AUTHOR
 
 (c) 1998--2011 Jan Pazdziora.

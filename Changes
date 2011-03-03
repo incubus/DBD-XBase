@@ -1,6 +1,9 @@
 
 Revision history for Perl extension XBase and DBD::XBase.
 
+1.02 Thu Mar  3 20:40:54 CET 2011
+	Added the URL to the AVAILABLE FROM sections.
+
 1.01 Wed Feb  9 21:22:07 CET 2011
 	Updated the Changes file.
 

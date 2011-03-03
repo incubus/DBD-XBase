@@ -20,7 +20,7 @@ use XBase::Base;		# will give us general methods
 use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
-$VERSION = '1.00';
+$VERSION = '1.02';
 $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 
 *errstr = \$XBase::Base::errstr;
@@ -1397,11 +1397,15 @@ Thanks a lot.
 
 =head1 VERSION
 
-1.00
+1.02
+
+=head1 AVAILABLE FROM
+
+http://www.adelton.com/perl/DBD-XBase/
 
 =head1 AUTHOR
 
-(c) 1997--2003 Jan Pazdziora.
+(c) 1997--2011 Jan Pazdziora.
 
 All rights reserved. This package is free software; you can
 redistribute it and/or modify it under the same terms as Perl itself.

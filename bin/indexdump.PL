@@ -102,6 +102,10 @@ number in the correcponding dbf file.
 For mulitag index files (like cdx), you need to specify the tag name
 to get the actual data.
 
+=head1 AVAILABLE FROM
+
+http://www.adelton.com/perl/DBD-XBase/
+
 =head1 AUTHOR
 
 (c) 1999--2011 Jan Pazdziora.

@@ -11,7 +11,7 @@ announced in fall 1997, and my answers to them.
 
 =head1 AUTHOR
 
-I<Jan Pazdziora>.
+Jan Pazdziora
 
 =head1 Questions and answers
 
@@ -19,8 +19,7 @@ I<Jan Pazdziora>.
 
 =item What Perl version do I need? What other modules?
 
-You need perl at least 5.004. I test each new distribution agains
-5.005* and 5.004_04 version of perl. You need B<DBI> module version 1.00
+You need perl 5.10 or newer. You need B<DBI> module version 1.00
 or higher, if you want to use the DBD driver (which you should).
 
 =item Can I use B<XBase.pm> under Windows 95/NT?
@@ -219,4 +218,8 @@ that the dbf file is dBaseIII style.
 =back
 
 =cut
+
+=head1 AVAILABLE FROM
+
+http://www.adelton.com/perl/DBD-XBase/
 

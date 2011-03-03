@@ -11,7 +11,7 @@ use strict;
 use IO::File;
 use Fcntl qw( O_RDWR O_RDONLY O_BINARY );
 
-$XBase::Base::VERSION = '1.00';
+$XBase::Base::VERSION = '1.02';
 
 # Sets the debug level
 $XBase::Base::DEBUG = 0;
@@ -391,7 +391,11 @@ No more description -- check the source code if you need to know more.
 
 =head1 VERSION
 
-1.00
+1.02
+
+=head1 AVAILABLE FROM
+
+http://www.adelton.com/perl/DBD-XBase/
 
 =head1 AUTHOR
 

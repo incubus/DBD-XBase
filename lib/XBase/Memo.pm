@@ -12,7 +12,7 @@ use XBase::Base;
 
 use vars qw( $VERSION @ISA );
 @ISA = qw( XBase::Base );
-$VERSION = '1.00';
+$VERSION = '1.02';
 
 # Read header is called from open to fill the object structures
 sub read_header {
@@ -313,7 +313,11 @@ appropriate.
 
 =head1 VERSION
 
-1.00
+1.02
+
+=head1 AVAILABLE FROM
+
+http://www.adelton.com/perl/DBD-XBase/
 
 =head1 AUTHOR
 
