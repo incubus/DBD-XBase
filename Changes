@@ -1,6 +1,10 @@
 
 Revision history for Perl extension XBase and DBD::XBase.
 
+
+1.03 Sun Mar  6 07:32:21 CET 2011
+	Fixing output of tests when DBI is not available.
+
 1.02 Thu Mar  3 20:40:54 CET 2011
 	Added the URL to the AVAILABLE FROM sections.
 

@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               DBD-XBase
-version:            1.02
+version:            1.03
 abstract:           Reads and writes XBase (dbf) files, includes DBI support
 author:
     - Jan Pazdziora

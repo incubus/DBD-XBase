@@ -6,10 +6,9 @@ BEGIN	{
 	$| = 1;
 	eval 'use DBI 1.00';
 	if ($@ ne '') {
-		print "1..0\n";
+		print "1..0 # SKIP No DBI module\n";
 		print "DBI couldn't be loaded, aborting test\n";
 		print "Error returned from eval was:\n", $@;
-		print "ok 1\n";
 		exit;
 	}
 	print "1..12\n";
