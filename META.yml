@@ -1,21 +1,21 @@
---- #YAML:1.0
-name:               DBD-XBase
-version:            1.03
-abstract:           Reads and writes XBase (dbf) files, includes DBI support
+---
+abstract: 'Reads and writes XBase (dbf) files, includes DBI support'
 author:
-    - Jan Pazdziora
-license:            unknown
-distribution_type:  module
-configure_requires:
-    ExtUtils::MakeMaker:  0
+  - 'Jan Pazdziora'
 build_requires:
-    ExtUtils::MakeMaker:  0
-requires:  {}
-no_index:
-    directory:
-        - t
-        - inc
-generated_by:       ExtUtils::MakeMaker version 6.55_02
+  ExtUtils::MakeMaker: 0
+configure_requires:
+  ExtUtils::MakeMaker: 0
+dynamic_config: 1
+generated_by: 'ExtUtils::MakeMaker version 6.6302, CPAN::Meta::Converter version 2.120921'
+license: unknown
 meta-spec:
-    url:      http://module-build.sourceforge.net/META-spec-v1.4.html
-    version:  1.4
+  url: http://module-build.sourceforge.net/META-spec-v1.4.html
+  version: 1.4
+name: DBD-XBase
+no_index:
+  directory:
+    - t
+    - inc
+requires: {}
+version: 1.04

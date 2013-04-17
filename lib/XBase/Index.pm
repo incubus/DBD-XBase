@@ -11,7 +11,7 @@ use vars qw( @ISA $DEBUG $VERSION $VERBOSE $BIGEND );
 use XBase::Base;
 @ISA = qw( XBase::Base );
 
-$VERSION = '1.02';
+$VERSION = '1.04';
 
 $DEBUG = 0;
 
@@ -864,6 +864,11 @@ sub last_record {
 	-1;
 }
 
+sub tags {
+	my $self = shift;
+	return sort keys %{$self->{'tags'}} if defined $self->{'tags'};
+}
+
 package XBase::mdx::Page;
 use strict;
 use vars qw( @ISA $DEBUG );
@@ -892,11 +897,8 @@ sub new {
 	my ($noentries, $noleaf) = unpack 'VV', $data;
 
 	print "page $num, noentries $noentries, keylength $keylength; noleaf: $noleaf\n" if $DEBUG;
-	if ($noleaf == 54 or $noleaf == 20 or $noleaf == 32 or $noleaf == 80) {
-		$noentries++;
-	}
 
-	my ($keys, $values, $lefts) = ([], [], []);
+	my ($keys, $values, $lefts, $refs) = ([], [], [], []);
 
 	for (my $i = 0; $i < $noentries; $i++) {
 		my ($left, $key)
@@ -904,12 +906,23 @@ sub new {
 
 		push @$keys, $key;
 
-		if ($noleaf == 54 or $noleaf == 20 or $noleaf == 32 or
-		$noleaf == 80)
-			{ push @$lefts, $left; }
-		else
-			{ push @$values, $left; }
+		push @$refs, $left;
+
 		$offset += $keyreclength;
+	}
+
+	my $right;
+
+	$right = unpack "\@${offset}V", $data if $offset <= (1024-4);
+
+	if ($right) {
+		# It's a branch page and the next ref is for values > last key
+		push @$keys, "";
+		push @$refs, $right;
+		$lefts = $refs;
+	} else {
+		# It's a leaf page
+		$values = $refs;
 	}
 
 	my $self = bless { 'num' => $num, 'indexfile' => $indexfile,
@@ -1792,7 +1805,7 @@ directory.
 
 =head1 VERSION
 
-1.02
+1.04
 
 =head1 AVAILABLE FROM
 
@@ -1800,7 +1813,7 @@ http://www.adelton.com/perl/DBD-XBase/
 
 =head1 AUTHOR
 
-(c) 1998--2011 Jan Pazdziora.
+(c) 1998--2013 Jan Pazdziora.
 
 =head1 SEE ALSO
 

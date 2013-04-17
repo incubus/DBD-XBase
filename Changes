@@ -1,7 +1,9 @@
 
 Revision history for Perl extension XBase and DBD::XBase.
 
-
+1.04 Wed Apr 17 19:47:21 CEST 2013
+	Fix for handling MDX indexes, patch by Julian Bridle.
+	
 1.03 Sun Mar  6 07:32:21 CET 2011
 	Fixing output of tests when DBI is not available.
 

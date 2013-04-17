@@ -50,6 +50,15 @@ $opts{'type'} = $type if defined $type;
 my $file = shift;
 if (@ARGV and not defined $opts{'tag'}) { $opts{'tag'} = shift; }
 my $index = new XBase::Index $file, %opts or die XBase::Index->errstr;
+if (not defined $opts{'tag'}) {
+	my @tags = $index->tags;
+	if (@tags) {
+		print map "$_\n", @tags;
+		my $numtags = @tags;
+		print "Number of tags: $numtags\n" if $showtotal;
+		exit;
+	}
+}
 
 if (defined $startvalue) {
 	$index->prepare_select_eq($startvalue) or die $index->errstr;
@@ -108,7 +117,7 @@ http://www.adelton.com/perl/DBD-XBase/
 
 =head1 AUTHOR
 
-(c) 1999--2011 Jan Pazdziora.
+(c) 1999--2013 Jan Pazdziora.
 
 =head1 SEE ALSO
 

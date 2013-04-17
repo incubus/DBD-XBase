@@ -67,3 +67,4 @@ t/test.dbf
 t/test.dbt
 t/types.dbf
 META.yml                                Module meta-data (added by MakeMaker)
+META.json                                Module JSON meta-data (added by MakeMaker)
