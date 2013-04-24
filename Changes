@@ -1,6 +1,10 @@
 
 Revision history for Perl extension XBase and DBD::XBase.
 
+1.05 Wed Apr 24 19:37:09 CEST 2013
+	Fix for prepare_select_eq and empty MDX indexes, patch by Julian
+	Bridle.
+
 1.04 Wed Apr 17 19:47:21 CEST 2013
 	Fix for handling MDX indexes, patch by Julian Bridle.
 	

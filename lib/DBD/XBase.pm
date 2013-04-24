@@ -19,7 +19,7 @@ use Exporter;
 use vars qw( $VERSION @ISA @EXPORT $err $errstr $drh $sqlstate );
 			# a couple of global variables that may come handy
 
-$VERSION = '1.04';
+$VERSION = '1.05';
 
 $err = 0;
 $errstr = '';
@@ -764,7 +764,7 @@ The memo fields will come out as nulls.
 
 =head1 VERSION
 
-1.04
+1.05
 
 =head1 AVAILABLE FROM
 

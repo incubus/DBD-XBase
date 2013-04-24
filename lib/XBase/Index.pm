@@ -11,7 +11,7 @@ use vars qw( @ISA $DEBUG $VERSION $VERBOSE $BIGEND );
 use XBase::Base;
 @ISA = qw( XBase::Base );
 
-$VERSION = '1.04';
+$VERSION = '1.05';
 
 $DEBUG = 0;
 
@@ -216,9 +216,11 @@ sub prepare_select_eq {
 		}
 		my $row = 0;
 		my ($key, $val);
+		my $empty = 1;
 		while (($key, $val, my $newleft) = $page->get_key_val_left($row)) {
 ### { local $^W = 0; print "Got: $key, $val, $newleft ($numdate)\n"; }
 
+			$empty = 0;	# There is at least 1 key
 			$left = $newleft;
 # Joe Campbell says:
 # Compound char keys have two parts preceded by white space
@@ -241,7 +243,7 @@ sub prepare_select_eq {
 		$self->{'rows'}[$level] = $row;
 
 		# if there is no lower level
-		if (not defined $left) {
+		if ($empty or not defined $left) {
 			$self->{'rows'}[$level] = ( $row ? $row - 1: undef);
 			$self->{'level'} = $level;
 			last;
@@ -837,6 +839,7 @@ sub read_header {
 				= unpack 'VA11ccccca1', $header;
 
 		$self->{'tags'}{$tag->{'tag_name'}} = $tag;
+		$expr_name ||= $tag->{'tag_name'};	# Default to first tag
 
 		$self->seek_to($tag->{'header_page'} * 512) or do
 			{ __PACKAGE__->Error($self->errstr); return; };
@@ -852,9 +855,13 @@ sub read_header {
 
 ### use Data::Dumper; print Dumper $self;
 
-	if (defined $expr_name and defined $self->{'tags'}{$expr_name}) {
-		$self->{'active'} = $self->{'tags'}{$expr_name};
-		$self->{'start_page'} = $self->{'active'}{'start_page'};
+	if (defined $expr_name) {
+		if (defined $self->{'tags'}{$expr_name}) {
+			$self->{'active'} = $self->{'tags'}{$expr_name};
+			$self->{'start_page'} = $self->{'active'}{'start_page'};
+		} else {
+			__PACKAGE__->Error("No tag $expr_name found in index file $self->{'filename'}.\n"); return;
+		}
 	}
 
 	$self;
@@ -1000,6 +1007,7 @@ sub read_header {
 		$self->prepare_select;
 		while (my ($tag) = $self->fetch) {
 			push @{$self->{'tags'}}, $tag;
+			$opts{'tag'} ||= $tag;	# Default to first tag
 		}
 	}
 ### use Data::Dumper; print Dumper \%opts;
@@ -1805,7 +1813,7 @@ directory.
 
 =head1 VERSION
 
-1.04
+1.05
 
 =head1 AVAILABLE FROM
 
