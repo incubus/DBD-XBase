@@ -137,8 +137,13 @@ sub read_header {
 			$wproc = sub { pack 'V', shift; };
 		}
 		elsif ($type eq 'B') {		# Fox double
-			$rproc = sub { unpack 'd', reverse scalar shift; };
-			$wproc = sub { reverse scalar pack 'd', shift; };
+			if (pack("L", 1) eq pack("V", 1)) {
+				$rproc = sub { unpack 'd', scalar shift; };
+				$wproc = sub { scalar pack 'd', shift; };
+			} else {
+				$rproc = sub { unpack 'd', reverse scalar shift; };
+				$wproc = sub { reverse scalar pack 'd', shift; };
+			}
 		}
 		elsif ($type =~ /^[MGP]$/) {	# memo fields
 			my $memo = $self->{'memo'};
