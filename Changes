@@ -1,6 +1,8 @@
 
 Revision history for Perl extension XBase and DBD::XBase.
 
+	Fixed overload arg warning.
+
 	Restore the table_info functionality.
 
 	Fix for type B little endian issue, reported by Andres Thomas.
