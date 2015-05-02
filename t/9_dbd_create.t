@@ -11,7 +11,7 @@ BEGIN	{
 		print "Error returned from eval was:\n", $@;
 		exit;
 	}
-	print "1..12\n";
+	print "1..16\n";
 	print "DBI loaded\n";
 }
 
@@ -117,6 +117,26 @@ if ($dbh->selectall_arrayref(q! select * from newtable !)) {
 	print "It did not fail.\nnot ";
 }
 print "ok 12\n";
+
+my $table_info_sth = $dbh->table_info();
+if (defined $table_info_sth) {
+	print "ok 13\n";
+	my $table_info_data = $table_info_sth->fetchall_arrayref;
+	if (defined $table_info_data) {
+		print "ok 14\n";
+		if (scalar @$table_info_data != 12) {
+			print 'not ';
+		}
+		print "ok 15\n";
+		my @tables = sort map { $_->[2] } grep { not defined $_->[0] and not defined $_->[1] and $_->[3] eq 'TABLE' } @$table_info_data;
+		my $expected_tables = 'afox5 ndx-char ndx-date ndx-num ntx-char rooms rooms1 test tstidx types write write1';
+		if ("@tables" ne $expected_tables) {
+			print STDERR "Expected table_info: [$expected_tables]\nGot table_info: [@tables]\n";
+			print 'not ';
+		}
+		print "ok 16\n";
+	}
+}
 
 $dbh->disconnect();
 

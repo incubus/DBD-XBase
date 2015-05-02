@@ -284,9 +284,7 @@ sub execute {
 	# binded parameters
 	my $bind_values = $sth->{'xbase_bind_values'};
 
-	### the following code seems to somehow protect those "fixed"
-	### statements but I do not understand it at the moment
-	### if (defined $sth->{'xbase_lines'}) { return -1; }
+	if (defined $sth->{'xbase_lines'}) { return -1; }
 
 	# cancel the count of rows done in the previous run, this is a
 	# new execute
