@@ -1,6 +1,9 @@
 
 Revision history for Perl extension XBase and DBD::XBase.
 
+1.06 Sun Mar  6 20:48:11 CET 2016
+	Add support for W column type (byte array by Visual FoxPro).
+
 	Fixed overload arg warning.
 
 	Restore the table_info functionality.

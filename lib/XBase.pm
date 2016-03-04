@@ -20,7 +20,7 @@ use XBase::Base;		# will give us general methods
 use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
-$VERSION = '1.02';
+$VERSION = '1.06';
 $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 
 *errstr = \$XBase::Base::errstr;
@@ -145,7 +145,7 @@ sub read_header {
 				$wproc = sub { reverse scalar pack 'd', shift; };
 			}
 		}
-		elsif ($type =~ /^[MGP]$/) {	# memo fields
+		elsif ($type =~ /^[WMGP]$/) {	# memo fields
 			my $memo = $self->{'memo'};
 			if (not defined $memo and not $self->{'openoptions'}{'ignorememo'}) {
 				$memo = $self->{'memo'} = $self->init_memo_field() or return;
@@ -1402,7 +1402,7 @@ Thanks a lot.
 
 =head1 VERSION
 
-1.02
+1.06
 
 =head1 AVAILABLE FROM
 
@@ -1410,7 +1410,7 @@ http://www.adelton.com/perl/DBD-XBase/
 
 =head1 AUTHOR
 
-(c) 1997--2011 Jan Pazdziora.
+(c) 1997--2016 Jan Pazdziora.
 
 All rights reserved. This package is free software; you can
 redistribute it and/or modify it under the same terms as Perl itself.

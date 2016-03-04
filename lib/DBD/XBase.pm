@@ -19,7 +19,7 @@ use Exporter;
 use vars qw( $VERSION @ISA @EXPORT $err $errstr $drh $sqlstate );
 			# a couple of global variables that may come handy
 
-$VERSION = '1.05';
+$VERSION = '1.06';
 
 $err = 0;
 $errstr = '';
@@ -762,7 +762,7 @@ The memo fields will come out as nulls.
 
 =head1 VERSION
 
-1.05
+1.06
 
 =head1 AVAILABLE FROM
 
@@ -770,7 +770,7 @@ http://www.adelton.com/perl/DBD-XBase/
 
 =head1 AUTHOR
 
-(c) 1997--2013 Jan Pazdziora.
+(c) 1997--2016 Jan Pazdziora.
 
 Contact the author at jpx dash perl at adelton dot com.
 
