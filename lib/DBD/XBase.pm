@@ -19,7 +19,7 @@ use Exporter;
 use vars qw( $VERSION @ISA @EXPORT $err $errstr $drh $sqlstate );
 			# a couple of global variables that may come handy
 
-$VERSION = '1.06';
+$VERSION = '1.07';
 
 $err = 0;
 $errstr = '';
@@ -183,14 +183,16 @@ sub disconnect {
 # return list of them.
 sub table_info {
 	my $dbh = shift;
-	my $sth = DBI::_new_sth($dbh, { 'xbase_lines' =>
-		[ map { [ undef, undef, $_, 'TABLE', undef ] } $dbh->tables ]
-		} );
+	my $xbase_lines = [ map { [ undef, undef, $_, 'TABLE', undef ] } $dbh->tables ];
+	my $sth = DBI::_new_sth($dbh, {
+		'xbase_lines' => $xbase_lines,
+		'xbase_nondata_name' => [ qw! TABLE_QUALIFIER TABLE_OWNER
+					TABLE_NAME TABLE_TYPE REMARKS !],
+		},
+	);
 	$sth->STORE('NUM_OF_FIELDS', 5);
-	$sth->{'xbase_nondata_name'} = [ qw! TABLE_QUALIFIER TABLE_OWNER
-					TABLE_NAME TABLE_TYPE REMARKS !];
-	$sth->execute and return $sth;
-	return;
+	$sth->DBD::XBase::st::_set_rows(scalar @$xbase_lines);
+	return $sth;
 }
 
 # Very unreadable structure that the specs requires us to keep. It
@@ -284,11 +286,10 @@ sub execute {
 	# binded parameters
 	my $bind_values = $sth->{'xbase_bind_values'};
 
-	if (defined $sth->{'xbase_lines'}) { return -1; }
-
 	# cancel the count of rows done in the previous run, this is a
 	# new execute
 	$sth->{'xbase_rows'} = undef;
+	delete $sth->{'xbase_lines'};
 	
 	# we'll nee dbh, table name and to command to do with them	
 	my $dbh = $sth->{'Database'};
@@ -386,7 +387,7 @@ sub execute {
 	my $wherefn = $parsed_sql->{'wherefn'};
 
 	# we expand selectall to list of fields
-	if (defined $parsed_sql->{'selectall'}) {
+	if (defined $parsed_sql->{'selectall'} and not defined $parsed_sql->{'selectfieldscount'}) {
 		$parsed_sql->{'selectnames'} = [ $xbase->field_names ];
 		push @{$parsed_sql->{'usedfields'}}, $xbase->field_names;
 		$parsed_sql->{'selectfieldscount'} = scalar $xbase->field_names;
@@ -762,7 +763,7 @@ The memo fields will come out as nulls.
 
 =head1 VERSION
 
-1.06
+1.07
 
 =head1 AVAILABLE FROM
 
