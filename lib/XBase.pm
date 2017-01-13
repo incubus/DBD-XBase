@@ -20,7 +20,7 @@ use XBase::Base;		# will give us general methods
 use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
-$VERSION = '1.06';
+$VERSION = '1.08';
 $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 
 *errstr = \$XBase::Base::errstr;
@@ -136,7 +136,7 @@ sub read_header {
 			$rproc = sub { unpack 'V', shift; };
 			$wproc = sub { pack 'V', shift; };
 		}
-		elsif ($type eq 'B') {		# Fox double
+		elsif ($type eq 'B' and $length == 8) {		# Fox double
 			if (pack("L", 1) eq pack("V", 1)) {
 				$rproc = sub { unpack 'd', scalar shift; };
 				$wproc = sub { scalar pack 'd', shift; };
@@ -145,7 +145,7 @@ sub read_header {
 				$wproc = sub { reverse scalar pack 'd', shift; };
 			}
 		}
-		elsif ($type =~ /^[WMGP]$/) {	# memo fields
+		elsif ($type =~ /^[WMGPB]$/) {	# memo fields
 			my $memo = $self->{'memo'};
 			if (not defined $memo and not $self->{'openoptions'}{'ignorememo'}) {
 				$memo = $self->{'memo'} = $self->init_memo_field() or return;
@@ -1402,7 +1402,7 @@ Thanks a lot.
 
 =head1 VERSION
 
-1.06
+1.08
 
 =head1 AVAILABLE FROM
 
@@ -1410,7 +1410,7 @@ http://www.adelton.com/perl/DBD-XBase/
 
 =head1 AUTHOR
 
-(c) 1997--2016 Jan Pazdziora.
+(c) 1997--2017 Jan Pazdziora.
 
 All rights reserved. This package is free software; you can
 redistribute it and/or modify it under the same terms as Perl itself.

@@ -1,6 +1,9 @@
 
 Revision history for Perl extension XBase and DBD::XBase.
 
+1.08 Fri Jan 13 21:20:15 CET 2017
+	Add support for dBASE IV memo type B.
+
 1.07 Tue May  3 19:45:23 CEST 2016
 	Resolving the xbase_lines regression of 1.06.
 
