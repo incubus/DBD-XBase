@@ -11,7 +11,7 @@ use vars qw( @ISA $DEBUG $VERSION $VERBOSE $BIGEND );
 use XBase::Base;
 @ISA = qw( XBase::Base );
 
-$VERSION = '1.05';
+$VERSION = '1.09';
 
 $DEBUG = 0;
 
@@ -1813,7 +1813,7 @@ directory.
 
 =head1 VERSION
 
-1.05
+1.09
 
 =head1 AVAILABLE FROM
 

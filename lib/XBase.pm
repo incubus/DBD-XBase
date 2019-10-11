@@ -20,7 +20,7 @@ use XBase::Base;		# will give us general methods
 use vars qw( $VERSION $errstr $CLEARNULLS @ISA );
 
 @ISA = qw( XBase::Base );
-$VERSION = '1.08';
+$VERSION = '1.09';
 $CLEARNULLS = 1;		# Cut off white spaces from ends of char fields
 
 *errstr = \$XBase::Base::errstr;
@@ -1008,6 +1008,12 @@ sub last_fetched {
 	shift->[1] - 1;
 }
 
+sub close {
+	my $self = shift;
+	my ($xbase, $recno, $fieldnums, $fieldnames, $index) = @$self;
+	$index->close();
+}
+
 1;
 
 __END__
@@ -1402,7 +1408,7 @@ Thanks a lot.
 
 =head1 VERSION
 
-1.08
+1.09
 
 =head1 AVAILABLE FROM
 
